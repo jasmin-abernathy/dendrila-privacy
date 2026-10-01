@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var config = window.PixelTrackersManagerConsentEarlyConfig || {};
+    var config = window.DendrilaPrivacyConsentEarlyConfig || window.PixelTrackersManagerConsentEarlyConfig || {};
     var marker = document.currentScript;
     var retentionDays = Number(config.retentionDays || (marker ? marker.getAttribute('data-retention-days') : 180) || 180);
     var storageKey = 'pixel_trackers_manager_consent_v2';
@@ -180,10 +180,13 @@
         };
     }
 
-    window.PixelTrackersManagerConsentEarly = {
+    var earlyApi = {
         classify: classify,
         setCurrent: function (choice) {
             current = choice || null;
         }
     };
+    window.DendrilaPrivacyConsentEarly = earlyApi;
+    // Pre-publication alias retained for compatibility.
+    window.PixelTrackersManagerConsentEarly = earlyApi;
 }());

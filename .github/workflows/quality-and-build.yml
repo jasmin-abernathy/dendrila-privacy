@@ -1,4 +1,4 @@
-name: PTM quality and distribution
+name: Dendrila Privacy quality and distribution
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*'
     paths:
-      - 'pixel-trackers-manager.php'
+      - 'dendrila-privacy.php'
       - 'includes/**'
       - 'assets/**'
       - 'languages/**'
@@ -18,7 +18,7 @@ on:
     branches:
       - master
     paths:
-      - 'pixel-trackers-manager.php'
+      - 'dendrila-privacy.php'
       - 'includes/**'
       - 'assets/**'
       - 'languages/**'
@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ptm-quality-${{ github.workflow }}-${{ github.ref }}
+  group: dendrila-privacy-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -55,8 +55,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' pixel-trackers-manager.php | head -n1 | tr -d '\r')
-          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" pixel-trackers-manager.php | head -n1 | tr -d '\r')
+          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' dendrila-privacy.php | head -n1 | tr -d '\r')
+          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" dendrila-privacy.php | head -n1 | tr -d '\r')
           STABLE_TAG=$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n1 | tr -d '\r')
           test -n "$PLUGIN_VERSION"
           test "$PLUGIN_VERSION" = "$CONST_VERSION"
@@ -80,8 +80,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' pixel-trackers-manager.php | head -n1 | tr -d '\r')
-          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" pixel-trackers-manager.php | head -n1 | tr -d '\r')
+          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' dendrila-privacy.php | head -n1 | tr -d '\r')
+          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" dendrila-privacy.php | head -n1 | tr -d '\r')
           STABLE_TAG=$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n1 | tr -d '\r')
           TAG_COUNT=$(grep '^Tags:' readme.txt | cut -d: -f2- | tr ',' '\n' | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')
           README_BYTES=$(wc -c < readme.txt | tr -d ' ')
@@ -163,7 +163,7 @@ jobs:
         uses: wordpress/plugin-check-action@v1.1.9
         with:
           wp-version: latest
-          slug: pixel-trackers-manager
+          slug: dendrila-privacy
           exclude-directories: '.github,docs,build,dist'
           exclude-files: '.gitattributes,.editorconfig,.gitignore,.distignore,README.md,README.fr.md,CODE_OF_CONDUCT.md,CODE_OF_CONDUCT.fr.md,CONTRIBUTING.md,CONTRIBUTING.fr.md,SECURITY.md,SECURITY.fr.md,AGENTS.md,COPYRIGHT.md,TRADEMARKS.md'
 
@@ -186,10 +186,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' pixel-trackers-manager.php | head -n1 | tr -d '\r')
-          ZIP="build/pixel-trackers-manager-${VERSION}.zip"
-          STAGE="${RUNNER_TEMP}/ptm-dist"
-          ROOT="${STAGE}/pixel-trackers-manager"
+          VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' dendrila-privacy.php | head -n1 | tr -d '\r')
+          ZIP="build/dendrila-privacy-${VERSION}.zip"
+          STAGE="${RUNNER_TEMP}/dendrila-privacy-dist"
+          ROOT="${STAGE}/dendrila-privacy"
 
           rm -rf "$STAGE"
           mkdir -p "$ROOT" build
@@ -200,16 +200,16 @@ jobs:
 
           (
             cd "$STAGE"
-            zip -qr "${GITHUB_WORKSPACE}/$ZIP" pixel-trackers-manager
+            zip -qr "${GITHUB_WORKSPACE}/$ZIP" dendrila-privacy
           )
 
           unzip -t "$ZIP"
-          unzip -Z1 "$ZIP" | grep -qx 'pixel-trackers-manager/pixel-trackers-manager.php'
-          unzip -Z1 "$ZIP" | grep -qx 'pixel-trackers-manager/readme.txt'
-          unzip -Z1 "$ZIP" | grep -qx 'pixel-trackers-manager/LICENSE'
+          unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/dendrila-privacy.php'
+          unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/readme.txt'
+          unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/LICENSE'
 
           for forbidden in '.github/' 'docs/' 'README.md' 'README.fr.md' '.distignore' '.gitignore' '.gitattributes' '.editorconfig' 'CODE_OF_CONDUCT.md' 'CONTRIBUTING.md' 'SECURITY.md' 'AGENTS.md' 'COPYRIGHT.md' 'TRADEMARKS.md'; do
-            if unzip -Z1 "$ZIP" | grep -q "^pixel-trackers-manager/${forbidden}"; then
+            if unzip -Z1 "$ZIP" | grep -q "^dendrila-privacy/${forbidden}"; then
               echo "Development-only path leaked into distribution: ${forbidden}"
               exit 1
             fi
@@ -223,7 +223,7 @@ jobs:
       - name: Upload installable ZIP
         uses: actions/upload-artifact@v7
         with:
-          name: pixel-trackers-manager-${{ steps.package.outputs.version }}.zip
+          name: dendrila-privacy-${{ steps.package.outputs.version }}.zip
           path: ${{ steps.package.outputs.zip }}
           archive: false
           retention-days: 7

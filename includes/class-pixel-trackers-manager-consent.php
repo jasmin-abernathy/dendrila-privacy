@@ -123,15 +123,18 @@ final class Pixel_Trackers_Manager_Consent {
 
         // Load the early blocker through WordPress' script API, in the head, before the
         // main consent UI. This keeps PTM compatible with Plugin Check and builders.
-        wp_enqueue_script( $bootstrap_handle, plugin_dir_url( dirname( __DIR__ ) . '/pixel-trackers-manager.php' ) . 'assets/consent-bootstrap.js', array(), $asset_version, false );
-        wp_localize_script( $bootstrap_handle, 'PixelTrackersManagerConsentEarlyConfig', array(
+        wp_enqueue_script( $bootstrap_handle, plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent-bootstrap.js', array(), $asset_version, false );
+        $early_config = array(
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
-        ) );
-        wp_enqueue_style( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/pixel-trackers-manager.php' ) . 'assets/consent.css', array(), $asset_version );
-        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/pixel-trackers-manager.php' ) . 'assets/consent.js', array( $bootstrap_handle ), $asset_version, false );
-        wp_localize_script( 'pixel-trackers-manager-consent', 'PixelTrackersManagerConsent', array(
+        );
+        wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
+        // Backward-compatible alias for pre-publication integrations.
+        wp_localize_script( $bootstrap_handle, 'PixelTrackersManagerConsentEarlyConfig', $early_config );
+        wp_enqueue_style( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.css', array(), $asset_version );
+        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.js', array( $bootstrap_handle ), $asset_version, false );
+        $consent_config = array(
             'storageKey' => 'pixel_trackers_manager_consent_v2',
             'retentionDays' => (int) $settings['consent_retention_days'],
             'style' => $settings['consent_style'],
@@ -141,7 +144,10 @@ final class Pixel_Trackers_Manager_Consent {
             'domains' => $this->domain_map(),
             'preview' => '' !== $this->query_value( 'pixel_trackers_manager_consent_preview' ) && current_user_can( 'manage_options' ),
             'testMode' => $test_mode,
-        ) );
+        );
+        wp_localize_script( 'pixel-trackers-manager-consent', 'DendrilaPrivacyConsent', $consent_config );
+        // Backward-compatible alias for pre-publication integrations.
+        wp_localize_script( 'pixel-trackers-manager-consent', 'PixelTrackersManagerConsent', $consent_config );
     }
 
     private function active_categories() {
@@ -242,7 +248,7 @@ final class Pixel_Trackers_Manager_Consent {
         if ( ! $this->rendered ) { $this->render_banner(); }
         $settings = $this->plugin->public_settings();
         if ( ! empty( $settings['consent_footer_link'] ) ) {
-            echo '<div class="ptm-consent-footer-link"><button type="button" class="ptm-consent-open" data-ptm-consent-open="preferences" aria-haspopup="dialog">'.esc_html__('Gérer mes choix','pixel-trackers-manager').'</button></div>';
+            echo '<div class="ptm-consent-footer-link"><button type="button" class="ptm-consent-open" data-ptm-consent-open="preferences" aria-haspopup="dialog">'.esc_html__('Gérer mes choix','dendrila-privacy').'</button></div>';
         }
     }
 

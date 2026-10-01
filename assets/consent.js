@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var cfg = window.PixelTrackersManagerConsent || {};
+    var cfg = window.DendrilaPrivacyConsent || window.PixelTrackersManagerConsent || {};
     var storageKey = cfg.storageKey || 'pixel_trackers_manager_consent_v1';
     var current = null;
     var lastFocusedElement = null;
@@ -283,8 +283,9 @@
     }
 
     function syncEarlyGuard(choice) {
-        if (window.PixelTrackersManagerConsentEarly && typeof window.PixelTrackersManagerConsentEarly.setCurrent === 'function') {
-            window.PixelTrackersManagerConsentEarly.setCurrent(choice);
+        var earlyGuard = window.DendrilaPrivacyConsentEarly || window.PixelTrackersManagerConsentEarly;
+        if (earlyGuard && typeof earlyGuard.setCurrent === 'function') {
+            earlyGuard.setCurrent(choice);
         }
     }
 
@@ -558,12 +559,15 @@
             }
         };
 
+        window.DendrilaPrivacyConsentAPI = api;
+        // Pre-publication API alias retained so test sites and integrations do not break.
         window.PixelTrackersManagerConsentAPI = api;
         cfg.open = api.open;
         cfg.openPreferences = api.openPreferences;
         cfg.close = api.close;
         cfg.getChoice = api.getChoice;
         cfg.saveChoice = api.saveChoice;
+        window.DendrilaPrivacyConsent = cfg;
         window.PixelTrackersManagerConsent = cfg;
     }
 

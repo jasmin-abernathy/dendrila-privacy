@@ -304,7 +304,7 @@
                     try {
                         payload = JSON.parse(cleaned);
                     } catch (parseError) {
-                        var err = new Error('Le serveur n’a pas renvoyé une réponse exploitable (code HTTP ' + r.status + '). Pixel Trackers Manager va utiliser l’enregistrement WordPress standard.');
+                        var err = new Error('Le serveur n’a pas renvoyé une réponse exploitable (code HTTP ' + r.status + '). Dendrila Privacy va utiliser l’enregistrement WordPress standard.');
                         err.ptmNonJson = true;
                         err.httpStatus = r.status;
                         err.responsePreview = cleaned.slice(0, 500);
@@ -347,7 +347,7 @@
                     form.dispatchEvent(new CustomEvent('ptm:section-saved', {detail: out}));
                 }).catch(function (err) {
                     if (err && err.ptmNonJson) {
-                        if (status) { status.textContent = 'L’enregistrement rapide est indisponible sur ce site. Pixel Trackers Manager utilise l’enregistrement WordPress standard…'; status.className = 'ptm-section-save-status is-saving'; }
+                        if (status) { status.textContent = 'L’enregistrement rapide est indisponible sur ce site. Dendrila Privacy utilise l’enregistrement WordPress standard…'; status.className = 'ptm-section-save-status is-saving'; }
                         var fallbackStep = form.dataset.ptmNextStep || '';
                         if (fallbackStep) {
                             var nextInput = form.querySelector('[data-ptm-next-step-input]');
@@ -463,7 +463,7 @@
                     } else {
                         var noCoords = document.createElement('p');
                         noCoords.className = 'ptm-host-warning';
-                        noCoords.textContent = 'Pixel Trackers Manager reconnaît ce fournisseur mais ne dispose pas encore de coordonnées officielles vérifiées dans sa base. Complétez-les manuellement.';
+                        noCoords.textContent = 'Dendrila Privacy reconnaît ce fournisseur mais ne dispose pas encore de coordonnées officielles vérifiées dans sa base. Complétez-les manuellement.';
                         hostResults.appendChild(noCoords);
                     }
 
@@ -527,7 +527,7 @@
                     hostResults.className = 'ptm-host-results';
                     hostResults.textContent = profile.address || profile.phone
                         ? 'Coordonnées connues préremplies dans les champs vides. Vérifiez-les puis enregistrez ce bloc.'
-                        : 'Fournisseur reconnu, mais Pixel Trackers Manager ne dispose pas encore de coordonnées officielles vérifiées pour ce fournisseur.';
+                        : 'Fournisseur reconnu, mais Dendrila Privacy ne dispose pas encore de coordonnées officielles vérifiées pour ce fournisseur.';
                 }
             });
         }

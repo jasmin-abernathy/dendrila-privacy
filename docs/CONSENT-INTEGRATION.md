@@ -2,7 +2,7 @@
 
 ## Architecture retenue
 
-La bannière de Pixel Trackers Manager est un composant global indépendant de Gutenberg, Elementor, Divi et des autres constructeurs.
+La bannière de Dendrila Privacy est un composant global indépendant de Gutenberg, Elementor, Divi et des autres constructeurs.
 
 Le PHP peut produire le conteneur via `wp_body_open` ou, si le thème ne l’expose pas correctement, via le fallback `wp_footer`. Au chargement du front, le moteur JavaScript récupère ensuite `#pixel-trackers-manager-consent` et le monte directement sous `<body>`.
 
@@ -28,18 +28,18 @@ ou :
 
 Cela permet d’utiliser le même mécanisme dans Gutenberg, Elementor, Divi, un menu, un footer, une popup ou un module HTML/code.
 
-Le shortcode `[pixel_trackers_manager_consent_settings]` et le widget Elementor restent les moyens simples à privilégier lorsqu’ils conviennent.
+Le shortcode `[dendrila_privacy_consent_settings]` et le widget Elementor restent les moyens simples à privilégier lorsqu’ils conviennent.
 
 ## API JavaScript publique
 
 PTM expose également :
 
 ```js
-window.PixelTrackersManagerConsentAPI.open();
-window.PixelTrackersManagerConsentAPI.openPreferences();
-window.PixelTrackersManagerConsentAPI.close();
-window.PixelTrackersManagerConsentAPI.getChoice();
-window.PixelTrackersManagerConsentAPI.saveChoice({
+window.DendrilaPrivacyConsentAPI.open();
+window.DendrilaPrivacyConsentAPI.openPreferences();
+window.DendrilaPrivacyConsentAPI.close();
+window.DendrilaPrivacyConsentAPI.getChoice();
+window.DendrilaPrivacyConsentAPI.saveChoice({
     statistics: false,
     external: true,
     marketing: false

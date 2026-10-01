@@ -1,4 +1,4 @@
-# Pixel Trackers Manager — procédure WordPress.org
+# Dendrila Privacy — procédure WordPress.org
 
 Ce document sépare volontairement le développement GitHub de la distribution WordPress.org.
 
@@ -18,7 +18,7 @@ Avant une vraie publication WordPress.org :
 
 1. choisir une version numérique, par exemple `0.0.2` ou `0.1.0` ;
 2. mettre exactement la même version dans :
-   - le header `Version:` de `pixel-trackers-manager.php` ;
+   - le header `Version:` de `dendrila-privacy.php` ;
    - `Pixel_Trackers_Manager_Plugin::VERSION` ;
    - `Stable tag:` de `readme.txt` ;
 3. utiliser cette version numérique pour le tag SVN WordPress.org.
@@ -56,11 +56,11 @@ Les erreurs Plugin Check ne doivent pas être masquées pour obtenir artificiell
 
 Le ZIP distribué doit contenir une seule racine :
 
-`pixel-trackers-manager/`
+`dendrila-privacy/`
 
 Il contient notamment :
 
-- `pixel-trackers-manager.php` ;
+- `dendrila-privacy.php` ;
 - `readme.txt` ;
 - `LICENSE` ;
 - `changelog.txt` ;
