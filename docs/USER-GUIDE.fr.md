@@ -30,7 +30,7 @@ PTM n’essaie pas de maximiser les clics sur « Accepter ». **Tout accepter** 
 
 La bannière est rendue comme un composant global indépendant du constructeur de pages. Au chargement, PTM la place directement sous `<body>` afin qu’elle ne reste pas enfermée dans une section Divi, un container Elementor ou un autre contexte d’empilement pouvant la faire passer derrière le contenu.
 
-Les visiteurs peuvent rouvrir directement leurs préférences avec **Gérer mes choix**. Le shortcode universel est `[ptm_consent_settings]`.
+Les visiteurs peuvent rouvrir directement leurs préférences avec **Gérer mes choix**. Le shortcode universel est `[pixel_trackers_manager_consent_settings]`.
 
 Pour un bouton personnalisé créé dans Divi, Elementor, Gutenberg ou le thème, vous pouvez aussi utiliser :
 
@@ -82,13 +82,13 @@ Le moteur public de consentement reste indépendant de ces constructeurs.
 
 ## Shortcodes publics
 
-- `[ptm_legal_notice]`
-- `[ptm_privacy_policy]`
-- `[ptm_cookies]`
-- `[ptm_services]`
-- `[ptm_rights]`
-- `[ptm_documents]`
-- `[ptm_consent_settings]`
+- `[pixel_trackers_manager_legal_notice]`
+- `[pixel_trackers_manager_privacy_policy]`
+- `[pixel_trackers_manager_cookies]`
+- `[pixel_trackers_manager_services]`
+- `[pixel_trackers_manager_rights]`
+- `[pixel_trackers_manager_documents]`
+- `[pixel_trackers_manager_consent_settings]`
 
 ## Erreurs de scan
 
