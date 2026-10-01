@@ -2,7 +2,7 @@
 
 Copyright © 2026 Le Potager du Web and contributors.
 
-Pixel Trackers Manager (PTM) is developed and maintained by Le Potager du Web. Individual contributors retain copyright in their contributions where applicable.
+Dendrila Privacy (PTM) is developed and maintained by Le Potager du Web. Individual contributors retain copyright in their contributions where applicable.
 
 ## License
 
