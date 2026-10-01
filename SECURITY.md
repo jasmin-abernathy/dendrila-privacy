@@ -15,6 +15,6 @@ Ordinary functional bugs with no security impact can use the public Bug issue te
 
 ## Supported versions
 
-Pixel Trackers Manager is currently in pre-release testing (`0.0.2-test4`). Security fixes target the active development line and are moved into the stable test branch after validation.
+Dendrila Privacy is currently in WordPress.org pre-release review (`0.0.4`). Security fixes target the active development line and are moved into the stable test branch after validation.
 
 No pre-release build should be treated as a long-term supported security release.
