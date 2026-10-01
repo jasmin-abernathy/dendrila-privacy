@@ -7,7 +7,7 @@ Dendrila Privacy 0.0.4
 - Les clés d’options, métadonnées, identifiants de stockage et autres identifiants internes restent inchangés afin de préserver les réglages des sites de test.
 - Archive WordPress.org construite sous le dossier dendrila-privacy/.
 
-Pixel Trackers Manager 0.0.3
+Dendrila Privacy 0.0.3
 
 - Correctifs demandés pendant la pré-revue WordPress.org : le style de l’icône admin passe désormais par l’API d’enqueue WordPress.
 - Les shortcodes publics utilisent le préfixe distinctif pixel_trackers_manager_. Les anciens marqueurs ptm_ issus des builds de développement sont réécrits à l’affichage sur les contenus WordPress usuels afin de ne pas casser les pages de test existantes.
@@ -15,7 +15,7 @@ Pixel Trackers Manager 0.0.3
 - Le readme distingue explicitement l’appel facultatif à l’API DINUM des signatures Google/Meta/Maps/etc. utilisées uniquement pour la détection locale.
 - Version de soumission portée à 0.0.3.
 
-Pixel Trackers Manager 0.0.2
+Dendrila Privacy 0.0.2
 
 - Correctif consentement du 30 août 2026 : la bannière est désormais montée directement sous `<body>` afin de sortir des contextes d’empilement propres à Divi, Elementor et aux thèmes ; les propriétés structurelles du calque sont protégées contre les surcharges de builder.
 - Les contrôles « Gérer mes choix » sont désormais interceptés en phase capture et peuvent être placés dans Divi, Elementor, Gutenberg, un menu, un footer ou une popup via `.ptm-consent-open` ou `data-ptm-consent-open="preferences"`.
@@ -33,13 +33,13 @@ Pixel Trackers Manager 0.0.2
 - Bannière PTM indépendante des builders ; éditeurs visuels exclus du blocage et adaptation Divi Maps/reCAPTCHA après consentement.
 - Trois niveaux de lecture : problème constaté, à vérifier, conseil.
 
-Pixel Trackers Manager 0.0.2-test3
+Dendrila Privacy 0.0.2-test3
 - Correctif critique : le paramètre de lancement automatique du premier scan est désormais consommé avant le démarrage et supprimé avant le rafraîchissement final ; une analyse terminée ne peut plus se relancer toute seule.
 - Assistant : les actions Retour / Continuer sont regroupées en bas à droite, avec Continuer comme action la plus à droite.
 
-Pixel Trackers Manager 0.0.2-test2
+Dendrila Privacy 0.0.2-test2
 - Onboarding visuel en quatre étapes, inspiré des assistants de configuration modernes : bienvenue, pages légales, consentement, premier scan.
-- L’onboarding se déclenche à la première ouverture de Pixel Trackers Manager et reste reprenable ; l’activation elle-même reste silencieuse.
+- L’onboarding se déclenche à la première ouverture de Dendrila Privacy et reste reprenable ; l’activation elle-même reste silencieuse.
 - Dernière étape : l’analyse complète devient l’action recommandée, sans jamais être lancée sans clic explicite.
 - Encadré du Tableau de bord WordPress tant que PTM n’est pas configuré, puis rappel léger tant qu’aucune première analyse complète n’a été faite ; les deux sont masquables par utilisateur.
 - Présentation de la gestion du consentement clarifiée : barre ou encart, style du site ou style neutre, conservation d’une CMP tierce lorsqu’elle est détectée.
@@ -53,7 +53,7 @@ Pixel Trackers Manager 0.0.2-test2
 - Vue d’ensemble plus navigable : KPI, carte consentement, actions et titres récapitulatifs mènent aux sections correspondantes.
 - Refonte visuelle : onglets raccordés au contenu, coins extérieurs arrondis, boutons secondaires pâles, cartes plus douces et cohérentes.
 
-Pixel Trackers Manager 0.0.2-test1
+Dendrila Privacy 0.0.2-test1
 - Assistant de configuration lancé à la première ouverture du plugin, pas à l’activation.
 - Détection renforcée des trois pages juridiques via titre, contenu local et données de builders reconnues.
 - Sélection manuelle ou création explicite en brouillon d’une page réellement absente.
@@ -65,13 +65,13 @@ Pixel Trackers Manager 0.0.2-test1
 - Assistant initial relançable depuis Réglages.
 - Les brouillons juridiques ne sont pas ajoutés au crawl public tant qu’ils ne sont pas publiés.
 
-Pixel Trackers Manager 0.0.1
+Dendrila Privacy 0.0.1
 - Première version publique. Les numéros 0.1 à 0.9 utilisés pendant la conception restent un historique de développement interne et ne font pas partie du versionnement public.
 - Analyse du site accélérée : jusqu'à trois pages sont traitées par requête avec une limite de temps prudente pour les hébergements mutualisés.
 - Une page inaccessible ou en erreur est enregistrée comme telle sans interrompre l'analyse des autres pages.
 - Décodage des titres corrigé pour les accents, apostrophes et entités HTML.
 - Score documentaire simplifié : chaque exigence réellement applicable compte une fois ; les situations non applicables et les champs facultatifs silencieux ne réduisent pas le score.
-- Assistant : une information inconnue n'est plus assimilée automatiquement à une erreur. Une question conditionnelle ne revient que si l'utilisateur a déclaré que la situation s'applique ou si Pixel Trackers Manager possède un signal technique pertinent.
+- Assistant : une information inconnue n'est plus assimilée automatiquement à une erreur. Une question conditionnelle ne revient que si l'utilisateur a déclaré que la situation s'applique ou si Dendrila Privacy possède un signal technique pertinent.
 - Mentions légales : les champs utiles mais non indispensables ne bloquent plus la publication du contenu généré.
 - Publication : action groupée pour mettre à jour toutes les pages prises en charge en une fois.
 - Elementor : lecture locale préservée, insertion explicite des documents et widget natif léger « Gérer mes choix ».
@@ -85,4 +85,4 @@ Pixel Trackers Manager 0.0.1
 - Fermer la bannière sans répondre conserve le blocage protecteur.
 - Préférences enregistrées localement dans le navigateur, durée configurable et accès permanent « Gérer mes choix ».
 - Héritage visuel automatique possible depuis Elementor, Divi, Gutenberg ou le thème, sans reprendre une différence de couleur qui favoriserait l'acceptation.
-- Migration des données des versions de développement vers le namespace public Pixel Trackers Manager.
+- Migration des données des versions de développement vers le namespace public Dendrila Privacy.
