@@ -56,7 +56,7 @@ Les erreurs Plugin Check ne doivent pas être masquées pour obtenir artificiell
 
 Le ZIP distribué doit contenir une seule racine :
 
-`pixel-trackers-manager/`
+`dendrila-privacy/`
 
 Il contient notamment :
 
