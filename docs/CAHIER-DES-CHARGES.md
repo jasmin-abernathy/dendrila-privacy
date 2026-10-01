@@ -123,9 +123,9 @@ Pour chaque destination :
 - Réutiliser les informations déjà connues par PTM.
 - Ne jamais bloquer la création pour des informations facultatives.
 - Shortcodes publics de base :
-  - `[ptm_legal_notice]`
-  - `[ptm_privacy_policy]`
-  - `[ptm_cookies]`
+  - `[pixel_trackers_manager_legal_notice]`
+  - `[pixel_trackers_manager_privacy_policy]`
+  - `[pixel_trackers_manager_cookies]`
 
 ### Constructeurs
 Détection **page par page**, jamais par simple présence d’un thème/plugin :

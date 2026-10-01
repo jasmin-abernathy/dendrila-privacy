@@ -13,7 +13,7 @@ final class Pixel_Trackers_Manager_Consent {
 
     private function __construct( $plugin ) {
         $this->plugin = $plugin;
-        add_action( 'template_redirect', array( $this, 'start_html_safety_net' ), -100 );
+        add_filter( 'wp_template_enhancement_output_buffer', array( $this, 'filter_full_html' ), 10, 2 );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ), 1 );
         add_action( 'wp_body_open', array( $this, 'render_banner' ), 1 );
         add_action( 'wp_footer', array( $this, 'footer' ), 1 );
@@ -76,18 +76,14 @@ final class Pixel_Trackers_Manager_Consent {
         return '';
     }
 
-    public function start_html_safety_net() {
-        if ( ! $this->enabled() || is_feed() || is_trackback() || is_robots() ) { return; }
-        // Fallback for raw scripts printed directly by a theme/builder instead of WordPress'
-        // script API. The normal path remains script_loader_tag/the_content; this only catches
-        // known external URLs that would otherwise leave before consent.
-        ob_start( array( $this, 'filter_full_html' ) );
-    }
-
-    public function filter_full_html( $html ) {
+    public function filter_full_html( $html, $original_html = '' ) {
+        if ( ! $this->enabled() || is_feed() || is_trackback() || is_robots() ) { return $html; }
         if ( ! is_string( $html ) || '' === $html || strlen( $html ) > 5 * 1024 * 1024 ) { return $html; }
-        // Server-side safety net for markup printed outside the WordPress script API.
-        // The early browser guard itself is enqueued normally in the document head.
+
+        // WordPress 6.9+ invokes this through the standardized template enhancement
+        // output buffer. On older supported versions the hook is not fired; the
+        // script_loader_tag/content filters and early browser guard remain active
+        // without opening a plugin-owned full-page output buffer.
         return $this->filter_content( $html );
     }
 

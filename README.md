@@ -6,7 +6,7 @@ Pixel Trackers Manager (PTM) is a **local-first** WordPress privacy audit, docum
 
 It helps administrators understand what their site actually does: identify trackers and third-party services, review legal pages, document relevant data practices and optionally manage visitor consent.
 
-> **Current status:** development build `0.0.2-test4`. PTM is not a legal certification tool and does not replace advice adapted to the organisation's actual activities.
+> **Current status:** WordPress.org review candidate `0.0.3`. PTM is not a legal certification tool and does not replace advice adapted to the organisation's actual activities.
 
 ## Core principles
 
@@ -89,7 +89,7 @@ The metadata currently targets WordPress 7.1. Before a build is submitted to Wor
 
 ## Versioning and WordPress.org
 
-`0.0.2-test4` is a **GitHub development version**. A real WordPress.org release will use a numeric version such as `0.0.2` or `0.1.0`, identical in the PHP header, runtime constant and `Stable tag`.
+`0.0.3` is the current **WordPress.org review candidate**, with the same numeric version in the PHP header, runtime constant and `Stable tag`.
 
 The WordPress.org SVN repository will be treated as a release repository rather than a mirror of every GitHub commit.
 

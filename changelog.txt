@@ -1,3 +1,11 @@
+Pixel Trackers Manager 0.0.3
+
+- Correctifs demandés pendant la pré-revue WordPress.org : le style de l’icône admin passe désormais par l’API d’enqueue WordPress.
+- Les shortcodes publics utilisent le préfixe distinctif pixel_trackers_manager_. Les anciens marqueurs ptm_ issus des builds de développement sont réécrits à l’affichage sur les contenus WordPress usuels afin de ne pas casser les pages de test existantes.
+- Le filet de sécurité plein HTML du consentement s’appuie sur le buffer standardisé de WordPress 6.9+ et n’ouvre plus de buffer global propre au plugin.
+- Le readme distingue explicitement l’appel facultatif à l’API DINUM des signatures Google/Meta/Maps/etc. utilisées uniquement pour la détection locale.
+- Version de soumission portée à 0.0.3.
+
 Pixel Trackers Manager 0.0.2
 
 - Correctif consentement du 30 août 2026 : la bannière est désormais montée directement sous `<body>` afin de sortir des contextes d’empilement propres à Divi, Elementor et aux thèmes ; les propriétés structurelles du calque sont protégées contre les surcharges de builder.

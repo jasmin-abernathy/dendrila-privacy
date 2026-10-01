@@ -30,7 +30,7 @@ Pixel Trackers Manager does not try to maximise “accept” clicks. **Accept al
 
 The banner is rendered as a global component independent from the page builder. On the front end, PTM mounts it directly below `<body>` so it cannot remain trapped inside a Divi section, Elementor container, or another stacking context that could place it behind the page content.
 
-Visitors can reopen their preferences through **Manage my choices**. Add `[ptm_consent_settings]` wherever you want that control to appear.
+Visitors can reopen their preferences through **Manage my choices**. Add `[pixel_trackers_manager_consent_settings]` wherever you want that control to appear.
 
 For a custom Divi, Elementor, Gutenberg, or theme control, you can use:
 
@@ -84,15 +84,15 @@ Pixel Trackers Manager also recognises common page-level signatures from Bricks,
 
 ## Public shortcodes
 
-- `[ptm_legal_notice]`
-- `[ptm_privacy_policy]`
-- `[ptm_cookies]`
-- `[ptm_services]`
-- `[ptm_rights]`
-- `[ptm_documents]`
-- `[ptm_consent_settings]`
+- `[pixel_trackers_manager_legal_notice]`
+- `[pixel_trackers_manager_privacy_policy]`
+- `[pixel_trackers_manager_cookies]`
+- `[pixel_trackers_manager_services]`
+- `[pixel_trackers_manager_rights]`
+- `[pixel_trackers_manager_documents]`
+- `[pixel_trackers_manager_consent_settings]`
 
-Older `ptm_...` aliases from development builds remain available where needed for migration.
+Legacy `ptm_...` markup from development builds is rewritten before shortcode rendering on ordinary WordPress content; only the long public shortcode namespace is registered.
 
 ## Consent and caches
 
