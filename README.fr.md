@@ -1,23 +1,23 @@
-# Pixel Trackers Manager
+# Dendrila Privacy
 
 [Read in English](README.md)
 
-Pixel Trackers Manager (PTM) est un assistant WordPress **local-first** d’audit de confidentialité, de documentation et de consentement, développé par **Le Potager du Web**.
+Dendrila Privacy (Dendrila Privacy) est un assistant WordPress **local-first** d’audit de confidentialité, de documentation et de consentement, développé par **Le Potager du Web**.
 
 Il aide l’administrateur à comprendre ce que fait réellement son site : repérer les traceurs et services tiers, contrôler les pages légales, documenter les pratiques liées aux données et, s’il le souhaite, gérer le consentement des visiteurs.
 
-> **État actuel :** version candidate WordPress.org `0.0.3`. PTM n’est pas un outil de certification juridique et ne remplace pas une analyse adaptée à l’activité réelle de l’organisation.
+> **État actuel :** version candidate WordPress.org `0.0.4` sous le nom public **Dendrila Privacy**. Dendrila Privacy n’est pas un outil de certification juridique et ne remplace pas une analyse adaptée à l’activité réelle de l’organisation.
 
 ## Principes du projet
 
-- **Détecter d’abord, demander ensuite.** PTM réutilise les informations déjà présentes dans WordPress avant de les redemander.
+- **Détecter d’abord, demander ensuite.** Dendrila Privacy réutilise les informations déjà présentes dans WordPress avant de les redemander.
 - **Local par défaut.** Les résultats d’audit, réglages et réponses restent dans WordPress, sauf action explicite de l’administrateur vers un service externe documenté.
-- **Aucune publication juridique silencieuse.** PTM peut préparer des brouillons et proposer des mises à jour, mais les changements publics importants demandent une validation explicite.
+- **Aucune publication juridique silencieuse.** Dendrila Privacy peut préparer des brouillons et proposer des mises à jour, mais les changements publics importants demandent une validation explicite.
 - **Pas de dark patterns.** Si l’interface de consentement native est activée, Accepter et Refuser gardent le même poids visuel.
 - **Moteur indépendant des builders.** Le consentement fonctionne au niveau WordPress ; Elementor, Divi et les autres constructeurs sont des couches de compatibilité, pas des dépendances.
-- **Écriture prudente.** Si PTM ne comprend pas assez sûrement la structure interne d’un constructeur, il utilise un shortcode ou un parcours manuel plutôt que de réécrire des données inconnues.
+- **Écriture prudente.** Si Dendrila Privacy ne comprend pas assez sûrement la structure interne d’un constructeur, il utilise un shortcode ou un parcours manuel plutôt que de réécrire des données inconnues.
 
-## Ce que PTM couvre actuellement
+## Ce que Dendrila Privacy couvre actuellement
 
 ### Analyse du site
 
@@ -48,7 +48,7 @@ Il aide l’administrateur à comprendre ce que fait réellement son site : rep�
 
 ### Compréhension de l’écosystème WordPress
 
-PTM peut exploiter ou inspecter prudemment des informations provenant de WordPress/Gutenberg, Elementor, Divi, certains plugins de formulaires, de sauvegarde, de consentement ou d’analytics.
+Dendrila Privacy peut exploiter ou inspecter prudemment des informations provenant de WordPress/Gutenberg, Elementor, Divi, certains plugins de formulaires, de sauvegarde, de consentement ou d’analytics.
 
 Le projet prévoit aussi de couvrir les pratiques qui ont lieu **en dehors de WordPress** lorsque le site ne peut pas les révéler : envois groupés depuis Gmail/Outlook, contacts WhatsApp, outils de réservation comme Calendly/Koalendar, formulaires externes, HelloAsso, paiements, tableurs ou stockage cloud.
 
@@ -59,8 +59,8 @@ Le dépôt génère désormais automatiquement une archive propre à chaque push
 Dans GitHub :
 
 1. ouvrir **Actions** ;
-2. ouvrir la dernière exécution **PTM quality and distribution** ;
-3. télécharger l’artifact `pixel-trackers-manager-VERSION`.
+2. ouvrir la dernière exécution **Dendrila Privacy quality and distribution** ;
+3. télécharger l’artifact `dendrila-privacy-VERSION`.
 
 Le ZIP est construit avec la commande officielle WP-CLI `wp dist-archive` et `.distignore`. Il contient uniquement les fichiers nécessaires à l’installation WordPress : pas de workflows GitHub, documentation de développement, fichiers de contribution ou fichiers temporaires.
 
@@ -76,9 +76,9 @@ Le workflow vérifie également :
 
 ## Installation de test
 
-1. Téléchargez le ZIP produit par GitHub Actions ou placez le dépôt dans `wp-content/plugins/pixel-trackers-manager/`.
-2. Activez **Pixel Trackers Manager** dans WordPress.
-3. Ouvrez PTM une première fois pour lancer l’assistant de configuration.
+1. Téléchargez le ZIP produit par GitHub Actions ou placez le dépôt dans `wp-content/plugins/dendrila-privacy/`.
+2. Activez **Dendrila Privacy** dans WordPress.
+3. Ouvrez Dendrila Privacy une première fois pour lancer l’assistant de configuration.
 
 Prérequis actuels :
 
@@ -89,7 +89,7 @@ Les métadonnées ciblent actuellement WordPress 7.1. Avant toute publication d�
 
 ## Versionnement et WordPress.org
 
-`0.0.3` est la **version candidate actuellement soumise à la revue WordPress.org**, avec le même numéro dans le header PHP, la constante runtime et le `Stable tag`.
+`0.0.4` est la **version candidate actuellement soumise à la revue WordPress.org**, avec le même numéro dans le header PHP, la constante runtime et le `Stable tag`.
 
 Le dépôt SVN WordPress.org servira uniquement aux publications et ne sera pas utilisé comme miroir de chaque commit GitHub.
 
@@ -113,7 +113,7 @@ Voir [`docs/WORDPRESS-ORG-RELEASE.md`](docs/WORDPRESS-ORG-RELEASE.md) pour la pr
 
 Le dépôt sert au développement pré-publication. La branche de référence doit rester installable ; les changements non terminés devraient, lorsque possible, passer par une branche de fonctionnalité.
 
-Avant de retenir une version candidate à la publication, PTM doit au minimum passer :
+Avant de retenir une version candidate à la publication, Dendrila Privacy doit au minimum passer :
 
 - les contrôles automatiques GitHub ;
 - les tests d’activation/désactivation WordPress ;
@@ -130,4 +130,4 @@ Pour une vulnérabilité pouvant exposer des données ou compromettre un site, s
 
 ## Licence
 
-Voir [`LICENSE`](LICENSE). PTM est distribué sous GPL v2 ou ultérieure.
+Voir [`LICENSE`](LICENSE). Dendrila Privacy est distribué sous GPL v2 ou ultérieure.
