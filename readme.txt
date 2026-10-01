@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.2
+Stable tag: 0.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,7 +45,7 @@ When PTM manages consent:
 * recognised optional services stay blocked before a choice;
 * the real blocking engine is disabled inside visual page-builder editors.
 
-Public shortcodes: `[ptm_legal_notice]`, `[ptm_privacy_policy]`, `[ptm_cookies]`, `[ptm_services]`, `[ptm_rights]`, `[ptm_documents]`, and `[ptm_consent_settings]`.
+Public shortcodes: `[pixel_trackers_manager_legal_notice]`, `[pixel_trackers_manager_privacy_policy]`, `[pixel_trackers_manager_cookies]`, `[pixel_trackers_manager_services]`, `[pixel_trackers_manager_rights]`, `[pixel_trackers_manager_documents]`, and `[pixel_trackers_manager_consent_settings]`.
 
 = Page builders =
 
@@ -63,15 +63,28 @@ PTM does not send site-audit results to the plugin author and does not include a
 
 Visitor consent preferences are stored locally in the visitor's browser. Administration and audit data stay in the site's WordPress database unless an administrator explicitly starts the documented external lookup below.
 
-= Optional external service: French company search API =
+== External services ==
 
-PTM can offer an optional French company lookup to prefill public organisation information. The lookup only runs after an administrator explicitly starts it.
+= French company search API (optional) =
 
-The search term (company name, SIREN, or SIRET) is sent to the public Recherche d'entreprises API operated by the French Interministerial Digital Directorate (DINUM). No PTM site-audit result is sent with that request.
+PTM can offer an optional French company lookup to prefill public organisation information. This lookup is not required for the plugin to work and runs only after an administrator explicitly starts it.
 
-Service information: https://annuaire-entreprises.data.gouv.fr/donnees/api-entreprises
+Data sent: only the search term entered by the administrator (company name, SIREN, or SIRET).
+When it is sent: only after the administrator clicks the company-search control.
+Recipient: the public Recherche d'entreprises API operated by the French Interministerial Digital Directorate (DINUM).
+Data not sent: PTM site-audit results, privacy-assistant answers, visitor consent choices, or page contents are not included in this request.
+
+Service page: https://www.data.gouv.fr/dataservices/api-recherche-dentreprises
+Access conditions and API information: https://annuaire-entreprises.data.gouv.fr/donnees/api-entreprises
 API documentation: https://recherche-entreprises.api.gouv.fr/docs/
-Service privacy information: https://www.data.gouv.fr/en/suivi/
+Terms of use: https://www.data.gouv.fr/pages/legal/cgu
+Privacy information: https://www.data.gouv.fr/en/suivi/
+
+= Detection signatures are not external connections =
+
+PTM contains literal domain and path signatures for services such as Google Analytics, Google Tag Manager, Meta/Facebook Pixel, YouTube, Vimeo, and Google Maps. Those strings are used locally to recognise third-party services in the site's own markup and to classify or block them when the optional PTM consent feature is enabled.
+
+Their presence in PTM's source code does not mean that PTM loads those services or sends data to them. PTM itself does not add analytics or advertising trackers. A request to one of those providers can only originate from the site, theme, or plugin integration that PTM is inspecting, subject to that integration and the site's consent configuration.
 
 == Installation ==
 
@@ -101,6 +114,12 @@ No. It is disabled by default. If you enable it, recognised optional services ar
 No. PTM focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
+
+= 0.0.3 =
+* WordPress.org review hardening: admin menu CSS now uses the WordPress enqueue API.
+* Public shortcodes now use the unique pixel_trackers_manager_ namespace; pre-publication ptm_ markup is rewritten at render time for compatibility.
+* Full-page consent fallback uses WordPress 6.9+'s standardized template enhancement output buffer instead of opening a plugin-owned buffer.
+* External-service documentation now distinguishes the optional DINUM company lookup from local detection signatures for third-party services.
 
 = 0.0.2 =
 * Dedicated GDPR assistant tab with AJAX saves that do not trigger hidden public-page audits.
