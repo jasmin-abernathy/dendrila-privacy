@@ -1,8 +1,8 @@
-# Contributing to Pixel Trackers Manager
+# Contributing to Dendrila Privacy
 
 [Version française](CONTRIBUTING.fr.md)
 
-Thank you for helping improve Pixel Trackers Manager.
+Thank you for helping improve Dendrila Privacy.
 
 ## Before opening a change
 
