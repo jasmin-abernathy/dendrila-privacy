@@ -1,14 +1,14 @@
-# Pixel Trackers Manager — Guide utilisateur
+# Dendrila Privacy — Guide utilisateur
 
 ## À quoi sert PTM ?
 
-Pixel Trackers Manager est un assistant WordPress d’audit de confidentialité et de documentation. Il aide à voir quels services tiers sont réellement actifs, à documenter les usages de données personnelles qui concernent le site, à maintenir les pages légales et, si vous le souhaitez, à gérer le consentement des visiteurs.
+Dendrila Privacy est un assistant WordPress d’audit de confidentialité et de documentation. Il aide à voir quels services tiers sont réellement actifs, à documenter les usages de données personnelles qui concernent le site, à maintenir les pages légales et, si vous le souhaitez, à gérer le consentement des visiteurs.
 
 Il ne s’agit pas d’un outil de certification juridique. Un tableau de bord au vert signifie que PTM peut rendre compte des éléments applicables qu’il sait contrôler ; cela ne signifie pas que toutes les obligations juridiques possibles ont été certifiées.
 
 ## Première ouverture
 
-L’activation de PTM ne lance pas de scan et ne modifie pas les pages publiques. L’assistant de configuration apparaît uniquement lorsqu’un administrateur ouvre Pixel Trackers Manager pour la première fois.
+L’activation de PTM ne lance pas de scan et ne modifie pas les pages publiques. L’assistant de configuration apparaît uniquement lorsqu’un administrateur ouvre Dendrila Privacy pour la première fois.
 
 L’assistant vérifie d’abord les trois pages de référence : Mentions légales, Politique de confidentialité et Cookies / Consentement. Il peut proposer une page existante, permettre d’en choisir une autre ou créer un brouillon adapté lorsqu’aucune page probable n’existe.
 
@@ -30,7 +30,7 @@ PTM n’essaie pas de maximiser les clics sur « Accepter ». **Tout accepter** 
 
 La bannière est rendue comme un composant global indépendant du constructeur de pages. Au chargement, PTM la place directement sous `<body>` afin qu’elle ne reste pas enfermée dans une section Divi, un container Elementor ou un autre contexte d’empilement pouvant la faire passer derrière le contenu.
 
-Les visiteurs peuvent rouvrir directement leurs préférences avec **Gérer mes choix**. Le shortcode universel est `[pixel_trackers_manager_consent_settings]`.
+Les visiteurs peuvent rouvrir directement leurs préférences avec **Gérer mes choix**. Le shortcode universel est `[dendrila_privacy_consent_settings]`.
 
 Pour un bouton personnalisé créé dans Divi, Elementor, Gutenberg ou le thème, vous pouvez aussi utiliser :
 
@@ -49,7 +49,7 @@ L’attribut est préférable si vous souhaitez conserver entièrement le style 
 Les intégrations avancées peuvent appeler :
 
 ```js
-window.PixelTrackersManagerConsentAPI.openPreferences();
+window.DendrilaPrivacyConsentAPI.openPreferences();
 ```
 
 La documentation technique complète se trouve dans `docs/CONSENT-INTEGRATION.md`.
@@ -82,13 +82,13 @@ Le moteur public de consentement reste indépendant de ces constructeurs.
 
 ## Shortcodes publics
 
-- `[pixel_trackers_manager_legal_notice]`
-- `[pixel_trackers_manager_privacy_policy]`
-- `[pixel_trackers_manager_cookies]`
-- `[pixel_trackers_manager_services]`
-- `[pixel_trackers_manager_rights]`
-- `[pixel_trackers_manager_documents]`
-- `[pixel_trackers_manager_consent_settings]`
+- `[dendrila_privacy_legal_notice]`
+- `[dendrila_privacy_privacy_policy]`
+- `[dendrila_privacy_cookies]`
+- `[dendrila_privacy_services]`
+- `[dendrila_privacy_rights]`
+- `[dendrila_privacy_documents]`
+- `[dendrila_privacy_consent_settings]`
 
 ## Erreurs de scan
 
