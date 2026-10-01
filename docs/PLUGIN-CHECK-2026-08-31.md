@@ -23,7 +23,7 @@ L'objectif n'est pas de masquer les alertes mais de distinguer :
 
 ### Sorties HTML non échappées
 
-Plugin Check signale plusieurs sorties dynamiques dans `pixel-trackers-manager.php`, notamment autour des lignes relevées lors du scan :
+Plugin Check signale plusieurs sorties dynamiques dans `dendrila-privacy.php`, notamment autour des lignes relevées lors du scan :
 
 - ~4580 : sortie dynamique impliquant `$this` ;
 - ~5321 : compteurs `$page_audit['satisfied_total']` / `$page_audit['applicable_total']` ;
@@ -53,7 +53,7 @@ Actions :
 
 ### Offloading de contenu distant
 
-Plugin Check a signalé une utilisation potentielle de contenu distant dans `pixel-trackers-manager.php` autour de la ligne ~1420.
+Plugin Check a signalé une utilisation potentielle de contenu distant dans `dendrila-privacy.php` autour de la ligne ~1420.
 
 Actions :
 
