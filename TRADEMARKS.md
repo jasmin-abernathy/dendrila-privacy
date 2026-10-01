@@ -1,6 +1,6 @@
-# Pixel Trackers Manager project identity
+# Dendrila Privacy project identity
 
-Pixel Trackers Manager, the abbreviation **PTM**, the official project logo, and the presentation of a build as an **official PTM release** identify the upstream project maintained by Le Potager du Web.
+Dendrila Privacy, the official project logo, and the presentation of a build as an **official Dendrila Privacy release** identify the upstream project maintained by Le Potager du Web.
 
 This document is a project naming and identity policy. It is **not a claim that any identifier is a registered trademark**.
 
@@ -16,7 +16,7 @@ The GPL license does not give anyone the right to misrepresent the origin of a f
 
 If a modified version is redistributed as a separate product, it should use a sufficiently distinct product name and presentation so that users are not led to believe that it is an official PTM release maintained or endorsed by Le Potager du Web.
 
-Factual statements such as "based on Pixel Trackers Manager", "forked from PTM", compatibility references, reviews, documentation links and other truthful nominative references are not prohibited by this policy.
+Factual statements such as "based on Dendrila Privacy", "forked from PTM", compatibility references, reviews, documentation links and other truthful nominative references are not prohibited by this policy.
 
 ## Official source
 
