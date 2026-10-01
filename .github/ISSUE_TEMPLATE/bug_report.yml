@@ -1,5 +1,5 @@
 name: Bug / Bug
-about: Report an incorrect PTM behaviour / Signaler un comportement incorrect de PTM
+about: Report an incorrect Dendrila Privacy behaviour / Signaler un comportement incorrect de Dendrila Privacy
 title: "[Bug] "
 labels: []
 body:
@@ -9,7 +9,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: PTM version / Version de PTM
+      label: Dendrila Privacy version / Version de Dendrila Privacy
       placeholder: "0.0.2-test4"
     validations:
       required: true
