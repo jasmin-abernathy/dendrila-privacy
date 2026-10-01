@@ -1,15 +1,15 @@
 <?php
 /**
- * Plugin Name: Pixel Trackers Manager
- * Description: Audit local des traceurs, contrôle des pages de confidentialité et synchronisation réversible d’informations utiles.
- * Version: 0.0.3
+ * Plugin Name: Dendrila Privacy
+ * Description: Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management.
+ * Version: 0.0.4
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
  * Author URI: https://www.lepotager.org/
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: pixel-trackers-manager
+ * Text Domain: dendrila-privacy
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.3';
+    const VERSION = '0.0.4';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';
@@ -67,13 +67,13 @@ final class Pixel_Trackers_Manager_Plugin {
         add_filter( 'the_content', array( $this, 'inject_builder_managed_blocks' ), 99 );
         add_filter( 'elementor/frontend/the_content', array( $this, 'inject_builder_managed_blocks' ), 99 );
         // Public shortcodes use the same unique namespace as the plugin's stored data.
-        add_shortcode( 'pixel_trackers_manager_services', array( $this, 'shortcode_services' ) );
-        add_shortcode( 'pixel_trackers_manager_privacy_policy', array( $this, 'shortcode_privacy' ) );
-        add_shortcode( 'pixel_trackers_manager_legal_notice', array( $this, 'shortcode_legal_notice' ) );
-        add_shortcode( 'pixel_trackers_manager_cookies', array( $this, 'shortcode_cookie_policy' ) );
-        add_shortcode( 'pixel_trackers_manager_rights', array( $this, 'shortcode_privacy' ) );
-        add_shortcode( 'pixel_trackers_manager_documents', array( $this, 'shortcode_legal_bundle' ) );
-        add_shortcode( 'pixel_trackers_manager_consent_settings', array( $this, 'shortcode_consent_settings' ) );
+        add_shortcode( 'dendrila_privacy_services', array( $this, 'shortcode_services' ) );
+        add_shortcode( 'dendrila_privacy_privacy_policy', array( $this, 'shortcode_privacy' ) );
+        add_shortcode( 'dendrila_privacy_legal_notice', array( $this, 'shortcode_legal_notice' ) );
+        add_shortcode( 'dendrila_privacy_cookies', array( $this, 'shortcode_cookie_policy' ) );
+        add_shortcode( 'dendrila_privacy_rights', array( $this, 'shortcode_privacy' ) );
+        add_shortcode( 'dendrila_privacy_documents', array( $this, 'shortcode_legal_bundle' ) );
+        add_shortcode( 'dendrila_privacy_consent_settings', array( $this, 'shortcode_consent_settings' ) );
 
         // Development builds used a short ptm_ shortcode prefix. Rewrite that markup before
         // WordPress evaluates shortcodes so existing test pages keep rendering without
@@ -90,21 +90,28 @@ final class Pixel_Trackers_Manager_Plugin {
      * Rewrite shortcode markup emitted by pre-publication development builds.
      */
     public function rewrite_legacy_shortcode_markup( $content ) {
-        if ( ! is_string( $content ) || false === strpos( $content, '[ptm_' ) ) {
+        if ( ! is_string( $content ) || ( false === strpos( $content, '[ptm_' ) && false === strpos( $content, '[pixel_trackers_manager_' ) ) ) {
             return $content;
         }
 
         $legacy_to_public = array(
-            'ptm_services'                  => 'pixel_trackers_manager_services',
-            'ptm_privacy_policy'            => 'pixel_trackers_manager_privacy_policy',
-            'ptm_legal_notice'              => 'pixel_trackers_manager_legal_notice',
-            'ptm_cookies'                   => 'pixel_trackers_manager_cookies',
-            'ptm_rights'                    => 'pixel_trackers_manager_rights',
-            'ptm_documents'                 => 'pixel_trackers_manager_documents',
-            'ptm_consent_settings'          => 'pixel_trackers_manager_consent_settings',
-            'ptm_rgpd'                      => 'pixel_trackers_manager_privacy_policy',
-            'ptm_politique_confidentialite' => 'pixel_trackers_manager_privacy_policy',
-            'ptm_mentions_legales'          => 'pixel_trackers_manager_legal_notice',
+            'ptm_services'                  => 'dendrila_privacy_services',
+            'ptm_privacy_policy'            => 'dendrila_privacy_privacy_policy',
+            'ptm_legal_notice'              => 'dendrila_privacy_legal_notice',
+            'ptm_cookies'                   => 'dendrila_privacy_cookies',
+            'ptm_rights'                    => 'dendrila_privacy_rights',
+            'ptm_documents'                 => 'dendrila_privacy_documents',
+            'ptm_consent_settings'          => 'dendrila_privacy_consent_settings',
+            'ptm_rgpd'                      => 'dendrila_privacy_privacy_policy',
+            'ptm_politique_confidentialite' => 'dendrila_privacy_privacy_policy',
+            'ptm_mentions_legales'          => 'dendrila_privacy_legal_notice',
+            'pixel_trackers_manager_services'         => 'dendrila_privacy_services',
+            'pixel_trackers_manager_privacy_policy'   => 'dendrila_privacy_privacy_policy',
+            'pixel_trackers_manager_legal_notice'     => 'dendrila_privacy_legal_notice',
+            'pixel_trackers_manager_cookies'          => 'dendrila_privacy_cookies',
+            'pixel_trackers_manager_rights'           => 'dendrila_privacy_rights',
+            'pixel_trackers_manager_documents'        => 'dendrila_privacy_documents',
+            'pixel_trackers_manager_consent_settings' => 'dendrila_privacy_consent_settings',
         );
 
         foreach ( $legacy_to_public as $legacy => $public ) {
@@ -171,11 +178,11 @@ final class Pixel_Trackers_Manager_Plugin {
             return;
         }
 
-        $content = '<p><strong>Pixel Trackers Manager (PTM)</strong> analyse localement la configuration et les contenus publics du site afin d’identifier des services tiers, des traceurs et des éléments utiles à la documentation de confidentialité. Les résultats d’audit et les réglages PTM sont conservés dans la base de données WordPress du site.</p>';
+        $content = '<p><strong>Dendrila Privacy (PTM)</strong> analyse localement la configuration et les contenus publics du site afin d’identifier des services tiers, des traceurs et des éléments utiles à la documentation de confidentialité. Les résultats d’audit et les réglages PTM sont conservés dans la base de données WordPress du site.</p>';
         $content .= '<p>Lorsque la gestion du consentement PTM est activée, le choix du visiteur est enregistré localement dans son navigateur. PTM n’envoie pas les résultats d’audit à l’éditeur du plugin et n’ajoute pas de télémétrie publicitaire.</p>';
         $content .= '<p>La recherche facultative d’une entreprise française n’est déclenchée qu’après une action explicite d’un administrateur. Le nom, SIREN ou SIRET recherché est alors transmis à l’API publique Recherche d’entreprises de la DINUM ; aucun résultat d’audit PTM n’est joint à cette requête.</p>';
 
-        wp_add_privacy_policy_content( 'Pixel Trackers Manager', wp_kses_post( $content ) );
+        wp_add_privacy_policy_content( 'Dendrila Privacy', wp_kses_post( $content ) );
     }
 
     public static function activate() {
@@ -206,8 +213,8 @@ final class Pixel_Trackers_Manager_Plugin {
 
     public function admin_menu() {
         add_menu_page(
-            'Pixel Trackers Manager',
-            'Pixel Trackers Manager',
+            'Dendrila Privacy',
+            'Dendrila Privacy',
             'manage_options',
             'pixel-trackers-manager',
             array( $this, 'render_admin' ),
@@ -235,7 +242,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     public function admin_assets( $hook ) {
         $page = sanitize_key( $this->query_value( 'page' ) );
-        $is_ptm_page = 0 === strpos( $page, 'pixel-trackers-manager' );
+        $is_ptm_page = 0 === strpos( $page, 'dendrila-privacy' );
         $is_dashboard = 'index.php' === $hook;
         if ( ! $is_ptm_page && ! $is_dashboard ) {
             return;
@@ -297,14 +304,14 @@ final class Pixel_Trackers_Manager_Plugin {
             return;
         }
         $page = sanitize_key( $this->query_value( 'page' ) );
-        if ( 0 !== strpos( $page, 'pixel-trackers-manager' ) || 'pixel-trackers-manager-setup' === $page ) {
+        if ( 0 !== strpos( $page, 'dendrila-privacy' ) || 'pixel-trackers-manager-setup' === $page ) {
             return;
         }
         if ( $this->onboarding_allows_plugin_access() ) {
             return;
         }
         // Activation itself stays silent. The guided setup appears only when the
-        // administrator actually opens Pixel Trackers Manager for the first time.
+        // administrator actually opens Dendrila Privacy for the first time.
         wp_safe_redirect( admin_url( 'admin.php?page=pixel-trackers-manager-setup' ) );
         exit;
     }
@@ -318,7 +325,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $kind = $needs_setup ? 'setup' : ( $has_full_scan ? '' : 'first-scan' );
         if ( ! $kind ) { return; }
         if ( get_user_meta( get_current_user_id(), 'pixel_trackers_manager_dashboard_dismissed_' . $kind, true ) ) { return; }
-        wp_add_dashboard_widget( 'pixel_trackers_manager_setup_widget', 'Pixel Trackers Manager', array( $this, 'render_dashboard_setup_widget' ) );
+        wp_add_dashboard_widget( 'pixel_trackers_manager_setup_widget', 'Dendrila Privacy', array( $this, 'render_dashboard_setup_widget' ) );
     }
 
     public function handle_dashboard_widget_dismissal() {
@@ -342,8 +349,8 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<div class="ptm-wp-dashboard-card">';
         echo '<div class="ptm-wp-dashboard-brand"><img src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div>';
         if ( $needs_setup ) {
-            echo '<strong>Pixel Trackers Manager n’est pas encore configuré</strong><p>Terminez la configuration pour associer vos pages légales, préparer le consentement et lancer votre premier contrôle complet.</p>';
-            echo '<p><a class="button button-primary" href="' . esc_url( $setup_url ) . '">Configurer Pixel Trackers Manager</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">Masquer</a></p>';
+            echo '<strong>Dendrila Privacy n’est pas encore configuré</strong><p>Terminez la configuration pour associer vos pages légales, préparer le consentement et lancer votre premier contrôle complet.</p>';
+            echo '<p><a class="button button-primary" href="' . esc_url( $setup_url ) . '">Configurer Dendrila Privacy</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">Masquer</a></p>';
         } else {
             echo '<strong>Votre première analyse complète est prête</strong><p>Un contrôle complet est recommandé pour établir un premier état de référence du site.</p>';
             echo '<p><a class="button button-primary" href="' . esc_url( $scan_url ) . '">Lancer l’analyse complète</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">Masquer</a></p>';
@@ -409,17 +416,17 @@ final class Pixel_Trackers_Manager_Plugin {
             'privacy' => array(
                 'title' => array( 'politique de confidentialite', 'confidentialite', 'vie privee', 'privacy policy' ),
                 'content' => array( 'donnees personnelles', 'responsable du traitement', 'exercer vos droits', 'droit d acces', 'droit de rectification', 'cnil' ),
-                'shortcode' => '[pixel_trackers_manager_privacy_policy]',
+                'shortcode' => '[dendrila_privacy_privacy_policy]',
             ),
             'legal_notice' => array(
                 'title' => array( 'mentions legales', 'mention legale', 'legal notice', 'impressum' ),
                 'content' => array( 'editeur du site', 'responsable de publication', 'hebergeur', 'siret', 'siren', 'directeur de la publication' ),
-                'shortcode' => '[pixel_trackers_manager_legal_notice]',
+                'shortcode' => '[dendrila_privacy_legal_notice]',
             ),
             'cookies' => array(
                 'title' => array( 'politique de cookies', 'cookies', 'traceurs', 'cookie policy', 'gestion du consentement' ),
                 'content' => array( 'cookies', 'traceurs', 'consentement', 'gerer mes choix', 'tout refuser', 'mesure d audience' ),
-                'shortcode' => '[pixel_trackers_manager_cookies]',
+                'shortcode' => '[dendrila_privacy_cookies]',
             ),
         );
         return isset( $patterns[ $kind ] ) ? $patterns[ $kind ] : array();
@@ -470,7 +477,7 @@ final class Pixel_Trackers_Manager_Plugin {
             $raw = (string) $post->post_content;
             if ( ! empty( $patterns['shortcode'] ) && false !== strpos( $raw, (string) $patterns['shortcode'] ) ) {
                 $score += 120;
-                $reasons[] = 'code court Pixel Trackers Manager';
+                $reasons[] = 'code court Dendrila Privacy';
             }
 
             // Builder content is read locally without rendering the public page. This
@@ -551,17 +558,17 @@ final class Pixel_Trackers_Manager_Plugin {
             'legal_notice' => array(
                 'label' => 'Mentions légales',
                 'setting' => 'legal_notice_page_id',
-                'shortcode' => '[pixel_trackers_manager_legal_notice]',
+                'shortcode' => '[dendrila_privacy_legal_notice]',
             ),
             'privacy' => array(
                 'label' => 'Politique de confidentialité',
                 'setting' => 'privacy_page_id',
-                'shortcode' => '[pixel_trackers_manager_privacy_policy]',
+                'shortcode' => '[dendrila_privacy_privacy_policy]',
             ),
             'cookies' => array(
                 'label' => 'Cookies et traceurs',
                 'setting' => 'cookie_page_id',
-                'shortcode' => '[pixel_trackers_manager_cookies]',
+                'shortcode' => '[dendrila_privacy_cookies]',
             ),
         );
         if ( ! isset( $map[ $kind ] ) ) { return array(); }
@@ -749,7 +756,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'post_type' => 'page',
                 'post_status' => 'draft',
                 'post_title' => $title,
-                'post_excerpt' => 'Page créée par Pixel Trackers Manager. À relire avant publication.',
+                'post_excerpt' => 'Page créée par Dendrila Privacy. À relire avant publication.',
             ) );
             if ( is_wp_error( $document ) ) { return $document; }
             if ( ! is_object( $document ) || ! method_exists( $document, 'get_main_id' ) || ! method_exists( $document, 'save' ) ) {
@@ -831,7 +838,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'post_status' => 'draft',
                 'post_title' => $title,
                 'post_content' => $this->divi4_legal_page_content( $cfg['shortcode'] ),
-                'post_excerpt' => 'Page créée par Pixel Trackers Manager. À relire avant publication.',
+                'post_excerpt' => 'Page créée par Dendrila Privacy. À relire avant publication.',
                 'meta_input' => array(
                     '_et_pb_use_builder' => 'on',
                     '_et_pb_page_layout' => 'et_full_width_page',
@@ -844,7 +851,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'post_status' => 'draft',
                 'post_title' => $title,
                 'post_content' => $this->divi5_legal_page_content( $cfg['shortcode'] ),
-                'post_excerpt' => 'Page créée par Pixel Trackers Manager. À relire avant publication.',
+                'post_excerpt' => 'Page créée par Dendrila Privacy. À relire avant publication.',
                 'meta_input' => array(
                     '_et_pb_use_builder' => 'on',
                     '_et_pb_page_layout' => 'et_full_width_page',
@@ -857,7 +864,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'post_status' => 'draft',
                 'post_title' => $title,
                 'post_content' => $cfg['shortcode'],
-                'post_excerpt' => 'Page créée par Pixel Trackers Manager. À relire avant publication.',
+                'post_excerpt' => 'Page créée par Dendrila Privacy. À relire avant publication.',
             ), true );
         }
 
@@ -869,7 +876,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'post_status' => 'draft',
                 'post_title' => $title,
                 'post_content' => $cfg['shortcode'],
-                'post_excerpt' => 'Page créée par Pixel Trackers Manager. À relire avant publication.',
+                'post_excerpt' => 'Page créée par Dendrila Privacy. À relire avant publication.',
             ), true );
             $builder = 'wordpress-fallback';
         }
@@ -1065,7 +1072,7 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( 'divi' === $builder['id'] ) {
             $content = (string)get_post_field('post_content',$page_id);
             if ( false !== strpos($content,$shortcode) ) { $this->approve_public_document( $kind ); return true; }
-            $module = "\n[et_pb_section admin_label=\"Pixel Trackers Manager\"][et_pb_row][et_pb_column type=\"4_4\"][et_pb_text admin_label=\"Pixel Trackers Manager\"]".$shortcode."[/et_pb_text][/et_pb_column][/et_pb_row][/et_pb_section]\n";
+            $module = "\n[et_pb_section admin_label=\"Dendrila Privacy\"][et_pb_row][et_pb_column type=\"4_4\"][et_pb_text admin_label=\"Dendrila Privacy\"]".$shortcode."[/et_pb_text][/et_pb_column][/et_pb_row][/et_pb_section]\n";
             $result = wp_update_post( array( 'ID'=>$page_id, 'post_content'=>rtrim($content).$module ), true );
             if ( is_wp_error($result) ) { return $result; }
             update_post_meta( $page_id, '_et_pb_use_builder', 'on' );
@@ -1226,13 +1233,13 @@ final class Pixel_Trackers_Manager_Plugin {
                 if ( in_array( $pause_step, array( 'welcome', 'pages', 'consent', 'summary' ), true ) ) { $state['step'] = $pause_step; }
             }
             update_option( self::OPTION_ONBOARDING, $state, false );
-            $message = 'Assistant mis en pause. Il reprendra à votre prochaine ouverture de Pixel Trackers Manager.';
+            $message = 'Assistant mis en pause. Il reprendra à votre prochaine ouverture de Dendrila Privacy.';
             $redirect_override = admin_url( 'index.php' );
         } elseif ( 'publish_legal_page' === $action ) {
             $page_id = isset( $_POST['page_id'] ) ? absint( $_POST['page_id'] ) : 0;
             $post = $page_id ? get_post( $page_id ) : null;
             if ( ! $post || 'page' !== $post->post_type || ! current_user_can( 'edit_post', $page_id ) ) {
-                $message = 'Cette page ne peut pas être publiée depuis Pixel Trackers Manager.';
+                $message = 'Cette page ne peut pas être publiée depuis Dendrila Privacy.';
                 $type = 'error';
             } else {
                 $kind = sanitize_key( (string) get_post_meta( $page_id, '_pixel_trackers_manager_generated_legal_page', true ) );
@@ -1289,7 +1296,7 @@ final class Pixel_Trackers_Manager_Plugin {
             $settings['consent_retention_days'] = isset( $_POST['consent_retention_days'] ) ? max( 30, min( 365, absint( $_POST['consent_retention_days'] ) ) ) : 180;
             $settings['consent_footer_link'] = empty( $_POST['consent_footer_link'] ) ? 0 : 1;
             $this->update_settings( $settings );
-            $message = $settings['consent_enabled'] ? 'Bannière Pixel Trackers Manager activée : les services facultatifs reconnus sont bloqués avant le choix.' : 'Bannière Pixel Trackers Manager désactivée.';
+            $message = $settings['consent_enabled'] ? 'Bannière Dendrila Privacy activée : les services facultatifs reconnus sont bloqués avant le choix.' : 'Bannière Dendrila Privacy désactivée.';
         } elseif ( 'audit_page' === $action ) {
             $settings = $this->settings();
             $settings['privacy_page_id'] = isset( $_POST['privacy_page_id'] ) ? absint( $_POST['privacy_page_id'] ) : $settings['privacy_page_id'];
@@ -1326,7 +1333,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 $message = $result->get_error_message();
                 $type = 'error';
             } else {
-                $message = 'Bloc Pixel Trackers Manager synchronisé. Si un constructeur de pages est détecté, Pixel Trackers Manager utilise son mode de compatibilité non destructif.';
+                $message = 'Bloc Dendrila Privacy synchronisé. Si un constructeur de pages est détecté, Dendrila Privacy utilise son mode de compatibilité non destructif.';
             }
         } elseif ( 'restore_page' === $action ) {
             $page_id = isset( $_POST['privacy_page_id'] ) ? absint( $_POST['privacy_page_id'] ) : 0;
@@ -1335,7 +1342,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 $message = $result->get_error_message();
                 $type = 'error';
             } else {
-                $message = 'Blocs gérés par Pixel Trackers Manager retirés sans restaurer une ancienne copie de la page.';
+                $message = 'Blocs gérés par Dendrila Privacy retirés sans restaurer une ancienne copie de la page.';
             }
         } elseif ( 'disable_tracking_adapter' === $action ) {
             $adapter = isset( $_POST['adapter'] ) ? sanitize_key( wp_unslash( $_POST['adapter'] ) ) : '';
@@ -1399,13 +1406,13 @@ final class Pixel_Trackers_Manager_Plugin {
             $kind = isset($_POST['document_kind']) ? sanitize_key(wp_unslash($_POST['document_kind'])) : 'privacy';
             $result = $this->sync_legal_document( $page_id, $kind );
             if ( is_wp_error($result) ) { $message=$result->get_error_message(); $type='error'; }
-            else { $message='Document Pixel Trackers Manager mis à jour sur la page sélectionnée.'; $this->audit_legal_pages($this->legal_page_ids()); }
+            else { $message='Document Dendrila Privacy mis à jour sur la page sélectionnée.'; $this->audit_legal_pages($this->legal_page_ids()); }
         } elseif ( 'inject_builder_shortcode' === $action ) {
             $page_id = isset($_POST['page_id']) ? absint($_POST['page_id']) : 0;
             $kind = isset($_POST['document_kind']) ? sanitize_key(wp_unslash($_POST['document_kind'])) : 'privacy';
             $result = $this->inject_builder_shortcode( $page_id, $kind );
             if ( is_wp_error($result) ) { $message=$result->get_error_message(); $type='error'; }
-            else { $message='Le bloc Pixel Trackers Manager a été inséré dans la page. Vérifiez son emplacement dans le constructeur.'; $this->audit_legal_pages($this->legal_page_ids()); }
+            else { $message='Le bloc Dendrila Privacy a été inséré dans la page. Vérifiez son emplacement dans le constructeur.'; $this->audit_legal_pages($this->legal_page_ids()); }
         } elseif ( 'finish_legal_draft_pages' === $action || 'finish_legal_draft_home' === $action ) {
             $ids = $this->legal_page_ids();
             if ( $ids ) { $this->audit_legal_pages($ids); }
@@ -1804,7 +1811,7 @@ final class Pixel_Trackers_Manager_Plugin {
         return array(
             'available' => true,
             'state' => $forced_off ? 'disabled' : 'unknown',
-            'label' => $forced_off ? 'Suivi FluentCRM désactivé par Pixel Trackers Manager' : 'Suivi FluentCRM : réglage à confirmer',
+            'label' => $forced_off ? 'Suivi FluentCRM désactivé par Dendrila Privacy' : 'Suivi FluentCRM : réglage à confirmer',
         );
     }
 
@@ -1821,7 +1828,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'tracking_state' => $state['state'], 'status' => $state,
                 'action_mode' => 'direct',
                 'settings_url' => admin_url( 'admin.php?page=mailpoet-settings#/advanced' ),
-                'help' => 'Pixel Trackers Manager lit directement « Engagement analytics tracking ». Le mode basic coupe le suivi e-mail et les cookies d’engagement sans arrêter l’envoi des newsletters.',
+                'help' => 'Dendrila Privacy lit directement « Engagement analytics tracking ». Le mode basic coupe le suivi e-mail et les cookies d’engagement sans arrêter l’envoi des newsletters.',
             );
         }
         foreach ( $by_slug as $slug => $plugin ) {
@@ -1832,7 +1839,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     'tracking_state' => $state['state'], 'status' => $state,
                     'action_mode' => 'direct-filter',
                     'settings_url' => admin_url( 'admin.php?page=fluentcrm-admin' ),
-                    'help' => 'Pixel Trackers Manager peut appliquer les filtres publics FluentCRM qui désactivent pixel d’ouverture, réécriture des liens et cookie de suivi, sans arrêter les campagnes.',
+                    'help' => 'Dendrila Privacy peut appliquer les filtres publics FluentCRM qui désactivent pixel d’ouverture, réécriture des liens et cookie de suivi, sans arrêter les campagnes.',
                 );
                 break;
             }
@@ -1858,7 +1865,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'id' => 'mailchimp', 'name' => 'Mailchimp for WordPress', 'plugin' => $by_slug['mailchimp-for-wp'],
                 'tracking_state' => 'external', 'status' => array( 'state' => 'external' ),
                 'action_mode' => 'external', 'settings_url' => admin_url( 'admin.php?page=mailchimp-for-wp' ),
-                'help' => 'MC4WP gère surtout les formulaires. Le suivi d’ouverture/clic se règle dans Mailchimp, dans « Settings & Tracking » de chaque campagne ; Pixel Trackers Manager ne prétend pas le couper localement.',
+                'help' => 'MC4WP gère surtout les formulaires. Le suivi d’ouverture/clic se règle dans Mailchimp, dans « Settings & Tracking » de chaque campagne ; Dendrila Privacy ne prétend pas le couper localement.',
             );
         }
         foreach ( $by_slug as $slug => $plugin ) {
@@ -1867,7 +1874,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     'id' => 'mailmint', 'name' => 'Mail Mint', 'plugin' => $plugin,
                     'tracking_state' => 'unknown', 'status' => array( 'state' => 'unknown' ),
                     'action_mode' => 'guided', 'settings_url' => admin_url( 'admin.php?page=mrm-admin' ),
-                    'help' => 'Les versions récentes de Mail Mint proposent des options de suivi d’ouverture/clic. Pixel Trackers Manager vous guide vers le réglage mais n’écrit pas dans une option privée non documentée.',
+                    'help' => 'Les versions récentes de Mail Mint proposent des options de suivi d’ouverture/clic. Dendrila Privacy vous guide vers le réglage mais n’écrit pas dans une option privée non documentée.',
                 );
                 break;
             }
@@ -1921,7 +1928,7 @@ final class Pixel_Trackers_Manager_Plugin {
             $this->log_action( 'tracking_adapter', 'manual', array( 'adapter' => 'fluentcrm', 'disabled' => ! $restore ) );
             return $message;
         }
-        return new WP_Error( 'pixel_trackers_manager_adapter_unknown', 'Pixel Trackers Manager ne dispose pas d’un adaptateur sûr pour cet outil.' );
+        return new WP_Error( 'pixel_trackers_manager_adapter_unknown', 'Dendrila Privacy ne dispose pas d’un adaptateur sûr pour cet outil.' );
     }
 
     private function technical_surface( $html ) {
@@ -2003,7 +2010,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 if ( ! empty( $findings[ $id ]['blocked_by_consent'] ) && empty( $findings[ $id ]['active_tracking'] ) ) {
                     $findings[ $id ]['confidence'] = 'élevée';
                     $findings[ $id ]['tracking_state'] = 'blocked';
-                    $findings[ $id ]['source'] = 'Service présent, mais bloqué avant le choix par la bannière Pixel Trackers Manager';
+                    $findings[ $id ]['source'] = 'Service présent, mais bloqué avant le choix par la bannière Dendrila Privacy';
                 } elseif ( ! empty( $findings[ $id ]['observed_html'] ) ) {
                     $findings[ $id ]['confidence'] = 'élevée';
                     $findings[ $id ]['source'] = $plugin_sources ? 'Trace technique observée + extension probable : ' . $plugin_sources[0]['name'] : 'Trace technique repérée dans le code affiché par une page';
@@ -2072,7 +2079,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'label' => 'Désactiver le suivi MailPoet',
                 'restore_label' => 'Rétablir le réglage précédent',
                 'url' => admin_url( 'admin.php?page=mailpoet-settings#/advanced' ),
-                'instructions' => 'Pixel Trackers Manager vérifie le réglage « Engagement analytics tracking ». Il peut le passer à basic et vérifie immédiatement le résultat. Les newsletters continuent de partir.',
+                'instructions' => 'Dendrila Privacy vérifie le réglage « Engagement analytics tracking ». Il peut le passer à basic et vérifie immédiatement le résultat. Les newsletters continuent de partir.',
             );
         }
         if ( 'brevo' === $id && in_array( 'mailin', $slugs, true ) ) {
@@ -2095,7 +2102,7 @@ final class Pixel_Trackers_Manager_Plugin {
             return array( 'kind'=>'source_setting','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'unknown','label'=>'Voir les réglages de la carte','url'=>admin_url('plugins.php?s='.rawurlencode($sources[0]['name']).'&plugin_status=all'),'instructions'=>'Privilégiez un chargement après consentement, une carte statique ou un fournisseur sans traceur plutôt que de désactiver toute l’extension.' );
         }
         if ( $sources ) {
-            return array( 'kind'=>'guided','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'unknown','label'=>'Ouvrir la source','url'=>admin_url('plugins.php?s='.rawurlencode($sources[0]['name']).'&plugin_status=all'),'instructions'=>'Pixel Trackers Manager n’a pas d’adaptateur documenté pour ce réglage. Il vous mène à la source sans modifier une option privée inconnue.' );
+            return array( 'kind'=>'guided','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'unknown','label'=>'Ouvrir la source','url'=>admin_url('plugins.php?s='.rawurlencode($sources[0]['name']).'&plugin_status=all'),'instructions'=>'Dendrila Privacy n’a pas d’adaptateur documenté pour ce réglage. Il vous mène à la source sans modifier une option privée inconnue.' );
         }
         return array( 'kind'=>'guided','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'unknown','label'=>'Identifier la source','url'=>'','instructions'=>'La source exacte n’est pas identifiée. Vérifiez le thème, un bloc embarqué ou un script ajouté manuellement.' );
     }
@@ -2574,7 +2581,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     'mode' => isset($existing['mode']) ? $existing['mode'] : 'standard',
                 ) );
             }
-            wp_send_json_error( array( 'message' => 'Une autre analyse Pixel Trackers Manager est déjà en cours.' ), 409 );
+            wp_send_json_error( array( 'message' => 'Une autre analyse Dendrila Privacy est déjà en cours.' ), 409 );
         }
 
         $settings = $this->settings();
@@ -2752,7 +2759,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     public function run_scan( $origin = 'manual' ) {
-        if ( get_transient( 'pixel_trackers_manager_scan_lock' ) ) { return new WP_Error( 'pixel_trackers_manager_locked', 'Une analyse Pixel Trackers Manager est déjà en cours.' ); }
+        if ( get_transient( 'pixel_trackers_manager_scan_lock' ) ) { return new WP_Error( 'pixel_trackers_manager_locked', 'Une analyse Dendrila Privacy est déjà en cours.' ); }
         set_transient( 'pixel_trackers_manager_scan_lock', 1, 5 * MINUTE_IN_SECONDS );
         $settings=$this->settings(); $limit=max(5,min(50,(int)$settings['scan_limit'])); $urls=$this->scan_urls($limit,'standard',array());
         $plugins=$this->installed_plugins(); $theme_refs=$this->scan_theme_references(); $findings=array(); $errors=array(); $page_issues=array(); $scanned_urls=array();
@@ -3034,8 +3041,8 @@ final class Pixel_Trackers_Manager_Plugin {
             );
         }
 
-        foreach((array)$audit['stale_pixel_trackers_manager_services'] as $item){
-            $actions[]=array('priority'=>'faible','title'=>'Nettoyer la mention gérée : '.$item['label'],'detail'=>'Ce service n’est plus un suivi actif mais figure encore dans un bloc géré par Pixel Trackers Manager.','target'=>'privacy','service_id'=>$item['id'],'target_anchor'=>$publication_anchor);
+        foreach((array)$audit['stale_dendrila_privacy_services'] as $item){
+            $actions[]=array('priority'=>'faible','title'=>'Nettoyer la mention gérée : '.$item['label'],'detail'=>'Ce service n’est plus un suivi actif mais figure encore dans un bloc géré par Dendrila Privacy.','target'=>'privacy','service_id'=>$item['id'],'target_anchor'=>$publication_anchor);
         }
         foreach((array)(isset($audit['stale_cookie_mentions'])?$audit['stale_cookie_mentions']:array()) as $item){
             $actions[]=array('priority'=>'faible','title'=>'Actualiser les informations cookies : '.$item['label'],'detail'=>'Le suivi est désactivé mais d’anciennes mentions techniques restent repérées.','target'=>'privacy','service_id'=>$item['id'],'target_step'=>'cookies');
@@ -3226,11 +3233,11 @@ final class Pixel_Trackers_Manager_Plugin {
             'page_url'=>!empty($settings['privacy_page_id'])?get_permalink((int)$settings['privacy_page_id']):get_permalink((int)$page_ids[0]),
             'documents'=>$document_refs, 'cookie_policy_url'=>!empty($settings['cookie_page_id'])?get_permalink((int)$settings['cookie_page_id']):'',
             'topics'=>$topics, 'services'=>$services, 'missing_topics'=>$missing_topics, 'missing_services'=>$missing_services,
-            'stale_pixel_trackers_manager_services'=>$stale, 'stale_cookie_mentions'=>$stale_cookie_mentions,
+            'stale_dendrila_privacy_services'=>$stale, 'stale_cookie_mentions'=>$stale_cookie_mentions,
             'core_documentation_percent'=>$core_percent, 'tracker_documentation_percent'=>$tracker_percent, 'technical_coverage_percent'=>$score,
             'active_tracking_count'=>$active_total, 'applicable_total'=>$applicable_total, 'satisfied_total'=>$satisfied_total, 'profile_privacy_present'=>$profile_privacy_present,
             'legal_notice_present'=>$legal_notice_present, 'cookie_profile_present'=>$cookie_profile_present,
-            'warning'=>'Couverture des éléments réellement applicables détectés par Pixel Trackers Manager. Ce score aide au suivi ; il ne certifie pas la conformité juridique.',
+            'warning'=>'Couverture des éléments réellement applicables détectés par Dendrila Privacy. Ce score aide au suivi ; il ne certifie pas la conformité juridique.',
         );
         $audit['recommendations'] = $this->build_recommendations( $audit );
         $audit['score_delta'] = isset($previous['technical_coverage_percent']) ? $score-(int)$previous['technical_coverage_percent'] : null;
@@ -3774,7 +3781,7 @@ final class Pixel_Trackers_Manager_Plugin {
             wp_send_json_success( array_merge( $detected, array( 'message' => $message ) ) );
         }
         wp_send_json_success( array_merge( $detected, array(
-            'message' => 'Pixel Trackers Manager a trouvé un hébergeur probable à partir des informations techniques du site. Vérifiez ce résultat avant de publier vos mentions légales.',
+            'message' => 'Dendrila Privacy a trouvé un hébergeur probable à partir des informations techniques du site. Vérifiez ce résultat avant de publier vos mentions légales.',
         ) ) );
     }
 
@@ -4262,7 +4269,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 elseif ( $known && $all_disabled ) { $p['email_pixels'] = 'no'; }
             }
             if ( 'unknown' === $p['tracked_links'] ) {
-                // MailPoet and Pixel Trackers Manager's FluentCRM privacy mode couple opening/click tracking in the states we can read reliably.
+                // MailPoet and Dendrila Privacy's FluentCRM privacy mode couple opening/click tracking in the states we can read reliably.
                 if ( $any_active ) { $p['tracked_links'] = 'yes'; }
                 elseif ( $known && $all_disabled ) { $p['tracked_links'] = 'no'; }
             }
@@ -4289,7 +4296,7 @@ final class Pixel_Trackers_Manager_Plugin {
         );
         if ( $value && ! isset( $choices[ $value ] ) ) { $choices = array( $value => $value . ' — valeur détectée ou personnalisée' ) + $choices; }
         $this->legal_select( 'cookie_choice_retention', 'Combien de temps le choix de cookies est-il mémorisé ?', $value, $choices );
-        echo '<p class="description ptm-field-note">Pixel Trackers Manager essaie d’abord de lire le réglage du gestionnaire de consentement. À défaut, 6 mois est proposé comme bonne pratique générale CNIL, à apprécier selon le contexte — ce n’est pas une durée légale universelle.</p>';
+        echo '<p class="description ptm-field-note">Dendrila Privacy essaie d’abord de lire le réglage du gestionnaire de consentement. À défaut, 6 mois est proposé comme bonne pratique générale CNIL, à apprécier selon le contexte — ce n’est pas une durée légale universelle.</p>';
     }
 
     private function detected_external_service_labels( $scan ) {
@@ -4520,10 +4527,10 @@ final class Pixel_Trackers_Manager_Plugin {
             echo '<button type="button" class="ptm-guided-step" data-ptm-go-step="' . esc_attr( $step_id ) . '" title="' . esc_attr( $step_meta['label'] ) . '"><span>' . esc_html( $step_number ) . '</span><small>' . esc_html( $step_meta['short'] ) . '</small></button>';
         }
         echo '</div><div class="ptm-guided-mode-actions"><button type="button" class="button-link" id="ptm-wizard-show-all">Afficher tout le formulaire</button><button type="button" class="button-link" id="ptm-wizard-guided-mode" hidden>Revenir à l’assistant étape par étape</button></div></div>';
-        echo '<div class="ptm-callout neutral ptm-wizard-reassurance"><strong>Vous hésitez ?</strong> Choisissez « À vérifier » ou laissez un champ facultatif vide. Pixel Trackers Manager ne vous demande pas d’inventer une réponse juridique.</div>';
+        echo '<div class="ptm-callout neutral ptm-wizard-reassurance"><strong>Vous hésitez ?</strong> Choisissez « À vérifier » ou laissez un champ facultatif vide. Dendrila Privacy ne vous demande pas d’inventer une réponse juridique.</div>';
         if ( ! empty( $readiness['errors'] ) ) { echo '<div class="ptm-callout warn"><strong>Avant insertion du bloc RGPD, complétez encore :</strong><ul>'; foreach ( array_slice( $readiness['errors'], 0, 12 ) as $item ) { echo '<li>' . esc_html( $item ) . '</li>'; } echo '</ul></div>'; }
         if ( $legal_notice_missing ) { echo '<div class="ptm-callout neutral"><strong>Mentions légales à compléter :</strong> ' . esc_html( implode( ', ', $legal_notice_missing ) ) . '.</div>'; }
-        echo '<div class="ptm-legal-note"><strong>Gain de temps :</strong> commencez par rechercher l’entreprise ci-dessous. Pixel Trackers Manager peut préremplir les données publiques disponibles (nom, adresse, SIREN/SIRET, TVA, forme/activité quand présentes), puis vous complétez seulement ce que le registre ne connaît pas. La recherche n’est envoyée au registre public que lorsque vous cliquez sur « Rechercher ».</div>';
+        echo '<div class="ptm-legal-note"><strong>Gain de temps :</strong> commencez par rechercher l’entreprise ci-dessous. Dendrila Privacy peut préremplir les données publiques disponibles (nom, adresse, SIREN/SIRET, TVA, forme/activité quand présentes), puis vous complétez seulement ce que le registre ne connaît pas. La recherche n’est envoyée au registre public que lorsque vous cliquez sur « Rechercher ».</div>';
 
         $this->legal_section_form_start( 'identity' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 1</div><h3>Qui édite le site, et qui décide de l’utilisation des données ?</h3><p class="ptm-question-intro">Ces rôles sont souvent la même structure, mais pas toujours. Le webmaster n’est pas automatiquement responsable du traitement : indiquez séparément l’éditeur du site, le responsable du traitement et le contact qui répond aux demandes sur les données.</p>';
@@ -4545,8 +4552,8 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_input( 'public_contact_email', 'E-mail public', $profile['public_contact_email'] ); $this->legal_input( 'public_contact_phone', 'Téléphone public', $profile['public_contact_phone'] );
         $this->legal_input( 'publication_director', 'Directeur / responsable de la publication', $profile['publication_director'] );
         echo '</div></details>';
-        echo '<details class="ptm-subsection ptm-subsection-details"><summary>Hébergeur du site <small>Pixel Trackers Manager peut proposer le nom et les coordonnées</small></summary><div class="ptm-form-grid">';
-        $this->legal_host_input( $profile['host_name'] ); $this->legal_textarea( 'host_address', 'Adresse de l’hébergeur', $profile['host_address'], 'Cette adresse est proposée automatiquement lorsqu’elle figure dans la base locale de Pixel Trackers Manager ; vérifiez-la avant publication.' ); $this->legal_input( 'host_phone', 'Téléphone de l’hébergeur', $profile['host_phone'], false, 'Le numéro est prérempli uniquement lorsque Pixel Trackers Manager dispose d’une source officielle vérifiée.' );
+        echo '<details class="ptm-subsection ptm-subsection-details"><summary>Hébergeur du site <small>Dendrila Privacy peut proposer le nom et les coordonnées</small></summary><div class="ptm-form-grid">';
+        $this->legal_host_input( $profile['host_name'] ); $this->legal_textarea( 'host_address', 'Adresse de l’hébergeur', $profile['host_address'], 'Cette adresse est proposée automatiquement lorsqu’elle figure dans la base locale de Dendrila Privacy ; vérifiez-la avant publication.' ); $this->legal_input( 'host_phone', 'Téléphone de l’hébergeur', $profile['host_phone'], false, 'Le numéro est prérempli uniquement lorsque Dendrila Privacy dispose d’une source officielle vérifiée.' );
         echo '<input type="hidden" id="ptm-host-source-url" name="legal_profile[host_source_url]" value="' . esc_attr( $profile['host_source_url'] ) . '"><div id="ptm-host-source-saved" class="ptm-host-source-saved">' . ( $profile['host_source_url'] ? '<a href="' . esc_url( $profile['host_source_url'] ) . '" target="_blank" rel="noopener noreferrer">Vérifier les coordonnées sur la source officielle</a>' : '' ) . '</div>';
         echo '</div></details>';
         echo '<details class="ptm-subsection ptm-subsection-details"><summary>Cas particuliers <small>DPO, activité réglementée, représentant européen…</small></summary><div class="ptm-form-grid">';
@@ -4560,13 +4567,13 @@ final class Pixel_Trackers_Manager_Plugin {
 
         $this->legal_section_form_start( 'treatments' );
         $recommended_templates = $this->treatment_template_recommendations( $scan );
-        echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 2</div><h3>À quoi utilisez-vous les données personnelles ?</h3><p class="ptm-question-intro">Choisissez d’abord les activités qui correspondent réellement à votre site. Pixel Trackers Manager crée un exemple que vous pouvez corriger, sans vous demander de connaître le vocabulaire juridique.</p>';
-        echo '<div class="ptm-treatment-guide"><h4>En clair : un traitement = une raison d’utiliser des données</h4><p>Un traitement décrit <strong>pourquoi vous utilisez des données personnelles</strong>. Ne saisissez pas le nom d’une extension comme « Contact Form 7 » : écrivez plutôt « Répondre aux demandes envoyées par le formulaire de contact ».</p><ol><li><strong>Finalité</strong> : pourquoi les données sont utilisées.</li><li><strong>Catégories de données</strong> : quels types d’informations sont concernés.</li><li><strong>Base juridique</strong> : ce qui autorise ce traitement — Pixel Trackers Manager peut suggérer un exemple, mais vous devez le confirmer selon votre situation.</li><li><strong>Destinataires</strong> : qui peut accéder aux données (équipe, hébergeur, prestataire…).</li><li><strong>Durée</strong> : combien de temps elles sont conservées, ou selon quel critère.</li></ol><p><strong>Exemple :</strong> finalité « Répondre aux demandes de contact » · données « nom, e-mail, message » · destinataires « personnes chargées de répondre + hébergeur » · durée « le temps nécessaire au traitement de la demande puis archivage limité selon la relation créée ».</p></div>';
+        echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 2</div><h3>À quoi utilisez-vous les données personnelles ?</h3><p class="ptm-question-intro">Choisissez d’abord les activités qui correspondent réellement à votre site. Dendrila Privacy crée un exemple que vous pouvez corriger, sans vous demander de connaître le vocabulaire juridique.</p>';
+        echo '<div class="ptm-treatment-guide"><h4>En clair : un traitement = une raison d’utiliser des données</h4><p>Un traitement décrit <strong>pourquoi vous utilisez des données personnelles</strong>. Ne saisissez pas le nom d’une extension comme « Contact Form 7 » : écrivez plutôt « Répondre aux demandes envoyées par le formulaire de contact ».</p><ol><li><strong>Finalité</strong> : pourquoi les données sont utilisées.</li><li><strong>Catégories de données</strong> : quels types d’informations sont concernés.</li><li><strong>Base juridique</strong> : ce qui autorise ce traitement — Dendrila Privacy peut suggérer un exemple, mais vous devez le confirmer selon votre situation.</li><li><strong>Destinataires</strong> : qui peut accéder aux données (équipe, hébergeur, prestataire…).</li><li><strong>Durée</strong> : combien de temps elles sont conservées, ou selon quel critère.</li></ol><p><strong>Exemple :</strong> finalité « Répondre aux demandes de contact » · données « nom, e-mail, message » · destinataires « personnes chargées de répondre + hébergeur » · durée « le temps nécessaire au traitement de la demande puis archivage limité selon la relation créée ».</p></div>';
         echo '<div class="ptm-treatment-templates"><strong>Que fait votre site ? Sélectionnez un exemple :</strong><div class="ptm-template-buttons">';
         foreach ( $recommended_templates as $template ) {
             echo '<button type="button" class="button ptm-treatment-template' . ( ! empty( $template['detected'] ) ? ' is-detected' : '' ) . '" data-template="' . esc_attr( $template['id'] ) . '"><strong>' . esc_html( $template['label'] ) . '</strong>' . ( ! empty( $template['badge'] ) ? '<small>' . esc_html( $template['badge'] ) . '</small>' : '<small>utiliser comme exemple</small>' ) . '</button>';
         }
-        echo '</div><p class="description">Pixel Trackers Manager remplit la première ligne vide. Les textes sont des points de départ : relisez surtout la base juridique, les destinataires et la durée réelle.</p></div>';
+        echo '</div><p class="description">Dendrila Privacy remplit la première ligne vide. Les textes sont des points de départ : relisez surtout la base juridique, les destinataires et la durée réelle.</p></div>';
         echo '<div class="ptm-treatment-editor">';
         $rows = array_values( (array) $profile['treatments'] ); while ( count( $rows ) < 4 ) { $rows[] = array(); }
         foreach ( array_slice( $rows, 0, 8 ) as $i => $row ) { $this->render_treatment_row( $i, $row ); }
@@ -4591,11 +4598,11 @@ final class Pixel_Trackers_Manager_Plugin {
 
         $source_services = $this->indirect_source_service_options( $scan );
         $this->legal_section_form_start( 'flows' );
-        echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 3</div><h3>Quels services reçoivent ou produisent des informations ?</h3><p class="ptm-question-intro">Pixel Trackers Manager prépare une fiche par service à partir de la dernière analyse. Enregistrez Google Analytics, puis ajoutez un autre service, et ainsi de suite. <strong>Enregistrer un service ne vous fait jamais passer à l’étape 4</strong> : vous décidez vous-même quand continuer.</p>';
+        echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 3</div><h3>Quels services reçoivent ou produisent des informations ?</h3><p class="ptm-question-intro">Dendrila Privacy prépare une fiche par service à partir de la dernière analyse. Enregistrez Google Analytics, puis ajoutez un autre service, et ainsi de suite. <strong>Enregistrer un service ne vous fait jamais passer à l’étape 4</strong> : vous décidez vous-même quand continuer.</p>';
         echo '<div class="ptm-subsection"><h4>1. Comment les informations arrivent-elles ?</h4><div class="ptm-form-grid">';
         $this->legal_select( 'collection_mode', 'Origine générale des informations', $profile['collection_mode'], array( 'unknown'=>'Je ne sais pas encore','direct'=>'La personne les fournit elle-même','indirect'=>'Elles viennent surtout de services ou d’autres sources','both'=>'Les deux situations existent' ) );
         echo '</div></div>';
-        echo '<div class="ptm-subsection ptm-indirect-source-helper"><h4>2. Services et sources indirectes</h4><p class="description">Les services désactivés sont exclus. Quand Pixel Trackers Manager connaît un élément, il le préremplit ; quand il ne peut pas l’affirmer, il indique « À vérifier » plutôt que d’inventer.</p>';
+        echo '<div class="ptm-subsection ptm-indirect-source-helper"><h4>2. Services et sources indirectes</h4><p class="description">Les services désactivés sont exclus. Quand Dendrila Privacy connaît un élément, il le préremplit ; quand il ne peut pas l’affirmer, il indique « À vérifier » plutôt que d’inventer.</p>';
         echo '<div class="ptm-indirect-add-row"><label class="ptm-field"><span>Ajouter un service</span><select id="ptm-indirect-service-select"><option value="">Sélectionnez un service…</option>';
         foreach ( $source_services as $service ) {
             echo '<option value="' . esc_attr( $service['id'] ) . '" data-ptm-service="' . esc_attr( wp_json_encode( $service ) ) . '">' . esc_html( $service['label'] . ' — ' . ( 'active' === $service['state'] ? 'actif' : 'à vérifier' ) ) . '</option>';
@@ -4648,16 +4655,16 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_select( 'high_risk_processing', 'Ce traitement peut-il présenter un risque important pour les personnes ?', $profile['high_risk_processing'], array( 'unknown'=>'Je ne sais pas / à vérifier','no'=>'Non','yes'=>'Oui' ) ); $this->legal_select( 'dpia_status', 'Une analyse approfondie des risques est-elle nécessaire ou déjà faite ?', $profile['dpia_status'], array( 'unknown'=>'Je ne sais pas / à vérifier','not_required'=>'Après vérification, elle n’est pas requise','done'=>'Oui, elle a été réalisée','to_do'=>'Elle reste à réaliser / est en cours' ) ); echo '<p class="description ptm-field-note">Le nom juridique est « analyse d’impact sur la protection des données » (AIPD / DPIA). Elle concerne surtout certains traitements susceptibles d’engendrer un risque élevé.</p>';
         echo '</div></div>'; $this->legal_section_form_end();
 
-        $this->legal_section_form_start( 'cookies' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 6</div><h3>Cookies et traceurs facultatifs</h3><p class="ptm-question-intro">Pixel Trackers Manager préremplit cette étape à partir des traceurs actifs et du gestionnaire de consentement détecté. Un traceur désactivé ne compte pas comme traceur facultatif actif.</p><div class="ptm-form-grid">';
+        $this->legal_section_form_start( 'cookies' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 6</div><h3>Cookies et traceurs facultatifs</h3><p class="ptm-question-intro">Dendrila Privacy préremplit cette étape à partir des traceurs actifs et du gestionnaire de consentement détecté. Un traceur désactivé ne compte pas comme traceur facultatif actif.</p><div class="ptm-form-grid">';
         $this->legal_select( 'cookie_nonessential', 'Votre site utilise-t-il des traceurs facultatifs ?', $profile['cookie_nonessential'], array( 'unknown'=>'À vérifier','no'=>'Non','yes'=>'Oui' ) );
         $this->legal_select( 'cookie_consent_status', 'Comment leur activation est-elle gérée ?', $profile['cookie_consent_status'], array( 'unknown'=>'À vérifier','yes'=>'Ils attendent le consentement','no'=>'Ils peuvent se lancer avant le choix','exempt_only'=>'Les traceurs utilisés sont déclarés exemptés de consentement' ) );
-        $this->legal_page_url_select( 'cookie_preferences', 'Sur quelle page peut-on retirer ou modifier son choix ?', $profile['cookie_preferences'], 'Pixel Trackers Manager essaie de repérer la bonne page à partir du gestionnaire de consentement détecté. Corrigez la sélection si nécessaire.' );
+        $this->legal_page_url_select( 'cookie_preferences', 'Sur quelle page peut-on retirer ou modifier son choix ?', $profile['cookie_preferences'], 'Dendrila Privacy essaie de repérer la bonne page à partir du gestionnaire de consentement détecté. Corrigez la sélection si nécessaire.' );
         $this->legal_cookie_retention_select( $profile['cookie_choice_retention'] );
         $this->legal_select( 'cookie_cross_device', 'Le choix de cookies est-il conservé sur les autres appareils ?', $profile['cookie_cross_device'], array( 'unknown'=>'Impossible à déterminer automatiquement','yes'=>'Oui, le choix peut être retrouvé sur les autres appareils','no'=>'Non, le choix doit généralement être refait' ) );
         $this->legal_textarea( 'cookie_cross_device_explanation', 'Comment le vérifier / précision utile', $profile['cookie_cross_device_explanation'], 'Test simple : faites un choix ici, puis ouvrez le site sur un autre navigateur ou téléphone. Si la bannière redemande un choix, il n’est pas synchronisé.' );
-        echo '</div><div class="ptm-callout neutral"><strong>Vous ne savez pas pour les appareils ?</strong> C’est normal. Pixel Trackers Manager essaie de le déduire du gestionnaire de consentement. Sinon, faites le test sur un autre navigateur/appareil ou laissez « ne peut pas encore le déterminer » : cela restera seulement une action à vérifier.</div></div>'; $this->legal_section_form_end();
+        echo '</div><div class="ptm-callout neutral"><strong>Vous ne savez pas pour les appareils ?</strong> C’est normal. Dendrila Privacy essaie de le déduire du gestionnaire de consentement. Sinon, faites le test sur un autre navigateur/appareil ou laissez « ne peut pas encore le déterminer » : cela restera seulement une action à vérifier.</div></div>'; $this->legal_section_form_end();
 
-        $this->legal_section_form_start( 'email' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 7</div><h3>Vos e-mails mesurent-ils les ouvertures ou les clics ?</h3><p class="ptm-question-intro">Pixel Trackers Manager vérifie automatiquement les réglages accessibles. Pour les outils dont le réglage est externe ou privé, il indique simplement « À vérifier ».</p>';
+        $this->legal_section_form_start( 'email' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 7</div><h3>Vos e-mails mesurent-ils les ouvertures ou les clics ?</h3><p class="ptm-question-intro">Dendrila Privacy vérifie automatiquement les réglages accessibles. Pour les outils dont le réglage est externe ou privé, il indique simplement « À vérifier ».</p>';
         if ( ! $mailing_present ) { echo '<p class="ptm-muted">Aucun outil d’e-mailing connu n’est détecté actuellement. Si vos envois passent par un service externe, vous pouvez tout de même renseigner cette étape.</p>'; }
         else { echo '<div class="ptm-email-status-list">'; foreach ( (array) $scan['mailing'] as $mail_tool ) { $state = isset( $mail_tool['tracking_state'] ) ? $mail_tool['tracking_state'] : 'unknown'; $tone = 'active' === $state ? 'bad' : ( 'disabled' === $state ? 'good' : 'neutral' ); $label = 'active' === $state ? 'suivi d’engagement actif' : ( 'disabled' === $state ? 'suivi des ouvertures et des clics désactivé' : 'réglages à vérifier' ); echo '<span class="ptm-badge ' . esc_attr( $tone ) . '"><strong>' . esc_html( isset( $mail_tool['name'] ) ? $mail_tool['name'] : 'Outil e-mail' ) . '</strong> : ' . esc_html( $label ) . '</span>'; } echo '</div>'; }
         echo '<div class="ptm-email-purpose-suggestions"><strong>Exemples de finalités adaptés à ce qui est détecté :</strong><div class="ptm-template-buttons">';
@@ -4705,7 +4712,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<button type="button" class="button button-secondary" id="ptm-host-detect">Détecter automatiquement</button></div>';
         echo '<datalist id="ptm-known-hosts">';
         foreach ( $providers as $provider ) { echo '<option value="' . esc_attr( $provider['name'] ) . '"></option>'; }
-        echo '</datalist><small>Pixel Trackers Manager utilise des informations réseau et serveur (par exemple le domaine et les serveurs qui le desservent) pour proposer l’hébergeur. Pour les fournisseurs documentés dans sa base, le même bouton préremplit aussi la raison sociale utile, l’adresse et le téléphone disponible. Vérifiez toujours la source officielle avant publication.</small><div id="ptm-host-results" class="ptm-host-results" aria-live="polite"></div></div>';
+        echo '</datalist><small>Dendrila Privacy utilise des informations réseau et serveur (par exemple le domaine et les serveurs qui le desservent) pour proposer l’hébergeur. Pour les fournisseurs documentés dans sa base, le même bouton préremplit aussi la raison sociale utile, l’adresse et le téléphone disponible. Vérifiez toujours la source officielle avant publication.</small><div id="ptm-host-results" class="ptm-host-results" aria-live="polite"></div></div>';
     }
 
     private function legal_url_input( $name, $label, $value ) {
@@ -4831,7 +4838,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<label class="ptm-field"><span>Qui reçoit ou peut accéder à ces données ?</span><textarea rows="3" name="' . esc_attr( $prefix . '[recipients]' ) . '">' . esc_textarea( $row['recipients'] ) . '</textarea></label>';
         echo '<label class="ptm-field"><span>Des données peuvent-elles partir hors UE/EEE ?</span><select name="' . esc_attr( $prefix . '[transfer_status]' ) . '">'; foreach ( array( 'unknown'=>'À vérifier','no'=>'Non, d’après les informations disponibles','yes'=>'Oui / potentiellement' ) as $key=>$label ) { echo '<option value="' . esc_attr( $key ) . '" ' . selected( $row['transfer_status'], $key, false ) . '>' . esc_html( $label ) . '</option>'; } echo '</select></label>';
         echo '<label class="ptm-field"><span>Pays / organisation concernée</span><textarea rows="2" name="' . esc_attr( $prefix . '[transfer_destinations]' ) . '">' . esc_textarea( $row['transfer_destinations'] ) . '</textarea></label>';
-        echo '<label class="ptm-field"><span>Encadrement du transfert</span><textarea rows="2" name="' . esc_attr( $prefix . '[transfer_mechanism]' ) . '">' . esc_textarea( $row['transfer_mechanism'] ) . '</textarea><small>Pixel Trackers Manager préremplit seulement ce qu’il peut raisonnablement déduire ; « À vérifier » est préférable à une information juridique inventée.</small></label>';
+        echo '<label class="ptm-field"><span>Encadrement du transfert</span><textarea rows="2" name="' . esc_attr( $prefix . '[transfer_mechanism]' ) . '">' . esc_textarea( $row['transfer_mechanism'] ) . '</textarea><small>Dendrila Privacy préremplit seulement ce qu’il peut raisonnablement déduire ; « À vérifier » est préférable à une information juridique inventée.</small></label>';
         echo '<label class="ptm-field"><span>Informations / garanties à consulter</span><textarea rows="2" name="' . esc_attr( $prefix . '[transfer_safeguards]' ) . '">' . esc_textarea( $row['transfer_safeguards'] ) . '</textarea></label>';
         echo '<label class="ptm-field"><span>Ce service prend-il automatiquement une décision importante sur une personne ?</span><select name="' . esc_attr( $prefix . '[automated_decision]' ) . '">'; foreach ( array( 'unknown'=>'À vérifier','no'=>'Non, rien de ce type','yes'=>'Oui' ) as $key=>$label ) { echo '<option value="' . esc_attr( $key ) . '" ' . selected( $row['automated_decision'], $key, false ) . '>' . esc_html( $label ) . '</option>'; } echo '</select></label>';
         echo '<label class="ptm-field"><span>Précision sur la décision automatisée</span><textarea rows="2" name="' . esc_attr( $prefix . '[automated_details]' ) . '">' . esc_textarea( $row['automated_details'] ) . '</textarea></label>';
@@ -4878,7 +4885,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<label class="ptm-field"><span>Quelles informations sont concernées ? <small>Catégories de données</small></span><textarea rows="2" data-ptm-treatment-field="data_categories" name="' . esc_attr( $prefix . '[data_categories]' ) . '" placeholder="Ex. nom, adresse e-mail, téléphone, contenu du message">' . esc_textarea( $row['data_categories'] ) . '</textarea><small>Indiquez des catégories, jamais les données réelles d’une personne.</small></label>';
         echo '<label class="ptm-field"><span>Sur quoi repose ce traitement ? <small>Base juridique</small></span><select data-ptm-treatment-field="legal_basis" name="' . esc_attr( $prefix . '[legal_basis]' ) . '">';
         foreach ( array( 'unknown'=>'Je ne sais pas encore / à vérifier','consent'=>'Consentement','contract'=>'Contrat / mesures précontractuelles','legal_obligation'=>'Obligation légale','vital_interests'=>'Intérêts vitaux','public_task'=>'Mission d’intérêt public','legitimate_interest'=>'Intérêt légitime' ) as $key=>$label ) { echo '<option value="' . esc_attr( $key ) . '" ' . selected( $row['legal_basis'], $key, false ) . '>' . esc_html( $label ) . '</option>'; }
-        echo '</select><small>Pixel Trackers Manager peut proposer un point de départ, mais ne choisit pas cette réponse à votre place.</small></label>';
+        echo '</select><small>Dendrila Privacy peut proposer un point de départ, mais ne choisit pas cette réponse à votre place.</small></label>';
         echo '<label class="ptm-field"><span>Précision utile sur cette base</span><textarea rows="2" data-ptm-treatment-field="basis_detail" name="' . esc_attr( $prefix . '[basis_detail]' ) . '" placeholder="Ex. répondre à une demande de devis / obligation comptable applicable">' . esc_textarea( $row['basis_detail'] ) . '</textarea><small>Particulièrement utile pour une obligation légale ou un intérêt légitime.</small></label>';
         echo '<label class="ptm-field"><span>Qui peut accéder aux données ? <small>Destinataires</small></span><textarea rows="2" data-ptm-treatment-field="recipients" name="' . esc_attr( $prefix . '[recipients]' ) . '" placeholder="Ex. personnes chargées des demandes, hébergeur, prestataire e-mail">' . esc_textarea( $row['recipients'] ) . '</textarea><small>Incluez les catégories de personnes internes et les prestataires concernés.</small></label>';
         echo '<label class="ptm-field"><span>Combien de temps les conservez-vous ? <small>Durée</small></span><textarea rows="2" data-ptm-treatment-field="retention" name="' . esc_attr( $prefix . '[retention]' ) . '" placeholder="Ex. le temps de traiter la demande puis suppression ou archivage limité">' . esc_textarea( $row['retention'] ) . '</textarea><small>Indiquez une durée ou le critère qui déclenche la suppression.</small></label>';
@@ -4951,7 +4958,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     'id' => $other_builder['id'],
                     'label' => $other_builder['label'],
                     'safe_mode' => true,
-                    'note' => 'Constructeur détecté. La bannière et les codes courts fonctionnent normalement, mais Pixel Trackers Manager ne réécrit pas sa structure interne : insérez le code court depuis le constructeur.',
+                    'note' => 'Constructeur détecté. La bannière et les codes courts fonctionnent normalement, mais Dendrila Privacy ne réécrit pas sa structure interne : insérez le code court depuis le constructeur.',
                 );
             }
         }
@@ -4965,7 +4972,7 @@ final class Pixel_Trackers_Manager_Plugin {
                         'id' => 'brizy',
                         'label' => 'Brizy',
                         'safe_mode' => true,
-                        'note' => 'Constructeur détecté. La bannière et les codes courts fonctionnent normalement, mais Pixel Trackers Manager ne réécrit pas sa structure interne : insérez le code court depuis Brizy.',
+                        'note' => 'Constructeur détecté. La bannière et les codes courts fonctionnent normalement, mais Dendrila Privacy ne réécrit pas sa structure interne : insérez le code court depuis Brizy.',
                     );
                 }
             } catch ( Throwable $e ) {
@@ -4977,7 +4984,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'id' => 'wordpress',
             'label' => 'Éditeur WordPress',
             'safe_mode' => false,
-            'note' => 'Pixel Trackers Manager peut mettre à jour uniquement ses blocs balisés dans le contenu de cette page.',
+            'note' => 'Dendrila Privacy peut mettre à jour uniquement ses blocs balisés dans le contenu de cette page.',
         );
     }
 
@@ -5185,7 +5192,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function export_payload() {
         return array(
-            'plugin' => array( 'name' => 'Pixel Trackers Manager', 'version' => self::VERSION ),
+            'plugin' => array( 'name' => 'Dendrila Privacy', 'version' => self::VERSION ),
             'site' => array( 'name' => get_bloginfo( 'name' ), 'url' => home_url( '/' ) ),
             'scan' => get_option( self::OPTION_SCAN, array() ),
             'page_audit' => get_option( self::OPTION_PAGE_AUDIT, array() ),
@@ -5238,10 +5245,10 @@ final class Pixel_Trackers_Manager_Plugin {
         $scan = get_option( self::OPTION_SCAN, array() );
         $page_audit = get_option( self::OPTION_PAGE_AUDIT, array() );
         $log = get_option( self::OPTION_AUDIT_LOG, array() );
-        $page = sanitize_key( $this->query_value( 'page', 'pixel-trackers-manager' ) );
+        $page = sanitize_key( $this->query_value( 'page', 'dendrila-privacy' ) );
 
         echo '<div class="wrap ptm-wrap">';
-        echo '<header class="ptm-head"><div class="ptm-brand"><img class="ptm-brand-mark" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div><h1>Pixel Trackers Manager <span class="ptm-version">' . esc_html( self::VERSION ) . '</span></h1><p><strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong> — audit de confidentialité et assistant de documentation</p></div></div></header>';
+        echo '<header class="ptm-head"><div class="ptm-brand"><img class="ptm-brand-mark" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div><h1>Dendrila Privacy <span class="ptm-version">' . esc_html( self::VERSION ) . '</span></h1><p><strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong> — audit de confidentialité et assistant de documentation</p></div></div></header>';
 
         if ( 'pixel-trackers-manager-setup' === $page ) {
             $this->admin_notice();
@@ -5284,13 +5291,13 @@ final class Pixel_Trackers_Manager_Plugin {
 
         echo '<main class="ptm-setup" data-ptm-setup-step="' . esc_attr( $step ) . '">';
         echo '<div class="ptm-setup-shell">';
-        echo '<div class="ptm-setup-topline"><div class="ptm-setup-mini-brand"><img src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><span>Pixel Trackers Manager</span></div><span>Étape ' . esc_html( $step_number[$step] ) . ' sur 4</span></div>';
+        echo '<div class="ptm-setup-topline"><div class="ptm-setup-mini-brand"><img src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><span>Dendrila Privacy</span></div><span>Étape ' . esc_html( $step_number[$step] ) . ' sur 4</span></div>';
         echo '<div class="ptm-setup-meter" aria-label="Progression de la configuration"><span style="width:' . esc_attr( $step_number[$step] * 25 ) . '%"></span></div>';
 
         if ( 'welcome' === $step ) {
             echo '<section class="ptm-setup-panel ptm-setup-hero">';
             echo '<div class="ptm-setup-icon"><span class="dashicons dashicons-shield-alt"></span></div><p class="ptm-eyebrow">Première ouverture</p><h2>Préparons votre site en quelques étapes.</h2>';
-            echo '<p class="ptm-setup-lead">Pixel Trackers Manager va repérer vos pages légales, préparer la gestion du consentement et vous proposer un premier contrôle complet. Rien n’est publié, activé ou analysé sans votre clic.</p>';
+            echo '<p class="ptm-setup-lead">Dendrila Privacy va repérer vos pages légales, préparer la gestion du consentement et vous proposer un premier contrôle complet. Rien n’est publié, activé ou analysé sans votre clic.</p>';
             echo '<div class="ptm-setup-promises"><div><span class="dashicons dashicons-media-document"></span><strong>Pages légales</strong><small>Réutiliser celles qui existent et créer un brouillon lorsqu’il en manque une.</small></div><div><span class="dashicons dashicons-privacy"></span><strong>Consentement</strong><small>Conserver votre solution existante ou configurer celle de PTM.</small></div><div><span class="dashicons dashicons-search"></span><strong>Premier état</strong><small>Une analyse complète est recommandée pour établir la référence du site.</small></div></div>';
             echo '<div class="ptm-setup-actions">';
             $this->form_start( 'setup_begin' ); submit_button( 'Commencer la configuration', 'primary', 'submit', false ); $this->form_end();
@@ -5382,7 +5389,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'pixel-trackers-manager-journal' => 'Journal',
             'pixel-trackers-manager-settings' => 'Réglages',
         );
-        echo '<div class="ptm-tab-surface"><nav class="ptm-nav-tabs" aria-label="Navigation Pixel Trackers Manager">';
+        echo '<div class="ptm-tab-surface"><nav class="ptm-nav-tabs" aria-label="Navigation Dendrila Privacy">';
         $i = 0; $count = count( $tabs );
         foreach ( $tabs as $slug => $label ) {
             $i++; $active = $current_page === $slug;
@@ -5400,7 +5407,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $active = isset( $scan['active_tracking_count'] ) ? (int) $scan['active_tracking_count'] : 0;
         $actions = isset( $page_audit['recommendations'] ) && is_array( $page_audit['recommendations'] ) ? $page_audit['recommendations'] : array();
         $score = isset( $page_audit['technical_coverage_percent'] ) ? max( 0, min( 100, (int) $page_audit['technical_coverage_percent'] ) ) : null;
-        $cmp = ! empty( $this->settings()['consent_enabled'] ) ? 'Pixel Trackers Manager' : ( ! empty( $scan['cmp'][0]['name'] ) ? $scan['cmp'][0]['name'] : '' );
+        $cmp = ! empty( $this->settings()['consent_enabled'] ) ? 'Dendrila Privacy' : ( ! empty( $scan['cmp'][0]['name'] ) ? $scan['cmp'][0]['name'] : '' );
         $coverage = isset( $scan['coverage'] ) && is_array( $scan['coverage'] ) ? $scan['coverage'] : array();
         $last_scan = 'Jamais';
         if ( ! empty( $scan['generated_at'] ) ) {
@@ -5429,7 +5436,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<section class="ptm-card ptm-scan-card" id="ptm-scan-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-update"></span> Analyse du site</h2><p>Analyse progressive des contenus publics, extensions actives et réglages de suivi connus.</p></div><div class="ptm-scan-actions"><button type="button" id="ptm-scan-start" class="button button-primary">Relancer l’analyse standard</button><button type="button" id="ptm-scan-full" class="button button-secondary">Analyse complète</button><button type="button" id="ptm-scan-cancel" class="button" hidden>Annuler</button><noscript>';
         $this->form_start( 'scan' ); submit_button( 'Relancer l’analyse', 'primary', 'submit', false ); $this->form_end();
         echo '</noscript></div></div>';
-        echo '<details class="ptm-full-scan-options"><summary>Options de l’analyse complète</summary><div class="ptm-full-scan-grid"><label>Pour les articles et contenus similaires, limiter à <select id="ptm-full-scan-age"><option value="0">Toutes les dates</option><option value="1">1 an</option><option value="2">2 ans</option><option value="5">5 ans</option><option value="10">10 ans</option></select></label><label><input type="checkbox" id="ptm-full-scan-archives"> Inclure aussi les archives de catégories, étiquettes et types de contenus</label></div><p class="description">Les pages juridiques sélectionnées sont toujours incluses. Pixel Trackers Manager ne supprime aucun contenu pendant une analyse.</p></details>';
+        echo '<details class="ptm-full-scan-options"><summary>Options de l’analyse complète</summary><div class="ptm-full-scan-grid"><label>Pour les articles et contenus similaires, limiter à <select id="ptm-full-scan-age"><option value="0">Toutes les dates</option><option value="1">1 an</option><option value="2">2 ans</option><option value="5">5 ans</option><option value="10">10 ans</option></select></label><label><input type="checkbox" id="ptm-full-scan-archives"> Inclure aussi les archives de catégories, étiquettes et types de contenus</label></div><p class="description">Les pages juridiques sélectionnées sont toujours incluses. Dendrila Privacy ne supprime aucun contenu pendant une analyse.</p></details>';
         if ( ! empty( $coverage ) ) {
             $requested = isset( $coverage['requested'] ) ? (int) $coverage['requested'] : 0;
             $scanned = isset( $coverage['scanned'] ) ? (int) $coverage['scanned'] : 0;
@@ -5446,7 +5453,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     $status_label = ! empty( $issue['status_label'] ) ? (string) $issue['status_label'] : 'Page non publiée';
                     $title = ! empty( $issue['title'] ) ? (string) $issue['title'] : $this->scan_page_label( isset($issue['url']) ? $issue['url'] : '' );
                     echo '<article class="ptm-page-issue-row"><div><strong>' . esc_html( $title ) . '</strong><span class="ptm-badge warn">' . esc_html( $status_label ) . '</span>';
-                    if ( ! empty( $issue['generated'] ) ) { echo '<small>Cette page a été préparée par Pixel Trackers Manager.</small>'; }
+                    if ( ! empty( $issue['generated'] ) ) { echo '<small>Cette page a été préparée par Dendrila Privacy.</small>'; }
                     if ( empty( $issue['ready'] ) && ! empty( $issue['missing'] ) ) { echo '<small>À compléter avant publication : ' . esc_html( implode( ', ', array_slice( (array)$issue['missing'], 0, 3 ) ) ) . ( count((array)$issue['missing']) > 3 ? '…' : '' ) . '</small>'; }
                     echo '</div><div class="ptm-page-issue-actions">';
                     if ( ! empty( $issue['edit_url'] ) ) { echo '<a class="button button-secondary" href="' . esc_url( $issue['edit_url'] ) . '">Modifier</a>'; }
@@ -5484,7 +5491,7 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( $cmp ) {
             echo '<p class="ptm-cmp-name">' . esc_html( $cmp ) . '</p><p>Ouvrez cette section pour vérifier le blocage avant choix et tester le comportement.</p>';
         } else {
-            echo '<p><strong>Aucune solution connue détectée.</strong></p><p>Pixel Trackers Manager peut proposer une barre ou un encart et bloquer les services facultatifs connus avant le choix.</p><span class="ptm-inline-cta">Configurer la gestion du consentement →</span>';
+            echo '<p><strong>Aucune solution connue détectée.</strong></p><p>Dendrila Privacy peut proposer une barre ou un encart et bloquer les services facultatifs connus avant le choix.</p><span class="ptm-inline-cta">Configurer la gestion du consentement →</span>';
         }
         echo '<span class="dashicons dashicons-arrow-right-alt2 ptm-card-arrow" aria-hidden="true"></span></a>';
 
@@ -5492,7 +5499,7 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( ! $page_audit ) {
             echo '<p>Contrôlez les pages légales pour obtenir des actions documentaires précises.</p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-privacy' ) ) . '">Contrôler les pages</a>';
         } elseif ( ! $actions ) {
-            echo '<p><span class="ptm-badge good">Rien de bloquant détecté</span></p><p class="ptm-muted">Pixel Trackers Manager n’a identifié aucun manque avec ses règles actuelles.</p>';
+            echo '<p><span class="ptm-badge good">Rien de bloquant détecté</span></p><p class="ptm-muted">Dendrila Privacy n’a identifié aucun manque avec ses règles actuelles.</p>';
         } else {
             echo '<div class="ptm-action-rows">';
             foreach ( array_slice( $actions, 0, 4 ) as $index => $action ) {
@@ -5539,7 +5546,7 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( ! $page_audit ) {
             echo '<p>Le contrôle documentaire n’a pas encore été lancé.</p>';
         } elseif ( ! $missing ) {
-            echo '<ul class="ptm-missing-list"><li class="ok">Aucun manque détecté par le contrôle de Pixel Trackers Manager</li></ul>';
+            echo '<ul class="ptm-missing-list"><li class="ok">Aucun manque détecté par le contrôle de Dendrila Privacy</li></ul>';
         } else {
             echo '<ul class="ptm-missing-list">';
             foreach ( array_slice( array_unique( $missing ), 0, 7 ) as $item ) { echo '<li>' . esc_html( $item ) . '</li>'; }
@@ -5551,7 +5558,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     private function render_findings_tab( $scan ) {
-        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Outils e-mail et suivi d’engagement</h2><p>Pixel Trackers Manager indique uniquement l’état utile à comprendre, sans afficher les valeurs internes des réglages.</p></div></div>';
+        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Outils e-mail et suivi d’engagement</h2><p>Dendrila Privacy indique uniquement l’état utile à comprendre, sans afficher les valeurs internes des réglages.</p></div></div>';
         if(empty($scan['mailing'])){echo '<p>Aucun outil d’e-mailing connu détecté.</p>';} else {
             echo '<div class="ptm-findings">';
             foreach($scan['mailing'] as $tool){
@@ -5564,7 +5571,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     elseif(!empty($this->settings()['adapter_previous']['mailpoet_tracking_level'])){$this->form_start('restore_tracking_adapter');echo '<input type="hidden" name="adapter" value="mailpoet">';submit_button('Rétablir le réglage MailPoet précédent','secondary','submit',false);$this->form_end();}
                 } elseif('fluentcrm'===$tool['id']){
                     if('disabled'!==$state){$this->form_start('disable_tracking_adapter');echo '<input type="hidden" name="adapter" value="fluentcrm">';submit_button('Couper le suivi d’engagement FluentCRM','primary','submit',false);$this->form_end();}
-                    else{$this->form_start('restore_tracking_adapter');echo '<input type="hidden" name="adapter" value="fluentcrm">';submit_button('Retirer le mode confidentialité de Pixel Trackers Manager','secondary','submit',false);$this->form_end();}
+                    else{$this->form_start('restore_tracking_adapter');echo '<input type="hidden" name="adapter" value="fluentcrm">';submit_button('Retirer le mode confidentialité de Dendrila Privacy','secondary','submit',false);$this->form_end();}
                 }
                 if(!empty($tool['settings_url'])){echo ' <a class="button button-secondary" href="'.esc_url($tool['settings_url']).'">Ouvrir les réglages</a>';}
                 echo '</article>';
@@ -5593,7 +5600,7 @@ final class Pixel_Trackers_Manager_Plugin {
             }
             if(!empty($finding['plugin_sources'])){$names=array();foreach($finding['plugin_sources'] as $src){$names[]=$src['name'];}echo '<p><strong>Source probable :</strong> '.esc_html(implode(', ',$names)).'</p>';}
             $hint=$this->analytics_integration_hint($finding);
-            if($hint){echo '<div class="ptm-inline-action"><div><strong>Google Analytics semble être géré par '.esc_html($hint['label']).'.</strong><br><span class="ptm-muted">Pixel Trackers Manager utilise cette information pour vous envoyer au bon endroit, sans considérer la simple présence de l’intégration comme une preuve d’activation.</span></div><a class="button button-secondary" href="'.esc_url($hint['url']).'">Voir le réglage ↗</a></div>';}
+            if($hint){echo '<div class="ptm-inline-action"><div><strong>Google Analytics semble être géré par '.esc_html($hint['label']).'.</strong><br><span class="ptm-muted">Dendrila Privacy utilise cette information pour vous envoyer au bon endroit, sans considérer la simple présence de l’intégration comme une preuve d’activation.</span></div><a class="button button-secondary" href="'.esc_url($hint['url']).'">Voir le réglage ↗</a></div>';}
             $control=isset($finding['tracking_control'])?$finding['tracking_control']:$this->tracking_control_for_finding($finding);
             if(!empty($finding['active_tracking']) && empty($hint)){echo '<div class="ptm-inline-action"><div><strong>Réglage utile</strong><br><span class="ptm-muted">'.esc_html($control['instructions']).'</span></div>';if(!empty($control['url'])){echo '<a class="button button-secondary" href="'.esc_url($control['url']).'">'.esc_html($control['label']).'</a>';}echo '</div>';}
             echo '</article>';
@@ -5604,7 +5611,7 @@ final class Pixel_Trackers_Manager_Plugin {
     private function render_privacy_tab( $settings, $audit ) {
         $profile = wp_parse_args( get_option( self::OPTION_LEGAL_PROFILE, array() ), $this->legal_profile_defaults() );
 
-        echo '<section class="ptm-card ptm-legal-pages-card"><div class="ptm-card-head"><div><h2>Pages juridiques à contrôler</h2><p>Pixel Trackers Manager analyse ensemble les informations réparties entre vos pages. La page cookies est facultative lorsqu’elle n’est pas pertinente pour le site.</p></div></div>';
+        echo '<section class="ptm-card ptm-legal-pages-card"><div class="ptm-card-head"><div><h2>Pages juridiques à contrôler</h2><p>Dendrila Privacy analyse ensemble les informations réparties entre vos pages. La page cookies est facultative lorsqu’elle n’est pas pertinente pour le site.</p></div></div>';
         $this->form_start('audit_page');
         echo '<div class="ptm-legal-page-select-grid">';
         echo '<label class="ptm-field"><span>Mentions légales</span>'; $this->page_select((int)$settings['legal_notice_page_id'],'legal_notice_page_id'); echo '</label>';
@@ -5626,7 +5633,7 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         echo '</section>';
 
-        echo '<section class="ptm-card ptm-publication-card" id="ptm-publication-block"><div class="ptm-card-head"><div><h2>Codes courts (shortcodes) et mise à jour des pages</h2><p>Un document complet par destination. Vous pouvez copier son code court, ouvrir directement la page dans son éditeur ou demander à Pixel Trackers Manager de l’insérer lorsque la structure est prise en charge.</p></div></div>';
+        echo '<section class="ptm-card ptm-publication-card" id="ptm-publication-block"><div class="ptm-card-head"><div><h2>Codes courts (shortcodes) et mise à jour des pages</h2><p>Un document complet par destination. Vous pouvez copier son code court, ouvrir directement la page dans son éditeur ou demander à Dendrila Privacy de l’insérer lorsque la structure est prise en charge.</p></div></div>';
         echo '<div class="ptm-publication-grid">';
         foreach ( array('legal_notice','privacy','cookies') as $kind ) {
             $cfg = $this->legal_document_config($kind,$settings);
@@ -5653,7 +5660,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 } elseif ( in_array($builder['id'],array('elementor','divi'),true) ) {
                     $this->form_start('inject_builder_shortcode');
                     echo '<input type="hidden" name="page_id" value="'.esc_attr($page_id).'"><input type="hidden" name="document_kind" value="'.esc_attr($kind).'">';
-                    submit_button($this->document_shortcode_present($page_id,$kind)?'Valider et mettre à jour le contenu public':'Insérer automatiquement dans cette page','primary','submit',false,array('onclick'=>"return confirm('Pixel Trackers Manager va valider le contenu public et, si nécessaire, ajouter le code court à cette page. Continuer ?');"));
+                    submit_button($this->document_shortcode_present($page_id,$kind)?'Valider et mettre à jour le contenu public':'Insérer automatiquement dans cette page','primary','submit',false,array('onclick'=>"return confirm('Dendrila Privacy va valider le contenu public et, si nécessaire, ajouter le code court à cette page. Continuer ?');"));
                     $this->form_end();
                 } elseif ( ! empty( $builder['safe_mode'] ) ) {
                     echo '<p class="ptm-muted">'.esc_html( ! empty($builder['note']) ? $builder['note'] : 'Constructeur détecté : insérez le code court depuis son éditeur.' ).'</p>';
@@ -5671,7 +5678,7 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         echo '</div>';
         $this->form_start('sync_all_legal_documents');
-        submit_button('Mettre à jour toutes les pages prêtes','secondary','submit',false,array('onclick'=>"return confirm('Pixel Trackers Manager va mettre à jour toutes les pages prises en charge. Continuer ?');"));
+        submit_button('Mettre à jour toutes les pages prêtes','secondary','submit',false,array('onclick'=>"return confirm('Dendrila Privacy va mettre à jour toutes les pages prises en charge. Continuer ?');"));
         $this->form_end();
         echo '<p class="ptm-muted">Les anciens codes courts français restent compatibles. Les informations sur un constructeur de pages ne sont affichées que lorsqu’il est réellement utilisé par la page concernée.</p></section>';
 
@@ -5742,7 +5749,7 @@ final class Pixel_Trackers_Manager_Plugin {
             }
         }
         echo '</div></details></div>';
-        echo '<p class="ptm-muted">La couverture se recalcule après les sauvegardes de l’assistant, les analyses et les mises à jour de pages. Elle mesure ce que Pixel Trackers Manager a pu documenter, pas une conformité juridique.</p></section>';
+        echo '<p class="ptm-muted">La couverture se recalcule après les sauvegardes de l’assistant, les analyses et les mises à jour de pages. Elle mesure ce que Dendrila Privacy a pu documenter, pas une conformité juridique.</p></section>';
 
         $actions = isset($audit['recommendations']) ? $audit['recommendations'] : array();
         if($actions){
@@ -5754,7 +5761,7 @@ final class Pixel_Trackers_Manager_Plugin {
             echo '</div></section>';
         }
 
-        if(!empty($audit['stale_pixel_trackers_manager_services'])){echo '<div class="ptm-callout warn"><strong>Bloc géré à nettoyer :</strong> '.esc_html(implode(', ',wp_list_pluck($audit['stale_pixel_trackers_manager_services'],'label'))).'. Une synchronisation les retirera.</div>';}
+        if(!empty($audit['stale_dendrila_privacy_services'])){echo '<div class="ptm-callout warn"><strong>Bloc géré à nettoyer :</strong> '.esc_html(implode(', ',wp_list_pluck($audit['stale_dendrila_privacy_services'],'label'))).'. Une synchronisation les retirera.</div>';}
         if(!empty($audit['stale_cookie_mentions'])){foreach($audit['stale_cookie_mentions'] as $stale_cookie){echo '<div class="ptm-callout warn"><strong>Politique de cookies à rafraîchir :</strong> '.esc_html($stale_cookie['label']).' est désactivé, mais d’anciennes mentions techniques restent présentes dans les documents analysés.</div>';}}
 
         echo '<section class="ptm-card ptm-start-assistant"><div class="ptm-card-head"><div><h2>Besoin de corriger une information ?</h2><p>L’assistant RGPD est accessible dans un onglet séparé. Les éléments manquants ou partiels ci-dessus y mènent directement.</p></div><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-assistant' ) ) . '">Ouvrir l’assistant RGPD</a></div></section>';
@@ -5783,7 +5790,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
     public function shortcode_consent_settings() {
         if ( empty( $this->settings()['consent_enabled'] ) ) { return ''; }
-        return '<button type="button" class="ptm-consent-open">' . esc_html__( 'Gérer mes choix', 'pixel-trackers-manager' ) . '</button>';
+        return '<button type="button" class="ptm-consent-open">' . esc_html__( 'Gérer mes choix', 'dendrila-privacy' ) . '</button>';
     }
 
     private function render_consent_tab( $settings ) {
@@ -5800,8 +5807,8 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<div class="ptm-consent-settings-grid">';
         echo '<label class="ptm-consent-toggle-card"><input type="checkbox" name="consent_enabled" value="1" ' . checked( ! empty( $settings['consent_enabled'] ), true, false ) . '><span><strong>Activer la gestion du consentement PTM</strong><small>Bloquer les services facultatifs reconnus avant le choix et afficher l’interface aux visiteurs.</small></span></label>';
         echo '<div class="ptm-consent-preview-options"><div><strong>Présentation</strong><p>Barre en bas ou encart centré.</p></div><label class="ptm-layout-choice"><input type="radio" name="consent_layout" value="bar" ' . checked( $settings['consent_layout'], 'bar', false ) . '><span class="ptm-layout-demo is-bar"><i></i><i></i></span><strong>Barre en bas</strong></label><label class="ptm-layout-choice"><input type="radio" name="consent_layout" value="card" ' . checked( $settings['consent_layout'], 'card', false ) . '><span class="ptm-layout-demo is-card"><i></i></span><strong>Encart centré</strong></label></div>';
-        echo '<div class="ptm-form-grid"><label class="ptm-field"><span>Apparence</span><select name="consent_style"><option value="inherit" ' . selected( $settings['consent_style'], 'inherit', false ) . '>S’intégrer au style du site</option><option value="neutral" ' . selected( $settings['consent_style'], 'neutral', false ) . '>Style neutre Pixel Trackers Manager</option></select><small>Les couleurs de marque ne sont pas reprises lorsqu’elles créeraient une asymétrie Accepter / Refuser.</small></label><label class="ptm-field"><span>Mémoriser le choix</span><div><input type="number" min="30" max="365" name="consent_retention_days" value="' . esc_attr( (int) $settings['consent_retention_days'] ) . '"> jours</div><small>À expiration, l’interface est proposée à nouveau.</small></label></div>';
-        echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_footer_link" value="1" ' . checked( ! empty( $settings['consent_footer_link'] ), true, false ) . '><span><strong>Ajouter « Gérer mes choix » en bas du site</strong><small>Le code court <code>[pixel_trackers_manager_consent_settings]</code> reste disponible pour un emplacement personnalisé.</small></span></label>';
+        echo '<div class="ptm-form-grid"><label class="ptm-field"><span>Apparence</span><select name="consent_style"><option value="inherit" ' . selected( $settings['consent_style'], 'inherit', false ) . '>S’intégrer au style du site</option><option value="neutral" ' . selected( $settings['consent_style'], 'neutral', false ) . '>Style neutre Dendrila Privacy</option></select><small>Les couleurs de marque ne sont pas reprises lorsqu’elles créeraient une asymétrie Accepter / Refuser.</small></label><label class="ptm-field"><span>Mémoriser le choix</span><div><input type="number" min="30" max="365" name="consent_retention_days" value="' . esc_attr( (int) $settings['consent_retention_days'] ) . '"> jours</div><small>À expiration, l’interface est proposée à nouveau.</small></label></div>';
+        echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_footer_link" value="1" ' . checked( ! empty( $settings['consent_footer_link'] ), true, false ) . '><span><strong>Ajouter « Gérer mes choix » en bas du site</strong><small>Le code court <code>[dendrila_privacy_consent_settings]</code> reste disponible pour un emplacement personnalisé.</small></span></label>';
         echo '</div>'; submit_button( 'Enregistrer la gestion du consentement', 'primary' ); $this->form_end();
         echo '<div class="ptm-consent-test-actions"><strong>Tester dans votre navigateur d’administrateur</strong><p>Ces liens ne modifient pas le choix des visiteurs.</p><div><a class="button button-secondary" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_preview', '1', home_url('/') ) ) . '">Voir sans choix ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'reject', home_url('/') ) ) . '">Simuler « Tout refuser » ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'statistics', home_url('/') ) ) . '">Statistiques seulement ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'accept', home_url('/') ) ) . '">Simuler « Tout accepter » ↗</a></div></div>';
         echo '</section>';
@@ -5821,7 +5828,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Réglages</h2><p>Ces trois sélections servent de référence à l’analyse documentaire, aux actions et aux boutons d’édition.</p></div></div>';
         $this->form_start( 'save_settings' );
         echo '<table class="form-table"><tbody>';
-        echo '<tr><th>Page de mentions légales</th><td>'; $this->page_select( (int)$settings['legal_notice_page_id'], 'legal_notice_page_id' ); echo '<p class="description">Pixel Trackers Manager essaie de la repérer automatiquement si aucune page n’a encore été choisie.</p></td></tr>';
+        echo '<tr><th>Page de mentions légales</th><td>'; $this->page_select( (int)$settings['legal_notice_page_id'], 'legal_notice_page_id' ); echo '<p class="description">Dendrila Privacy essaie de la repérer automatiquement si aucune page n’a encore été choisie.</p></td></tr>';
         echo '<tr><th>Page de politique de confidentialité</th><td>'; $this->page_select( (int)$settings['privacy_page_id'], 'privacy_page_id' ); echo '</td></tr>';
         echo '<tr><th>Page cookies / traceurs</th><td>'; $this->page_select( (int)$settings['cookie_page_id'], 'cookie_page_id' ); echo '<p class="description">Cette page peut rester vide si votre site n’utilise pas de traceurs facultatifs ou si l’information est gérée autrement par votre gestionnaire de consentement (bannière cookies).</p></td></tr>';
         echo '<tr><th>Nombre maximal de pages — analyse standard</th><td><input type="number" min="5" max="50" name="scan_limit" value="' . esc_attr( (int) $settings['scan_limit'] ) . '"><p class="description">20 est un bon point de départ pour un contrôle courant.</p></td></tr>';
@@ -5835,7 +5842,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     private function render_journal_tab( $log ) {
-        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Journal d’audit local</h2><p>Historique des dernières actions réalisées par Pixel Trackers Manager sur ce site.</p></div></div>';
+        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Journal d’audit local</h2><p>Historique des dernières actions réalisées par Dendrila Privacy sur ce site.</p></div></div>';
         if ( ! $log ) { echo '<p>Aucune action enregistrée.</p></section>'; return; }
         echo '<div class="ptm-table-wrap"><table class="widefat striped"><thead><tr><th>Date UTC</th><th>Action</th><th>Origine</th><th>Détails</th></tr></thead><tbody>';
         foreach ( array_slice( $log, 0, 50 ) as $entry ) {
