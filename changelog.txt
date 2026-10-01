@@ -1,3 +1,12 @@
+Dendrila Privacy 0.0.4
+
+- Nouveau nom public : Dendrila Privacy. Slug WordPress.org demandé : dendrila-privacy.
+- Text domain public changé en dendrila-privacy.
+- Shortcodes publics renommés sous le préfixe dendrila_privacy_ ; les anciens shortcodes ptm_ et pixel_trackers_manager_ restent pris en charge par réécriture de compatibilité sur les contenus existants.
+- API JavaScript publique exposée sous window.DendrilaPrivacyConsentAPI avec alias de compatibilité vers l’ancien nom pré-publication.
+- Les clés d’options, métadonnées, identifiants de stockage et autres identifiants internes restent inchangés afin de préserver les réglages des sites de test.
+- Archive WordPress.org construite sous le dossier dendrila-privacy/.
+
 Pixel Trackers Manager 0.0.3
 
 - Correctifs demandés pendant la pré-revue WordPress.org : le style de l’icône admin passe désormais par l’API d’enqueue WordPress.
