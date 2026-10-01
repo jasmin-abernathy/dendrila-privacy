@@ -28,7 +28,7 @@ ou :
 
 Cela permet d’utiliser le même mécanisme dans Gutenberg, Elementor, Divi, un menu, un footer, une popup ou un module HTML/code.
 
-Le shortcode `[ptm_consent_settings]` et le widget Elementor restent les moyens simples à privilégier lorsqu’ils conviennent.
+Le shortcode `[pixel_trackers_manager_consent_settings]` et le widget Elementor restent les moyens simples à privilégier lorsqu’ils conviennent.
 
 ## API JavaScript publique
 
