@@ -1,4 +1,4 @@
-# Pixel Trackers Manager — procédure WordPress.org
+# Dendrila Privacy — procédure WordPress.org
 
 Ce document sépare volontairement le développement GitHub de la distribution WordPress.org.
 
