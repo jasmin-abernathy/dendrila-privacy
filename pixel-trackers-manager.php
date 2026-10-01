@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Pixel Trackers Manager
  * Description: Audit local des traceurs, contrôle des pages de confidentialité et synchronisation réversible d’informations utiles.
- * Version: 0.0.2
+ * Version: 0.0.3
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.2';
+    const VERSION = '0.0.3';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';
@@ -47,7 +47,7 @@ final class Pixel_Trackers_Manager_Plugin {
     private function __construct() {
         add_action( 'admin_menu', array( $this, 'admin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'admin_assets' ) );
-        add_action( 'admin_head', array( $this, 'admin_menu_icon_styles' ) );
+        add_action( 'admin_enqueue_scripts', array( $this, 'admin_menu_icon_styles' ), 1 );
         add_action( 'wp_dashboard_setup', array( $this, 'register_dashboard_setup_widget' ) );
         add_action( 'admin_init', array( $this, 'handle_dashboard_widget_dismissal' ), 5 );
         add_action( 'admin_init', array( $this, 'handle_admin_actions' ) );
@@ -66,23 +66,56 @@ final class Pixel_Trackers_Manager_Plugin {
         add_action( 'before_delete_post', array( $this, 'cleanup_deleted_page' ) );
         add_filter( 'the_content', array( $this, 'inject_builder_managed_blocks' ), 99 );
         add_filter( 'elementor/frontend/the_content', array( $this, 'inject_builder_managed_blocks' ), 99 );
-        // Public shortcodes used across WordPress editors and page builders.
-        // Historical French shortcode names remain compatibility aliases.
-        add_shortcode( 'ptm_services', array( $this, 'shortcode_services' ) );
-        add_shortcode( 'ptm_privacy_policy', array( $this, 'shortcode_privacy' ) );
-        add_shortcode( 'ptm_legal_notice', array( $this, 'shortcode_legal_notice' ) );
-        add_shortcode( 'ptm_cookies', array( $this, 'shortcode_cookie_policy' ) );
-        add_shortcode( 'ptm_rights', array( $this, 'shortcode_privacy' ) );
-        add_shortcode( 'ptm_documents', array( $this, 'shortcode_legal_bundle' ) );
-        add_shortcode( 'ptm_consent_settings', array( $this, 'shortcode_consent_settings' ) );
+        // Public shortcodes use the same unique namespace as the plugin's stored data.
+        add_shortcode( 'pixel_trackers_manager_services', array( $this, 'shortcode_services' ) );
+        add_shortcode( 'pixel_trackers_manager_privacy_policy', array( $this, 'shortcode_privacy' ) );
+        add_shortcode( 'pixel_trackers_manager_legal_notice', array( $this, 'shortcode_legal_notice' ) );
+        add_shortcode( 'pixel_trackers_manager_cookies', array( $this, 'shortcode_cookie_policy' ) );
+        add_shortcode( 'pixel_trackers_manager_rights', array( $this, 'shortcode_privacy' ) );
+        add_shortcode( 'pixel_trackers_manager_documents', array( $this, 'shortcode_legal_bundle' ) );
+        add_shortcode( 'pixel_trackers_manager_consent_settings', array( $this, 'shortcode_consent_settings' ) );
 
-        // Backward-compatible aliases.
-        add_shortcode( 'ptm_rgpd', array( $this, 'shortcode_privacy' ) );
-        add_shortcode( 'ptm_politique_confidentialite', array( $this, 'shortcode_privacy' ) );
-        add_shortcode( 'ptm_mentions_legales', array( $this, 'shortcode_legal_notice' ) );
+        // Development builds used a short ptm_ shortcode prefix. Rewrite that markup before
+        // WordPress evaluates shortcodes so existing test pages keep rendering without
+        // registering collision-prone public shortcode names.
+        add_filter( 'the_content', array( $this, 'rewrite_legacy_shortcode_markup' ), 8 );
+        add_filter( 'widget_text_content', array( $this, 'rewrite_legacy_shortcode_markup' ), 8 );
+        add_filter( 'elementor/frontend/the_content', array( $this, 'rewrite_legacy_shortcode_markup' ), 8 );
         $this->maybe_migrate_data();
         $this->apply_adapter_overrides();
         $this->init_consent_manager();
+    }
+
+    /**
+     * Rewrite shortcode markup emitted by pre-publication development builds.
+     */
+    public function rewrite_legacy_shortcode_markup( $content ) {
+        if ( ! is_string( $content ) || false === strpos( $content, '[ptm_' ) ) {
+            return $content;
+        }
+
+        $legacy_to_public = array(
+            'ptm_services'                  => 'pixel_trackers_manager_services',
+            'ptm_privacy_policy'            => 'pixel_trackers_manager_privacy_policy',
+            'ptm_legal_notice'              => 'pixel_trackers_manager_legal_notice',
+            'ptm_cookies'                   => 'pixel_trackers_manager_cookies',
+            'ptm_rights'                    => 'pixel_trackers_manager_rights',
+            'ptm_documents'                 => 'pixel_trackers_manager_documents',
+            'ptm_consent_settings'          => 'pixel_trackers_manager_consent_settings',
+            'ptm_rgpd'                      => 'pixel_trackers_manager_privacy_policy',
+            'ptm_politique_confidentialite' => 'pixel_trackers_manager_privacy_policy',
+            'ptm_mentions_legales'          => 'pixel_trackers_manager_legal_notice',
+        );
+
+        foreach ( $legacy_to_public as $legacy => $public ) {
+            $content = str_replace(
+                array( '[' . $legacy, '[/' . $legacy ),
+                array( '[' . $public, '[/' . $public ),
+                $content
+            );
+        }
+
+        return $content;
     }
 
     /**
@@ -192,13 +225,12 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     public function admin_menu_icon_styles() {
-        echo '<style id="pixel-trackers-manager-menu-icon-style">
-'
-            . '#toplevel_page_pixel-trackers-manager .wp-menu-image img{width:24px!important;height:24px!important;padding:4px 0 0!important;opacity:.72;filter:grayscale(1) brightness(0) invert(72%);}
-'
-            . '#toplevel_page_pixel-trackers-manager:hover .wp-menu-image img,#toplevel_page_pixel-trackers-manager.wp-has-current-submenu .wp-menu-image img,#toplevel_page_pixel-trackers-manager.current .wp-menu-image img{opacity:1;filter:grayscale(1) brightness(0) invert(100%);}
-'
-            . '</style>';
+        wp_enqueue_style(
+            'pixel-trackers-manager-menu-icon',
+            plugin_dir_url( __FILE__ ) . 'assets/menu-icon.css',
+            array(),
+            self::VERSION
+        );
     }
 
     public function admin_assets( $hook ) {
@@ -305,7 +337,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $kind = $needs_setup ? 'setup' : 'first-scan';
         $step = ! empty( $state['step'] ) ? sanitize_key( $state['step'] ) : 'welcome';
         $setup_url = add_query_arg( 'ptm_setup_step', $step, admin_url( 'admin.php?page=pixel-trackers-manager-setup' ) );
-        $scan_url = add_query_arg( 'ptm_autostart_scan', 'full', admin_url( 'admin.php?page=pixel-trackers-manager' ) );
+        $scan_url = add_query_arg( 'pixel_trackers_manager_autostart_scan', 'full', admin_url( 'admin.php?page=pixel-trackers-manager' ) );
         $dismiss_url = wp_nonce_url( add_query_arg( 'ptm_dashboard_dismiss', $kind, admin_url( 'index.php' ) ), 'pixel_trackers_manager_dashboard_dismiss_' . $kind );
         echo '<div class="ptm-wp-dashboard-card">';
         echo '<div class="ptm-wp-dashboard-brand"><img src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div>';
@@ -377,17 +409,17 @@ final class Pixel_Trackers_Manager_Plugin {
             'privacy' => array(
                 'title' => array( 'politique de confidentialite', 'confidentialite', 'vie privee', 'privacy policy' ),
                 'content' => array( 'donnees personnelles', 'responsable du traitement', 'exercer vos droits', 'droit d acces', 'droit de rectification', 'cnil' ),
-                'shortcode' => '[ptm_privacy_policy]',
+                'shortcode' => '[pixel_trackers_manager_privacy_policy]',
             ),
             'legal_notice' => array(
                 'title' => array( 'mentions legales', 'mention legale', 'legal notice', 'impressum' ),
                 'content' => array( 'editeur du site', 'responsable de publication', 'hebergeur', 'siret', 'siren', 'directeur de la publication' ),
-                'shortcode' => '[ptm_legal_notice]',
+                'shortcode' => '[pixel_trackers_manager_legal_notice]',
             ),
             'cookies' => array(
                 'title' => array( 'politique de cookies', 'cookies', 'traceurs', 'cookie policy', 'gestion du consentement' ),
                 'content' => array( 'cookies', 'traceurs', 'consentement', 'gerer mes choix', 'tout refuser', 'mesure d audience' ),
-                'shortcode' => '[ptm_cookies]',
+                'shortcode' => '[pixel_trackers_manager_cookies]',
             ),
         );
         return isset( $patterns[ $kind ] ) ? $patterns[ $kind ] : array();
@@ -519,17 +551,17 @@ final class Pixel_Trackers_Manager_Plugin {
             'legal_notice' => array(
                 'label' => 'Mentions légales',
                 'setting' => 'legal_notice_page_id',
-                'shortcode' => '[ptm_legal_notice]',
+                'shortcode' => '[pixel_trackers_manager_legal_notice]',
             ),
             'privacy' => array(
                 'label' => 'Politique de confidentialité',
                 'setting' => 'privacy_page_id',
-                'shortcode' => '[ptm_privacy_policy]',
+                'shortcode' => '[pixel_trackers_manager_privacy_policy]',
             ),
             'cookies' => array(
                 'label' => 'Cookies et traceurs',
                 'setting' => 'cookie_page_id',
-                'shortcode' => '[ptm_cookies]',
+                'shortcode' => '[pixel_trackers_manager_cookies]',
             ),
         );
         if ( ! isset( $map[ $kind ] ) ) { return array(); }
@@ -1173,9 +1205,9 @@ final class Pixel_Trackers_Manager_Plugin {
             $message = 'Configuration initiale enregistrée. Vous pourrez relancer cet assistant depuis Réglages.';
             $redirect_override = admin_url( 'admin.php?page=pixel-trackers-manager' );
             if ( in_array( $action, array( 'setup_finish_scan', 'setup_finish_full' ), true ) ) {
-                $redirect_override = add_query_arg( 'ptm_autostart_scan', 'full', $redirect_override );
+                $redirect_override = add_query_arg( 'pixel_trackers_manager_autostart_scan', 'full', $redirect_override );
             } elseif ( 'setup_finish_quick' === $action ) {
-                $redirect_override = add_query_arg( 'ptm_autostart_scan', 'standard', $redirect_override );
+                $redirect_override = add_query_arg( 'pixel_trackers_manager_autostart_scan', 'standard', $redirect_override );
             }
         } elseif ( 'setup_skip' === $action ) {
             $state = $this->onboarding_state();
@@ -3002,7 +3034,7 @@ final class Pixel_Trackers_Manager_Plugin {
             );
         }
 
-        foreach((array)$audit['stale_ptm_services'] as $item){
+        foreach((array)$audit['stale_pixel_trackers_manager_services'] as $item){
             $actions[]=array('priority'=>'faible','title'=>'Nettoyer la mention gérée : '.$item['label'],'detail'=>'Ce service n’est plus un suivi actif mais figure encore dans un bloc géré par Pixel Trackers Manager.','target'=>'privacy','service_id'=>$item['id'],'target_anchor'=>$publication_anchor);
         }
         foreach((array)(isset($audit['stale_cookie_mentions'])?$audit['stale_cookie_mentions']:array()) as $item){
@@ -3194,7 +3226,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'page_url'=>!empty($settings['privacy_page_id'])?get_permalink((int)$settings['privacy_page_id']):get_permalink((int)$page_ids[0]),
             'documents'=>$document_refs, 'cookie_policy_url'=>!empty($settings['cookie_page_id'])?get_permalink((int)$settings['cookie_page_id']):'',
             'topics'=>$topics, 'services'=>$services, 'missing_topics'=>$missing_topics, 'missing_services'=>$missing_services,
-            'stale_ptm_services'=>$stale, 'stale_cookie_mentions'=>$stale_cookie_mentions,
+            'stale_pixel_trackers_manager_services'=>$stale, 'stale_cookie_mentions'=>$stale_cookie_mentions,
             'core_documentation_percent'=>$core_percent, 'tracker_documentation_percent'=>$tracker_percent, 'technical_coverage_percent'=>$score,
             'active_tracking_count'=>$active_total, 'applicable_total'=>$applicable_total, 'satisfied_total'=>$satisfied_total, 'profile_privacy_present'=>$profile_privacy_present,
             'legal_notice_present'=>$legal_notice_present, 'cookie_profile_present'=>$cookie_profile_present,
@@ -5722,7 +5754,7 @@ final class Pixel_Trackers_Manager_Plugin {
             echo '</div></section>';
         }
 
-        if(!empty($audit['stale_ptm_services'])){echo '<div class="ptm-callout warn"><strong>Bloc géré à nettoyer :</strong> '.esc_html(implode(', ',wp_list_pluck($audit['stale_ptm_services'],'label'))).'. Une synchronisation les retirera.</div>';}
+        if(!empty($audit['stale_pixel_trackers_manager_services'])){echo '<div class="ptm-callout warn"><strong>Bloc géré à nettoyer :</strong> '.esc_html(implode(', ',wp_list_pluck($audit['stale_pixel_trackers_manager_services'],'label'))).'. Une synchronisation les retirera.</div>';}
         if(!empty($audit['stale_cookie_mentions'])){foreach($audit['stale_cookie_mentions'] as $stale_cookie){echo '<div class="ptm-callout warn"><strong>Politique de cookies à rafraîchir :</strong> '.esc_html($stale_cookie['label']).' est désactivé, mais d’anciennes mentions techniques restent présentes dans les documents analysés.</div>';}}
 
         echo '<section class="ptm-card ptm-start-assistant"><div class="ptm-card-head"><div><h2>Besoin de corriger une information ?</h2><p>L’assistant RGPD est accessible dans un onglet séparé. Les éléments manquants ou partiels ci-dessus y mènent directement.</p></div><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-assistant' ) ) . '">Ouvrir l’assistant RGPD</a></div></section>';
@@ -5769,7 +5801,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<label class="ptm-consent-toggle-card"><input type="checkbox" name="consent_enabled" value="1" ' . checked( ! empty( $settings['consent_enabled'] ), true, false ) . '><span><strong>Activer la gestion du consentement PTM</strong><small>Bloquer les services facultatifs reconnus avant le choix et afficher l’interface aux visiteurs.</small></span></label>';
         echo '<div class="ptm-consent-preview-options"><div><strong>Présentation</strong><p>Barre en bas ou encart centré.</p></div><label class="ptm-layout-choice"><input type="radio" name="consent_layout" value="bar" ' . checked( $settings['consent_layout'], 'bar', false ) . '><span class="ptm-layout-demo is-bar"><i></i><i></i></span><strong>Barre en bas</strong></label><label class="ptm-layout-choice"><input type="radio" name="consent_layout" value="card" ' . checked( $settings['consent_layout'], 'card', false ) . '><span class="ptm-layout-demo is-card"><i></i></span><strong>Encart centré</strong></label></div>';
         echo '<div class="ptm-form-grid"><label class="ptm-field"><span>Apparence</span><select name="consent_style"><option value="inherit" ' . selected( $settings['consent_style'], 'inherit', false ) . '>S’intégrer au style du site</option><option value="neutral" ' . selected( $settings['consent_style'], 'neutral', false ) . '>Style neutre Pixel Trackers Manager</option></select><small>Les couleurs de marque ne sont pas reprises lorsqu’elles créeraient une asymétrie Accepter / Refuser.</small></label><label class="ptm-field"><span>Mémoriser le choix</span><div><input type="number" min="30" max="365" name="consent_retention_days" value="' . esc_attr( (int) $settings['consent_retention_days'] ) . '"> jours</div><small>À expiration, l’interface est proposée à nouveau.</small></label></div>';
-        echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_footer_link" value="1" ' . checked( ! empty( $settings['consent_footer_link'] ), true, false ) . '><span><strong>Ajouter « Gérer mes choix » en bas du site</strong><small>Le code court <code>[ptm_consent_settings]</code> reste disponible pour un emplacement personnalisé.</small></span></label>';
+        echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_footer_link" value="1" ' . checked( ! empty( $settings['consent_footer_link'] ), true, false ) . '><span><strong>Ajouter « Gérer mes choix » en bas du site</strong><small>Le code court <code>[pixel_trackers_manager_consent_settings]</code> reste disponible pour un emplacement personnalisé.</small></span></label>';
         echo '</div>'; submit_button( 'Enregistrer la gestion du consentement', 'primary' ); $this->form_end();
         echo '<div class="ptm-consent-test-actions"><strong>Tester dans votre navigateur d’administrateur</strong><p>Ces liens ne modifient pas le choix des visiteurs.</p><div><a class="button button-secondary" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_preview', '1', home_url('/') ) ) . '">Voir sans choix ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'reject', home_url('/') ) ) . '">Simuler « Tout refuser » ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'statistics', home_url('/') ) ) . '">Statistiques seulement ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'accept', home_url('/') ) ) . '">Simuler « Tout accepter » ↗</a></div></div>';
         echo '</section>';
