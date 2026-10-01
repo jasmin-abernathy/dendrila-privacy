@@ -920,7 +920,7 @@
 @media(max-width:1000px){.ptm-template-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}.ptm-guided-step small{display:none}}
 @media(max-width:782px){.ptm-guided-progress{position:static;padding:12px}.ptm-guided-progress-head{display:block}.ptm-guided-progress-head span{display:block;margin-top:2px}.ptm-guided-stepper{display:flex;overflow-x:auto;padding-bottom:4px}.ptm-guided-step{flex:0 0 42px}.ptm-template-buttons{grid-template-columns:1fr}.ptm-wizard-section>h3,.ptm-wizard-preview>h3{font-size:19px}.ptm-wizard-nav{position:sticky;bottom:0;z-index:8;margin-left:-12px;margin-right:-12px;padding:10px 12px;background:#fff;box-shadow:0 -3px 10px rgba(0,0,0,.06)}.ptm-wizard-nav .button{white-space:normal}.ptm-subsection{padding:12px}}
 
-/* Pixel Trackers Manager branding */
+/* Dendrila Privacy branding */
 .ptm-brand {
     display: flex;
     align-items: center;
