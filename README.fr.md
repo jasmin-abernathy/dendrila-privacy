@@ -2,7 +2,7 @@
 
 [Read in English](README.md)
 
-Dendrila Privacy (Dendrila Privacy) est un assistant WordPress **local-first** d’audit de confidentialité, de documentation et de consentement, développé par **Le Potager du Web**.
+Dendrila Privacy est un assistant WordPress **local-first** d’audit de confidentialité, de documentation et de consentement, développé par **Le Potager du Web**.
 
 Il aide l’administrateur à comprendre ce que fait réellement son site : repérer les traceurs et services tiers, contrôler les pages légales, documenter les pratiques liées aux données et, s’il le souhaite, gérer le consentement des visiteurs.
 
