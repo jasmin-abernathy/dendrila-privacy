@@ -123,7 +123,7 @@ final class Pixel_Trackers_Manager_Consent {
 
         // Load the early blocker through WordPress' script API, in the head, before the
         // main consent UI. This keeps PTM compatible with Plugin Check and builders.
-        wp_enqueue_script( $bootstrap_handle, plugin_dir_url( dirname( __DIR__ ) . '/pixel-trackers-manager.php' ) . 'assets/consent-bootstrap.js', array(), $asset_version, false );
+        wp_enqueue_script( $bootstrap_handle, plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent-bootstrap.js', array(), $asset_version, false );
         $early_config = array(
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
@@ -132,8 +132,8 @@ final class Pixel_Trackers_Manager_Consent {
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
         wp_localize_script( $bootstrap_handle, 'PixelTrackersManagerConsentEarlyConfig', $early_config );
-        wp_enqueue_style( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/pixel-trackers-manager.php' ) . 'assets/consent.css', array(), $asset_version );
-        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/pixel-trackers-manager.php' ) . 'assets/consent.js', array( $bootstrap_handle ), $asset_version, false );
+        wp_enqueue_style( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.css', array(), $asset_version );
+        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.js', array( $bootstrap_handle ), $asset_version, false );
         $consent_config = array(
             'storageKey' => 'pixel_trackers_manager_consent_v2',
             'retentionDays' => (int) $settings['consent_retention_days'],
