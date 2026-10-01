@@ -19,7 +19,7 @@ Dendrila Privacy 0.0.2
 
 - Correctif consentement du 30 août 2026 : la bannière est désormais montée directement sous `<body>` afin de sortir des contextes d’empilement propres à Divi, Elementor et aux thèmes ; les propriétés structurelles du calque sont protégées contre les surcharges de builder.
 - Les contrôles « Gérer mes choix » sont désormais interceptés en phase capture et peuvent être placés dans Divi, Elementor, Gutenberg, un menu, un footer ou une popup via `.ptm-consent-open` ou `data-ptm-consent-open="preferences"`.
-- Ajout de l’API publique `window.PixelTrackersManagerConsentAPI` (`open`, `openPreferences`, `close`, `getChoice`, `saveChoice`) et d’événements d’ouverture/fermeture/mise à jour du consentement.
+- Ajout de l’API publique `window.DendrilaPrivacyConsentAPI` (`open`, `openPreferences`, `close`, `getChoice`, `saveChoice`) et d’événements d’ouverture/fermeture/mise à jour du consentement.
 - « Gérer mes choix » ouvre directement le panneau de préférences avec les choix courants préremplis ; le focus est restauré après fermeture lorsque possible.
 - Les assets de consentement utilisent temporairement un suffixe de cache dédié pendant le cycle test4 afin que les correctifs de bannière soient effectivement rechargés sur les sites de test.
 - Synchronisation du dépôt au 30 août 2026 : version de référence conservée, état produit consolidé et matrice de validation WordPress 7.1 ajoutée.
@@ -30,7 +30,7 @@ Dendrila Privacy 0.0.2
 - Séparation éditeur du site / responsable du traitement / contact public / contact droits / DPO désigné ; complétude des mentions légales renforcée.
 - Outils externes (e-mail, WhatsApp, réservation, HelloAsso, formulaires, paiements, fichiers), conseils d’e-mailing et premiers contrôles de formulaires.
 - Adaptateurs de conservation Gravity Forms/WooCommerce/MailPoet et détection prudente des extensions de sauvegarde, UpdraftPlus en priorité.
-- Bannière PTM indépendante des builders ; éditeurs visuels exclus du blocage et adaptation Divi Maps/reCAPTCHA après consentement.
+- Bannière Dendrila Privacy indépendante des builders ; éditeurs visuels exclus du blocage et adaptation Divi Maps/reCAPTCHA après consentement.
 - Trois niveaux de lecture : problème constaté, à vérifier, conseil.
 
 Dendrila Privacy 0.0.2-test3
@@ -41,7 +41,7 @@ Dendrila Privacy 0.0.2-test2
 - Onboarding visuel en quatre étapes, inspiré des assistants de configuration modernes : bienvenue, pages légales, consentement, premier scan.
 - L’onboarding se déclenche à la première ouverture de Dendrila Privacy et reste reprenable ; l’activation elle-même reste silencieuse.
 - Dernière étape : l’analyse complète devient l’action recommandée, sans jamais être lancée sans clic explicite.
-- Encadré du Tableau de bord WordPress tant que PTM n’est pas configuré, puis rappel léger tant qu’aucune première analyse complète n’a été faite ; les deux sont masquables par utilisateur.
+- Encadré du Tableau de bord WordPress tant que Dendrila Privacy n’est pas configuré, puis rappel léger tant qu’aucune première analyse complète n’a été faite ; les deux sont masquables par utilisateur.
 - Présentation de la gestion du consentement clarifiée : barre ou encart, style du site ou style neutre, conservation d’une CMP tierce lorsqu’elle est détectée.
 - Prototype de mode test administrateur du consentement : aucun choix, refus, statistiques seules, tout accepter.
 - Empreinte de configuration du consentement : les choix enregistrés sont invalidés quand les services/catégories couverts changent de façon structurelle.
