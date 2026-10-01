@@ -12,7 +12,7 @@ Local privacy audits, legal documentation assistance, and optional consent manag
 
 == Description ==
 
-Dendrila Privacy (Dendrila Privacy) helps WordPress administrators understand what their site actually does with trackers and third-party services, keep privacy-related documentation up to date, and optionally manage visitor consent.
+Dendrila Privacy helps WordPress administrators understand what their site actually does with trackers and third-party services, keep privacy-related documentation up to date, and optionally manage visitor consent.
 
 Dendrila Privacy is designed local-first: audit results, settings, and assistant answers stay in WordPress by default. The plugin does not certify GDPR compliance and does not replace legal advice adapted to an organisation's actual activities.
 
