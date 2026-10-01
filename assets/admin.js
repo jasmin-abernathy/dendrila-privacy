@@ -101,7 +101,7 @@
         function cleanScanUrl() {
             try {
                 var clean = new URL(window.location.href);
-                clean.searchParams.delete('ptm_autostart_scan');
+                clean.searchParams.delete('pixel_trackers_manager_autostart_scan');
                 return clean;
             } catch (e) {
                 return null;
@@ -174,7 +174,7 @@
         if (retryButton) { retryButton.addEventListener('click', function () { startScan('retry'); }); }
 
         var params = new URLSearchParams(window.location.search || '');
-        var autoMode = params.get('ptm_autostart_scan');
+        var autoMode = params.get('pixel_trackers_manager_autostart_scan');
         if (autoMode === 'full' || autoMode === 'standard') {
             // Consume the command before starting. A later refresh must never
             // be able to launch the same scan for a second time.
