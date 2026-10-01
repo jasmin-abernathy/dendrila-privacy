@@ -24,7 +24,7 @@ The official upstream source repository is:
 
 `https://github.com/jasmin-abernathy/pixel-trackers-manager`
 
-Official WordPress.org distribution information will be added here once PTM has an approved WordPress.org plugin page.
+Official WordPress.org distribution information will be added here once Dendrila Privacy has an approved WordPress.org plugin page.
 
 ## Logo and visual identity
 
