@@ -2,7 +2,7 @@
 
 [Version française](CODE_OF_CONDUCT.fr.md)
 
-Pixel Trackers Manager welcomes technical feedback, testing reports and contributions from people with different levels of WordPress experience.
+Dendrila Privacy welcomes technical feedback, testing reports and contributions from people with different levels of WordPress experience.
 
 Participants are expected to:
 
