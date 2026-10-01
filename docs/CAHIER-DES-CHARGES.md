@@ -1,11 +1,11 @@
-# Pixel Trackers Manager — Cahier des charges consolidé
+# Dendrila Privacy — Cahier des charges consolidé
 
 **Date de consolidation : 27 août 2026**  
 **Version de travail associée : 0.0.2-test4**
 
 ## 1. Positionnement produit
 
-Pixel Trackers Manager (PTM) est un assistant WordPress d’audit technique de confidentialité, de documentation et de correction guidée.
+Dendrila Privacy (PTM) est un assistant WordPress d’audit technique de confidentialité, de documentation et de correction guidée.
 
 PTM doit répondre à quatre questions simples :
 
@@ -55,7 +55,7 @@ PTM ne certifie pas juridiquement une conformité RGPD et ne remplace pas un con
 
 ### Déclenchement
 - L’activation de l’extension reste silencieuse.
-- L’assistant de configuration se lance **à la première ouverture de Pixel Trackers Manager**.
+- L’assistant de configuration se lance **à la première ouverture de Dendrila Privacy**.
 - Si l’utilisateur quitte le parcours, PTM mémorise l’étape et reprend au même endroit lors du prochain accès.
 - L’assistant reste relançable depuis Réglages.
 
@@ -89,7 +89,7 @@ Le setup doit s’inspirer des qualités du parcours Google Site Kit sans copier
 Tant que l’onboarding n’est pas terminé :
 - afficher un encart sur **Tableau de bord > Accueil** ;
 - texte court : PTM n’est pas encore configuré ;
-- CTA : **Configurer Pixel Trackers Manager** ;
+- CTA : **Configurer Dendrila Privacy** ;
 - possibilité de masquer l’encart ;
 - le dismiss est enregistré **par utilisateur**.
 
@@ -123,9 +123,9 @@ Pour chaque destination :
 - Réutiliser les informations déjà connues par PTM.
 - Ne jamais bloquer la création pour des informations facultatives.
 - Shortcodes publics de base :
-  - `[pixel_trackers_manager_legal_notice]`
-  - `[pixel_trackers_manager_privacy_policy]`
-  - `[pixel_trackers_manager_cookies]`
+  - `[dendrila_privacy_legal_notice]`
+  - `[dendrila_privacy_privacy_policy]`
+  - `[dendrila_privacy_cookies]`
 
 ### Constructeurs
 Détection **page par page**, jamais par simple présence d’un thème/plugin :
@@ -385,7 +385,7 @@ Préférer :
 - À vérifier
 - Aucun outil de consentement détecté
 
-Nom public unique : **Pixel Trackers Manager**.
+Nom public unique : **Dendrila Privacy**.
 
 ---
 
