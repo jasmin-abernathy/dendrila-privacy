@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*'
     paths:
-      - 'pixel-trackers-manager.php'
+      - 'dendrila-privacy.php'
       - 'includes/**'
       - 'assets/**'
       - 'languages/**'
@@ -18,7 +18,7 @@ on:
     branches:
       - master
     paths:
-      - 'pixel-trackers-manager.php'
+      - 'dendrila-privacy.php'
       - 'includes/**'
       - 'assets/**'
       - 'languages/**'
@@ -55,8 +55,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' pixel-trackers-manager.php | head -n1 | tr -d '\r')
-          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" pixel-trackers-manager.php | head -n1 | tr -d '\r')
+          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' dendrila-privacy.php | head -n1 | tr -d '\r')
+          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" dendrila-privacy.php | head -n1 | tr -d '\r')
           STABLE_TAG=$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n1 | tr -d '\r')
           test -n "$PLUGIN_VERSION"
           test "$PLUGIN_VERSION" = "$CONST_VERSION"
@@ -80,8 +80,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' pixel-trackers-manager.php | head -n1 | tr -d '\r')
-          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" pixel-trackers-manager.php | head -n1 | tr -d '\r')
+          PLUGIN_VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' dendrila-privacy.php | head -n1 | tr -d '\r')
+          CONST_VERSION=$(sed -n "s/.*const VERSION = '\([^']*\)'.*/\1/p" dendrila-privacy.php | head -n1 | tr -d '\r')
           STABLE_TAG=$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n1 | tr -d '\r')
           TAG_COUNT=$(grep '^Tags:' readme.txt | cut -d: -f2- | tr ',' '\n' | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')
           README_BYTES=$(wc -c < readme.txt | tr -d ' ')
@@ -186,7 +186,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' pixel-trackers-manager.php | head -n1 | tr -d '\r')
+          VERSION=$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' dendrila-privacy.php | head -n1 | tr -d '\r')
           ZIP="build/dendrila-privacy-${VERSION}.zip"
           STAGE="${RUNNER_TEMP}/dendrila-privacy-dist"
           ROOT="${STAGE}/dendrila-privacy"
@@ -204,7 +204,7 @@ jobs:
           )
 
           unzip -t "$ZIP"
-          unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/pixel-trackers-manager.php'
+          unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/dendrila-privacy.php'
           unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/readme.txt'
           unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/LICENSE'
 
