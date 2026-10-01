@@ -6,7 +6,7 @@ Pixel Trackers Manager (PTM) est un assistant WordPress **local-first** d’audi
 
 Il aide l’administrateur à comprendre ce que fait réellement son site : repérer les traceurs et services tiers, contrôler les pages légales, documenter les pratiques liées aux données et, s’il le souhaite, gérer le consentement des visiteurs.
 
-> **État actuel :** build de développement `0.0.2-test4`. PTM n’est pas un outil de certification juridique et ne remplace pas une analyse adaptée à l’activité réelle de l’organisation.
+> **État actuel :** version candidate WordPress.org `0.0.3`. PTM n’est pas un outil de certification juridique et ne remplace pas une analyse adaptée à l’activité réelle de l’organisation.
 
 ## Principes du projet
 
@@ -89,7 +89,7 @@ Les métadonnées ciblent actuellement WordPress 7.1. Avant toute publication d�
 
 ## Versionnement et WordPress.org
 
-`0.0.2-test4` reste un numéro de **développement GitHub**. Une vraie version publiée dans le répertoire WordPress.org utilisera un numéro strictement numérique, par exemple `0.0.2` ou `0.1.0`, identique dans le header PHP, la constante runtime et le `Stable tag`.
+`0.0.3` est la **version candidate actuellement soumise à la revue WordPress.org**, avec le même numéro dans le header PHP, la constante runtime et le `Stable tag`.
 
 Le dépôt SVN WordPress.org servira uniquement aux publications et ne sera pas utilisé comme miroir de chaque commit GitHub.
 
