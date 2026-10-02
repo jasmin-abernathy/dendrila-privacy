@@ -180,7 +180,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
         $content = '<p><strong>Dendrila Privacy</strong> analyse localement la configuration et les contenus publics du site afin d’identifier des services tiers, des traceurs et des éléments utiles à la documentation de confidentialité. Les résultats d’audit et les réglages Dendrila Privacy sont conservés dans la base de données WordPress du site.</p>';
         $content .= '<p>Lorsque la gestion du consentement Dendrila Privacy est activée, le choix du visiteur est enregistré localement dans son navigateur. Dendrila Privacy n’envoie pas les résultats d’audit à l’éditeur du plugin et n’ajoute pas de télémétrie publicitaire.</p>';
-        $content .= '<p>La recherche facultative d’une entreprise française n’est déclenchée qu’après une action explicite d’un administrateur. Le nom, SIREN ou SIRET recherché est alors transmis à l’API publique Recherche d’entreprises de la DINUM ; aucun résultat d’audit Dendrila Privacy n’est joint à cette requête.</p>';
+        $content .= '<p>La recherche facultative d’une structure n’est déclenchée qu’après une action explicite d’un administrateur. Selon le pays choisi, Dendrila Privacy interroge l’API publique Recherche d’entreprises de la DINUM (France), l’API publique Enhetsregisteret de Brønnøysundregistrene (Norvège), ou VIES de la Commission européenne pour vérifier un numéro de TVA dans les autres pays pris en charge. Seuls le pays choisi et le terme ou numéro saisi sont utilisés ; aucun résultat d’audit, contenu de page, réponse de l’assistant ni choix de consentement n’est joint à la requête.</p>';
 
         wp_add_privacy_policy_content( 'Dendrila Privacy', wp_kses_post( $content ) );
     }
@@ -3247,7 +3247,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function legal_section_fields() {
         return array(
-            'identity' => array( 'site_editor_name','site_editor_address','controller_name','controller_address','privacy_contact','dpo_designated','dpo_contact','representative_applicable','controller_representative','controller_representative_contact','entity_type','company_siren','company_siret','company_vat','company_legal_form','company_capital','company_registry','company_activity','site_name','site_url','public_contact_email','public_contact_phone','publication_director','host_name','host_address','host_phone','host_source_url','regulated_activity_details','rep_idu','company_lookup_source','company_lookup_at' ),
+            'identity' => array( 'site_editor_name','site_editor_address','controller_name','controller_address','privacy_contact','dpo_designated','dpo_contact','representative_applicable','controller_representative','controller_representative_contact','entity_type','company_country','company_registration_number','company_registration_label','company_siren','company_siret','company_vat','company_legal_form','company_capital','company_registry','company_activity','site_name','site_url','public_contact_email','public_contact_phone','publication_director','host_name','host_address','host_phone','host_source_url','regulated_activity_details','rep_idu','company_lookup_source','company_lookup_at' ),
             'treatments' => array( 'treatments' ),
             'flows' => array( 'collection_mode','indirect_services','indirect_categories','indirect_sources','mandatory_information','transfers_status','transfer_destinations','transfer_mechanism','transfer_safeguards','automated_decision','automated_details' ),
             'external' => array( 'external_email_use','external_bulk_email','external_bulk_unsubscribe','external_bulk_bcc','external_email_tools','external_messaging','external_messaging_tools','external_booking','external_booking_tools','external_forms','external_form_tools','external_payments','external_payment_tools','external_files','external_file_tools','backup_reviewed' ),
@@ -3434,62 +3434,308 @@ final class Pixel_Trackers_Manager_Plugin {
         ) );
     }
 
+    /**
+     * Countries handled by the optional public-company lookup.
+     *
+     * France uses the DINUM company directory. Norway uses the open Brønnøysund
+     * Register Centre API. Other listed countries use VIES for VAT-number validation;
+     * VIES can return a name/address only when the national administration exposes it.
+     */
+    private function company_lookup_countries() {
+        return array(
+            'AT' => 'Autriche', 'BE' => 'Belgique', 'BG' => 'Bulgarie', 'HR' => 'Croatie',
+            'CY' => 'Chypre', 'CZ' => 'Tchéquie', 'DE' => 'Allemagne', 'DK' => 'Danemark',
+            'EE' => 'Estonie', 'EL' => 'Grèce', 'ES' => 'Espagne', 'FI' => 'Finlande',
+            'FR' => 'France', 'HU' => 'Hongrie', 'IE' => 'Irlande', 'IT' => 'Italie',
+            'LT' => 'Lituanie', 'LU' => 'Luxembourg', 'LV' => 'Lettonie', 'MT' => 'Malte',
+            'NL' => 'Pays-Bas', 'NO' => 'Norvège', 'PL' => 'Pologne', 'PT' => 'Portugal', 'RO' => 'Roumanie',
+            'SE' => 'Suède', 'SI' => 'Slovénie', 'SK' => 'Slovaquie',
+            'XI' => 'Irlande du Nord (VIES)',
+        );
+    }
+
+    private function default_company_country() {
+        $locale = str_replace( '-', '_', (string) determine_locale() );
+        $parts = array_values( array_filter( explode( '_', $locale ) ) );
+        $country = count( $parts ) > 1 ? strtoupper( (string) end( $parts ) ) : '';
+        if ( 'GR' === $country ) {
+            $country = 'EL';
+        }
+        $countries = $this->company_lookup_countries();
+        if ( $country && isset( $countries[ $country ] ) ) {
+            return $country;
+        }
+        return 'fr' === strtolower( $locale ) ? 'FR' : '';
+    }
+
+    private function vies_xml_value( $xml, $tag ) {
+        if ( ! is_string( $xml ) || '' === $xml ) {
+            return '';
+        }
+        $tag_pattern = preg_quote( (string) $tag, '/' );
+        if ( ! preg_match( '/<(?:[A-Za-z0-9_.-]+:)?' . $tag_pattern . '\\b[^>]*>(.*?)<\\/(?:[A-Za-z0-9_.-]+:)?' . $tag_pattern . '>/is', $xml, $matches ) ) {
+            return '';
+        }
+        $value = html_entity_decode( wp_strip_all_tags( (string) $matches[1] ), ENT_QUOTES | ENT_XML1, 'UTF-8' );
+        return trim( preg_replace( '/\\s+/', ' ', $value ) );
+    }
+
     public function ajax_company_search() {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'message' => 'Droits insuffisants.' ), 403 );
         }
         check_ajax_referer( 'pixel_trackers_manager_company_search', 'nonce' );
+
         $query = isset( $_POST['q'] ) ? sanitize_text_field( wp_unslash( $_POST['q'] ) ) : '';
+        $country = isset( $_POST['country'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_POST['country'] ) ) ) : '';
+        $countries = $this->company_lookup_countries();
+
+        if ( ! isset( $countries[ $country ] ) ) {
+            wp_send_json_error( array( 'message' => 'Choisissez d’abord le pays de la structure.' ), 400 );
+        }
         if ( strlen( $query ) < 2 ) {
             wp_send_json_error( array( 'message' => 'Saisissez au moins 2 caractères.' ), 400 );
         }
-        $cache_key = 'ptm_company_' . md5( strtolower( $query ) );
+
+        $cache_key = 'dendrila_company_' . strtolower( $country ) . '_' . md5( strtolower( $query ) );
         $cached = get_transient( $cache_key );
-        if ( is_array( $cached ) ) {
-            wp_send_json_success( array( 'results' => $cached, 'source' => 'cache' ) );
+        if ( is_array( $cached ) && isset( $cached['results'] ) ) {
+            $cached['cache'] = true;
+            wp_send_json_success( $cached );
         }
-        $url = add_query_arg( array( 'q' => $query, 'page' => 1, 'per_page' => 8 ), 'https://recherche-entreprises.api.gouv.fr/search' );
-        $response = wp_safe_remote_get( $url, array(
-            'timeout' => 10,
+
+        if ( 'FR' === $country ) {
+            $url = add_query_arg(
+                array(
+                    'q' => $query,
+                    'page' => 1,
+                    'per_page' => 8,
+                    'minimal' => 'true',
+                    'include' => 'siege,complements,tva',
+                ),
+                'https://recherche-entreprises.api.gouv.fr/search'
+            );
+            $response = wp_safe_remote_get( $url, array(
+                'timeout' => 10,
+                'redirection' => 2,
+                'headers' => array(
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'DendrilaPrivacy/' . self::VERSION . ' (+https://wordpress.org/plugins/dendrila-privacy/)',
+                ),
+            ) );
+            if ( is_wp_error( $response ) ) {
+                wp_send_json_error( array( 'message' => 'Le registre public français est momentanément inaccessible : ' . $response->get_error_message() ), 502 );
+            }
+            $code = wp_remote_retrieve_response_code( $response );
+            $json = json_decode( wp_remote_retrieve_body( $response ), true );
+            if ( 200 !== (int) $code || ! is_array( $json ) ) {
+                wp_send_json_error( array( 'message' => 'Réponse inattendue du registre public français.' ), 502 );
+            }
+
+            $items = array();
+            foreach ( array_slice( isset( $json['results'] ) && is_array( $json['results'] ) ? $json['results'] : array(), 0, 8 ) as $row ) {
+                if ( ! is_array( $row ) ) { continue; }
+                $siege = isset( $row['siege'] ) && is_array( $row['siege'] ) ? $row['siege'] : array();
+                $complements = isset( $row['complements'] ) && is_array( $row['complements'] ) ? $row['complements'] : array();
+                $vat = '';
+                if ( isset( $row['tva'] ) ) {
+                    if ( is_array( $row['tva'] ) ) { $vat = (string) reset( $row['tva'] ); }
+                    elseif ( is_string( $row['tva'] ) ) { $vat = $row['tva']; }
+                }
+                $entity_type = ! empty( $complements['est_association'] ) ? 'association' : ( ! empty( $complements['est_entrepreneur_individuel'] ) ? 'individual' : 'company' );
+                $items[] = array(
+                    'country' => 'FR',
+                    'name' => sanitize_text_field( isset( $row['nom_complet'] ) ? $row['nom_complet'] : ( isset( $row['nom_raison_sociale'] ) ? $row['nom_raison_sociale'] : '' ) ),
+                    'siren' => sanitize_text_field( isset( $row['siren'] ) ? $row['siren'] : '' ),
+                    'siret' => sanitize_text_field( isset( $siege['siret'] ) ? $siege['siret'] : '' ),
+                    'registrationNumber' => sanitize_text_field( isset( $row['siren'] ) ? $row['siren'] : '' ),
+                    'registrationLabel' => 'SIREN',
+                    'address' => sanitize_text_field( isset( $siege['adresse'] ) ? $siege['adresse'] : '' ),
+                    'vat' => sanitize_text_field( $vat ),
+                    'legalForm' => ( isset( $row['nature_juridique'] ) && ! preg_match( '/^\\d+$/', (string) $row['nature_juridique'] ) ) ? sanitize_text_field( (string) $row['nature_juridique'] ) : '',
+                    'activity' => sanitize_text_field( isset( $siege['activite_principale'] ) ? (string) $siege['activite_principale'] : ( isset( $row['activite_principale'] ) ? (string) $row['activite_principale'] : '' ) ),
+                    'entityType' => $entity_type,
+                    'status' => sanitize_text_field( isset( $siege['etat_administratif'] ) ? (string) $siege['etat_administratif'] : '' ),
+                    'source' => 'https://recherche-entreprises.api.gouv.fr/',
+                );
+            }
+
+            $payload = array(
+                'results' => $items,
+                'source' => 'https://recherche-entreprises.api.gouv.fr/',
+                'provider' => 'fr-dinum',
+                'message' => $items ? '' : 'Aucun résultat. Essayez le SIREN/SIRET ou une raison sociale plus précise.',
+            );
+            set_transient( $cache_key, $payload, 6 * HOUR_IN_SECONDS );
+            wp_send_json_success( $payload );
+        }
+
+        if ( 'NO' === $country ) {
+            $digits = preg_replace( '/\\D+/', '', $query );
+            $params = array( 'size' => 8 );
+            if ( 9 === strlen( $digits ) ) {
+                $params['organisasjonsnummer'] = $digits;
+            } else {
+                $params['navn'] = $query;
+                $params['navnMetodeForSoek'] = 'FORTLOEPENDE';
+            }
+
+            $url = add_query_arg( $params, 'https://data.brreg.no/enhetsregisteret/api/enheter' );
+            $response = wp_safe_remote_get( $url, array(
+                'timeout' => 10,
+                'redirection' => 2,
+                'headers' => array(
+                    'Accept' => 'application/vnd.brreg.enhetsregisteret.enhet.v2+json',
+                    'User-Agent' => 'DendrilaPrivacy/' . self::VERSION . ' (+https://wordpress.org/plugins/dendrila-privacy/)',
+                ),
+            ) );
+            if ( is_wp_error( $response ) ) {
+                wp_send_json_error( array( 'message' => 'Le registre public norvégien est momentanément inaccessible : ' . $response->get_error_message() ), 502 );
+            }
+            $code = (int) wp_remote_retrieve_response_code( $response );
+            $json = json_decode( wp_remote_retrieve_body( $response ), true );
+            if ( 200 !== $code || ! is_array( $json ) ) {
+                wp_send_json_error( array( 'message' => 'Réponse inattendue du registre public norvégien.' ), 502 );
+            }
+
+            $rows = isset( $json['_embedded']['enheter'] ) && is_array( $json['_embedded']['enheter'] ) ? $json['_embedded']['enheter'] : array();
+            $items = array();
+            foreach ( array_slice( $rows, 0, 8 ) as $row ) {
+                if ( ! is_array( $row ) ) { continue; }
+                $orgnr = sanitize_text_field( isset( $row['organisasjonsnummer'] ) ? (string) $row['organisasjonsnummer'] : '' );
+                $address_data = isset( $row['forretningsadresse'] ) && is_array( $row['forretningsadresse'] ) ? $row['forretningsadresse'] : array();
+                if ( ! $address_data && isset( $row['postadresse'] ) && is_array( $row['postadresse'] ) ) {
+                    $address_data = $row['postadresse'];
+                }
+                $lines = isset( $address_data['adresse'] ) && is_array( $address_data['adresse'] ) ? array_map( 'sanitize_text_field', $address_data['adresse'] ) : array();
+                $city_line = trim(
+                    ( isset( $address_data['postnummer'] ) ? sanitize_text_field( (string) $address_data['postnummer'] ) : '' )
+                    . ' '
+                    . ( isset( $address_data['poststed'] ) ? sanitize_text_field( (string) $address_data['poststed'] ) : '' )
+                );
+                if ( $city_line ) { $lines[] = $city_line; }
+
+                $legal_form = isset( $row['organisasjonsform']['beskrivelse'] ) ? sanitize_text_field( (string) $row['organisasjonsform']['beskrivelse'] ) : '';
+                $activity = isset( $row['naeringskode1']['beskrivelse'] ) ? sanitize_text_field( (string) $row['naeringskode1']['beskrivelse'] ) : '';
+                $status_bits = array();
+                if ( ! empty( $row['konkurs'] ) ) { $status_bits[] = 'faillite'; }
+                if ( ! empty( $row['underAvvikling'] ) ) { $status_bits[] = 'liquidation'; }
+                if ( ! empty( $row['registrertIMvaregisteret'] ) ) { $status_bits[] = 'registre TVA'; }
+
+                $items[] = array(
+                    'country' => 'NO',
+                    'name' => sanitize_text_field( isset( $row['navn'] ) ? (string) $row['navn'] : '' ),
+                    'address' => implode( ', ', array_filter( $lines ) ),
+                    'vat' => '',
+                    'registrationNumber' => $orgnr,
+                    'registrationLabel' => 'Organisasjonsnummer',
+                    'registry' => $orgnr ? 'Enhetsregisteret — ' . $orgnr : 'Enhetsregisteret',
+                    'legalForm' => $legal_form,
+                    'activity' => $activity,
+                    'entityType' => 'company',
+                    'status' => $status_bits ? implode( ', ', $status_bits ) : 'enregistré',
+                    'source' => 'https://data.brreg.no/enhetsregisteret/api/enheter',
+                );
+            }
+
+            $payload = array(
+                'results' => $items,
+                'source' => 'https://data.brreg.no/enhetsregisteret/api/enheter',
+                'provider' => 'no-brreg',
+                'message' => $items ? '' : 'Aucune structure trouvée dans le registre public norvégien.',
+            );
+            set_transient( $cache_key, $payload, 6 * HOUR_IN_SECONDS );
+            wp_send_json_success( $payload );
+        }
+
+        // VIES is a VAT validation service, not a name-search directory.
+        $compact = strtoupper( preg_replace( '/[^A-Z0-9]/', '', $query ) );
+        $accepted_prefixes = array( $country );
+        if ( 'EL' === $country ) {
+            $accepted_prefixes[] = 'GR';
+        }
+        foreach ( $accepted_prefixes as $prefix ) {
+            if ( 0 === strpos( $compact, $prefix ) ) {
+                $compact = substr( $compact, strlen( $prefix ) );
+                break;
+            }
+        }
+        if ( strlen( $compact ) < 2 ) {
+            wp_send_json_error( array( 'message' => 'Saisissez un numéro de TVA valide pour le pays choisi.' ), 400 );
+        }
+
+        $soap = '<?xml version="1.0" encoding="UTF-8"?>'
+            . '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:ec.europa.eu:taxud:vies:services:checkVat:types">'
+            . '<soapenv:Header/><soapenv:Body><urn:checkVat>'
+            . '<urn:countryCode>' . esc_xml( $country ) . '</urn:countryCode>'
+            . '<urn:vatNumber>' . esc_xml( $compact ) . '</urn:vatNumber>'
+            . '</urn:checkVat></soapenv:Body></soapenv:Envelope>';
+
+        $response = wp_safe_remote_post( 'https://ec.europa.eu/taxation_customs/vies/services/checkVatService', array(
+            'timeout' => 12,
             'redirection' => 2,
             'headers' => array(
-                'Accept' => 'application/json',
-                'User-Agent' => 'PixelTrackersManager/' . self::VERSION,
+                'Content-Type' => 'text/xml; charset=utf-8',
+                'SOAPAction' => '""',
+                'User-Agent' => 'DendrilaPrivacy/' . self::VERSION . ' (+https://wordpress.org/plugins/dendrila-privacy/)',
             ),
+            'body' => $soap,
         ) );
         if ( is_wp_error( $response ) ) {
-            wp_send_json_error( array( 'message' => 'Le registre public est momentanément inaccessible : ' . $response->get_error_message() ), 502 );
+            wp_send_json_error( array( 'message' => 'Le service VIES est momentanément inaccessible : ' . $response->get_error_message() ), 502 );
         }
-        $code = wp_remote_retrieve_response_code( $response );
-        $json = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( 200 !== (int) $code || ! is_array( $json ) ) {
-            wp_send_json_error( array( 'message' => 'Réponse inattendue du registre public.' ), 502 );
+
+        $code = (int) wp_remote_retrieve_response_code( $response );
+        $body = (string) wp_remote_retrieve_body( $response );
+        if ( 200 !== $code ) {
+            $fault = $this->vies_xml_value( $body, 'faultstring' );
+            $message = $fault ? 'VIES ne peut pas vérifier ce numéro pour le moment : ' . $fault : 'Réponse inattendue du service VIES.';
+            wp_send_json_error( array( 'message' => $message ), 502 );
         }
-        $items = array();
-        foreach ( array_slice( isset( $json['results'] ) && is_array( $json['results'] ) ? $json['results'] : array(), 0, 8 ) as $row ) {
-            if ( ! is_array( $row ) ) { continue; }
-            $siege = isset( $row['siege'] ) && is_array( $row['siege'] ) ? $row['siege'] : array();
-            $complements = isset( $row['complements'] ) && is_array( $row['complements'] ) ? $row['complements'] : array();
-            $vat = '';
-            if ( isset( $row['tva'] ) ) {
-                if ( is_array( $row['tva'] ) ) { $vat = (string) reset( $row['tva'] ); }
-                elseif ( is_string( $row['tva'] ) ) { $vat = $row['tva']; }
-            }
-            $entity_type = ! empty( $complements['est_association'] ) ? 'association' : ( ! empty( $complements['est_entrepreneur_individuel'] ) ? 'individual' : 'company' );
-            $items[] = array(
-                'name' => sanitize_text_field( isset( $row['nom_complet'] ) ? $row['nom_complet'] : ( isset( $row['nom_raison_sociale'] ) ? $row['nom_raison_sociale'] : '' ) ),
-                'siren' => sanitize_text_field( isset( $row['siren'] ) ? $row['siren'] : '' ),
-                'siret' => sanitize_text_field( isset( $siege['siret'] ) ? $siege['siret'] : '' ),
-                'address' => sanitize_text_field( isset( $siege['adresse'] ) ? $siege['adresse'] : '' ),
-                'vat' => sanitize_text_field( $vat ),
-                'legalForm' => ( isset( $row['nature_juridique'] ) && ! preg_match( '/^\d+$/', (string) $row['nature_juridique'] ) ) ? sanitize_text_field( (string) $row['nature_juridique'] ) : '',
-                'activity' => sanitize_text_field( isset( $siege['activite_principale'] ) ? (string) $siege['activite_principale'] : ( isset( $row['activite_principale'] ) ? (string) $row['activite_principale'] : '' ) ),
-                'entityType' => $entity_type,
-                'status' => sanitize_text_field( isset( $siege['etat_administratif'] ) ? (string) $siege['etat_administratif'] : '' ),
+
+        $valid = 'true' === strtolower( $this->vies_xml_value( $body, 'valid' ) );
+        $source = 'https://ec.europa.eu/taxation_customs/vies/';
+        if ( ! $valid ) {
+            $payload = array(
+                'results' => array(),
+                'source' => $source,
+                'provider' => 'eu-vies',
+                'message' => 'VIES indique que ce numéro de TVA n’est pas valide pour les échanges intracommunautaires, ou qu’il n’est pas encore disponible dans la base nationale.',
             );
+            set_transient( $cache_key, $payload, HOUR_IN_SECONDS );
+            wp_send_json_success( $payload );
         }
-        set_transient( $cache_key, $items, 6 * HOUR_IN_SECONDS );
-        wp_send_json_success( array( 'results' => $items, 'source' => 'https://recherche-entreprises.api.gouv.fr/' ) );
+
+        $name = $this->vies_xml_value( $body, 'name' );
+        $address = $this->vies_xml_value( $body, 'address' );
+        if ( '---' === $name ) { $name = ''; }
+        if ( '---' === $address ) { $address = ''; }
+        $vat_number = $country . $compact;
+        $items = array(
+            array(
+                'country' => $country,
+                'name' => sanitize_text_field( $name ),
+                'address' => sanitize_text_field( $address ),
+                'vat' => sanitize_text_field( $vat_number ),
+                'registrationNumber' => sanitize_text_field( $vat_number ),
+                'registrationLabel' => 'TVA',
+                'legalForm' => '',
+                'activity' => '',
+                'entityType' => 'company',
+                'status' => 'TVA valide (VIES)',
+                'source' => $source,
+            ),
+        );
+        $payload = array(
+            'results' => $items,
+            'source' => $source,
+            'provider' => 'eu-vies',
+            'message' => ( $name || $address )
+                ? 'Numéro de TVA validé par VIES. Vérifiez les données avant de les enregistrer.'
+                : 'Numéro de TVA validé par VIES. Le registre national ne fournit pas le nom ou l’adresse via VIES : complétez ces champs manuellement.',
+        );
+        set_transient( $cache_key, $payload, 6 * HOUR_IN_SECONDS );
+        wp_send_json_success( $payload );
     }
 
     /**
@@ -3794,7 +4040,7 @@ final class Pixel_Trackers_Manager_Plugin {
         return array(
             'controller_name' => '', 'controller_address' => '', 'privacy_contact' => '', 'dpo_contact' => '', 'dpo_designated' => 'no',
             'site_editor_name' => '', 'site_editor_address' => '',
-            'entity_type' => 'unknown', 'company_siren' => '', 'company_siret' => '', 'company_vat' => '', 'company_legal_form' => '', 'company_capital' => '', 'company_registry' => '', 'company_activity' => '',
+            'entity_type' => 'unknown', 'company_country' => $this->default_company_country(), 'company_registration_number' => '', 'company_registration_label' => '', 'company_siren' => '', 'company_siret' => '', 'company_vat' => '', 'company_legal_form' => '', 'company_capital' => '', 'company_registry' => '', 'company_activity' => '',
             'site_name' => get_bloginfo( 'name' ), 'site_url' => home_url( '/' ), 'public_contact_email' => '', 'public_contact_phone' => '', 'publication_director' => '',
             'host_name' => '', 'host_address' => '', 'host_phone' => '', 'host_source_url' => '', 'regulated_activity_details' => '', 'rep_idu' => '', 'company_lookup_source' => '', 'company_lookup_at' => '',
             'representative_applicable' => 'unknown', 'controller_representative' => '', 'controller_representative_contact' => '',
@@ -3818,7 +4064,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $profile = $defaults;
         $text_fields = array(
             'controller_name','controller_address','privacy_contact','dpo_contact','site_editor_name','site_editor_address','controller_representative','controller_representative_contact',
-            'company_siren','company_siret','company_vat','company_legal_form','company_capital','company_registry','company_activity','site_name','public_contact_phone','publication_director','host_name','host_address','host_phone','host_source_url','regulated_activity_details','rep_idu','company_lookup_at',
+            'company_registration_number','company_registration_label','company_siren','company_siret','company_vat','company_legal_form','company_capital','company_registry','company_activity','site_name','public_contact_phone','publication_director','host_name','host_address','host_phone','host_source_url','regulated_activity_details','rep_idu','company_lookup_at',
             'indirect_categories','indirect_sources','mandatory_information','transfer_destinations','transfer_mechanism','transfer_safeguards','automated_details',
             'special_categories_basis','criminal_data_basis','minors_details','supervisory_authority','cookie_preferences','cookie_choice_retention','cookie_cross_device_explanation','email_pixel_purposes','email_pixel_preferences','tracked_links_details',
             'external_email_tools','external_messaging_tools','external_booking_tools','external_form_tools','external_payment_tools','external_file_tools'
@@ -3831,6 +4077,7 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         if ( isset( $raw['public_contact_email'] ) ) { $profile['public_contact_email'] = sanitize_email( $raw['public_contact_email'] ); }
         $selects = array(
+            'company_country' => array_merge( array( '' ), array_keys( $this->company_lookup_countries() ) ),
             'entity_type' => array( 'unknown','company','individual','association','other' ),
             'representative_applicable' => array( 'no','yes','unknown' ), 'collection_mode' => array( 'direct','indirect','both','unknown' ),
             'transfers_status' => array( 'no','yes','unknown' ), 'automated_decision' => array( 'no','yes','unknown' ), 'special_categories' => array( 'no','yes','unknown' ),
@@ -3975,10 +4222,15 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( $p['company_legal_form'] ) { $html .= '<p><strong>Forme juridique :</strong> ' . esc_html( $p['company_legal_form'] ) . '</p>'; }
         if ( $p['company_capital'] ) { $html .= '<p><strong>Capital social :</strong> ' . esc_html( $p['company_capital'] ) . '</p>'; }
         if ( $editor_address ) { $html .= '<p><strong>Adresse :</strong> ' . nl2br( esc_html( $editor_address ) ) . '</p>'; }
-        if ( $p['company_siren'] ) { $html .= '<p><strong>SIREN :</strong> ' . esc_html( $p['company_siren'] ) . '</p>'; }
-        if ( $p['company_siret'] ) { $html .= '<p><strong>SIRET du siège :</strong> ' . esc_html( $p['company_siret'] ) . '</p>'; }
+        if ( 'FR' === $p['company_country'] || ( ! $p['company_country'] && ( $p['company_siren'] || $p['company_siret'] ) ) ) {
+            if ( $p['company_siren'] ) { $html .= '<p><strong>SIREN :</strong> ' . esc_html( $p['company_siren'] ) . '</p>'; }
+            if ( $p['company_siret'] ) { $html .= '<p><strong>SIRET du siège :</strong> ' . esc_html( $p['company_siret'] ) . '</p>'; }
+        } elseif ( $p['company_registration_number'] ) {
+            $registration_label = $p['company_registration_label'] ? $p['company_registration_label'] : 'Identifiant d’immatriculation';
+            $html .= '<p><strong>' . esc_html( $registration_label ) . ' :</strong> ' . esc_html( $p['company_registration_number'] ) . '</p>';
+        }
         if ( $p['company_registry'] ) { $html .= '<p><strong>Immatriculation :</strong> ' . esc_html( $p['company_registry'] ) . '</p>'; }
-        if ( $p['company_vat'] ) { $html .= '<p><strong>TVA intracommunautaire :</strong> ' . esc_html( $p['company_vat'] ) . '</p>'; }
+        if ( $p['company_vat'] ) { $html .= '<p><strong>N° TVA :</strong> ' . esc_html( $p['company_vat'] ) . '</p>'; }
         if ( $p['public_contact_email'] || $p['public_contact_phone'] ) { $html .= '<p><strong>Contact :</strong> ' . esc_html( trim( $p['public_contact_email'] . ( $p['public_contact_email'] && $p['public_contact_phone'] ? ' — ' : '' ) . $p['public_contact_phone'] ) ) . '</p>'; }
         if ( $p['publication_director'] ) { $html .= '<p><strong>Directeur de la publication :</strong> ' . esc_html( $p['publication_director'] ) . '</p>'; }
         if ( $p['regulated_activity_details'] ) { $html .= '<p><strong>Activité réglementée / autorité compétente :</strong> ' . nl2br( esc_html( $p['regulated_activity_details'] ) ) . '</p>'; }
@@ -4534,7 +4786,22 @@ final class Pixel_Trackers_Manager_Plugin {
 
         $this->legal_section_form_start( 'identity' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 1</div><h3>Qui édite le site, et qui décide de l’utilisation des données ?</h3><p class="ptm-question-intro">Ces rôles sont souvent la même structure, mais pas toujours. Le webmaster n’est pas automatiquement responsable du traitement : indiquez séparément l’éditeur du site, le responsable du traitement et le contact qui répond aux demandes sur les données.</p>';
-        echo '<div class="ptm-company-lookup"><label for="ptm-company-query"><strong>Gagner du temps avec un préremplissage</strong></label><div class="ptm-company-search-row"><input id="ptm-company-query" type="search" value="' . esc_attr( $profile['controller_name'] ) . '" placeholder="Nom de l’entreprise, association, SIREN ou SIRET"><button type="button" class="button button-secondary" id="ptm-company-search">Rechercher la structure</button><button type="button" class="button" id="ptm-site-prefill">Utiliser les infos WordPress</button></div><p class="description">La recherche externe ne part que si vous cliquez sur « Rechercher la structure ».</p><div id="ptm-company-results" class="ptm-company-results" aria-live="polite"></div></div>';
+        echo '<div class="ptm-company-lookup">';
+        echo '<label for="ptm-company-query"><strong>Gagner du temps avec un préremplissage</strong></label>';
+        echo '<div class="ptm-company-search-row">';
+        echo '<select id="ptm-company-country" name="legal_profile[company_country]" aria-label="Pays de la structure">';
+        echo '<option value="">— Pays —</option>';
+        foreach ( $this->company_lookup_countries() as $country_code => $country_label ) {
+            echo '<option value="' . esc_attr( $country_code ) . '" ' . selected( $profile['company_country'], $country_code, false ) . '>' . esc_html( $country_label ) . '</option>';
+        }
+        echo '</select>';
+        echo '<input id="ptm-company-query" type="search" value="' . esc_attr( $profile['controller_name'] ) . '" placeholder="Nom, identifiant national ou n° TVA">';
+        echo '<button type="button" class="button button-secondary" id="ptm-company-search">Rechercher la structure</button>';
+        echo '<button type="button" class="button" id="ptm-site-prefill">Utiliser les infos WordPress</button>';
+        echo '</div>';
+        echo '<p class="description" id="ptm-company-lookup-help">Choisissez le pays. Pour la France, la recherche accepte un nom, SIREN ou SIRET ; pour les autres pays proposés, VIES vérifie un numéro de TVA.</p>';
+        echo '<p class="description">La recherche externe ne part que si vous cliquez sur « Rechercher la structure ».</p>';
+        echo '<div id="ptm-company-results" class="ptm-company-results" aria-live="polite"></div></div>';
         echo '<div class="ptm-subsection"><h4>Le minimum à renseigner</h4><div class="ptm-form-grid">';
         $this->legal_input( 'site_editor_name', 'Éditeur du site — nom / raison sociale', $profile['site_editor_name'], true, 'La personne ou l’organisation qui publie le site. Pour une petite structure, c’est souvent la même que le responsable du traitement.' );
         $this->legal_textarea( 'site_editor_address', 'Éditeur du site — adresse / siège', $profile['site_editor_address'] );
@@ -4545,7 +4812,8 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_input( 'privacy_contact', 'Contact pour exercer ses droits', $profile['privacy_contact'], true, 'Adresse à laquelle une personne peut demander accès, rectification, effacement, opposition, etc. Elle peut être différente de l’e-mail public du site.' );
         echo '</div></div>';
         echo '<details class="ptm-subsection ptm-subsection-details"><summary>Mentions légales et coordonnées publiques <small>À compléter selon votre structure</small></summary><div class="ptm-form-grid">';
-        $this->legal_input( 'company_siren', 'SIREN', $profile['company_siren'] ); $this->legal_input( 'company_siret', 'SIRET du siège', $profile['company_siret'] );
+        $this->legal_input( 'company_registration_number', 'Identifiant d’immatriculation (hors France)', $profile['company_registration_number'] ); $this->legal_input( 'company_registration_label', 'Nom de cet identifiant', $profile['company_registration_label'] );
+        $this->legal_input( 'company_siren', 'SIREN (France)', $profile['company_siren'] ); $this->legal_input( 'company_siret', 'SIRET du siège (France)', $profile['company_siret'] );
         $this->legal_input( 'company_vat', 'N° TVA intracommunautaire', $profile['company_vat'] ); $this->legal_input( 'company_legal_form', 'Forme juridique', $profile['company_legal_form'] );
         $this->legal_input( 'company_capital', 'Capital social (si applicable)', $profile['company_capital'] ); $this->legal_input( 'company_registry', 'Immatriculation / RCS / RM', $profile['company_registry'] );
         $this->legal_input( 'company_activity', 'Activité principale (repère)', $profile['company_activity'] );

@@ -94,16 +94,17 @@ Le `readme.txt` doit donc :
 
 Les README GitHub `README.md` et `README.fr.md` restent bilingues et ne sont pas distribués dans le ZIP WordPress.org.
 
-## 7. Service externe PTM
+## 7. Services externes facultatifs
 
-La recherche d'entreprise française est facultative et déclenchée uniquement par une action explicite d'un administrateur.
+Les recherches de registre sont facultatives et uniquement déclenchées par une action explicite d’un administrateur.
 
-Le `readme.txt` doit continuer à préciser :
+Le `readme.txt` doit continuer à documenter chaque fournisseur réellement appelé :
 
-- quelles données sont envoyées : terme de recherche (nom, SIREN ou SIRET) ;
-- quand elles sont envoyées : après un clic explicite ;
-- à qui : API Recherche d'entreprises / DINUM ;
-- qu'aucun résultat de scan PTM n'est envoyé avec cette requête.
+- France : Recherche d’entreprises / DINUM ;
+- Norvège : Enhetsregisteret / Brønnøysundregistrene ;
+- UE prise en charge + Irlande du Nord : VIES / Commission européenne.
+
+Pour chaque service : données envoyées, moment du déclenchement, destinataire, lien de service et information de confidentialité. Aucun audit, contenu de page, réponse de l’assistant ou choix visiteur ne doit être joint à la requête.
 
 ## 8. Blocages Plugin Check à traiter avant première soumission
 
