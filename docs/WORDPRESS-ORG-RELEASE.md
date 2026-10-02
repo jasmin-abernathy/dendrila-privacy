@@ -89,6 +89,7 @@ Le `readme.txt` doit donc :
 - utiliser au maximum cinq tags ;
 - conserver un `Stable tag` identique à la version publiée ;
 - documenter clairement les services externes ;
+- **vérifier que toute nouvelle fonctionnalité visible pour l’utilisateur est également mentionnée dans la section principale `== Description ==` / liste des fonctions lorsqu’elle mérite d’être découverte depuis la fiche publique** ;
 - ne pas promettre ou garantir une conformité juridique ;
 - conserver uniquement le changelog de la version courante, l'historique détaillé restant dans `changelog.txt`.
 
@@ -133,6 +134,7 @@ Les principaux sujets à fermer avant la première soumission sont suivis dans `
 - [ ] tester la bannière et Gérer mes choix sur mobile ;
 - [ ] tester installation propre, mise à jour et désactivation ;
 - [ ] tester avec `WP_DEBUG` actif ;
+- [ ] relire la **Description publique WordPress.org** : toute fonctionnalité ajoutée depuis la version précédente qui mérite d’être visible sur la fiche est présente dans `== Description ==`, pas seulement dans le changelog ou `External services` ;
 - [ ] passer le `readme.txt` dans le validateur officiel WordPress.org ;
 - [ ] installer le ZIP exact généré par GitHub Actions sur un WordPress de test vierge.
 
