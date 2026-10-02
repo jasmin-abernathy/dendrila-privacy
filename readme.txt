@@ -65,20 +65,35 @@ Visitor consent preferences are stored locally in the visitor's browser. Adminis
 
 == External services ==
 
-= French company search API (optional) =
+= Public organisation lookups (optional) =
 
-Dendrila Privacy can offer an optional French company lookup to prefill public organisation information. This lookup is not required for the plugin to work and runs only after an administrator explicitly starts it.
+Dendrila Privacy can optionally query a public register to prefill organisation information. Nothing is sent automatically: an administrator chooses a country, enters the required identifier or search term, and clicks Search.
 
-Data sent: only the search term entered by the administrator (company name, SIREN, or SIRET).
-When it is sent: only after the administrator clicks the company-search control.
-Recipient: the public Recherche d'entreprises API operated by the French Interministerial Digital Directorate (DINUM).
-Data not sent: Dendrila Privacy site-audit results, privacy-assistant answers, visitor consent choices, or page contents are not included in this request.
+These lookups never include site-audit results, assistant answers, visitor consent choices, page contents, or unrelated WordPress settings.
+
+= France — Recherche d'entreprises API =
+
+For France, Dendrila Privacy sends only the administrator's search term (company name, SIREN, or SIRET) to the public Recherche d'entreprises API operated by the French Interministerial Digital Directorate (DINUM).
 
 Service page: https://www.data.gouv.fr/dataservices/api-recherche-dentreprises
-Access conditions and API information: https://annuaire-entreprises.data.gouv.fr/donnees/api-entreprises
 API documentation: https://recherche-entreprises.api.gouv.fr/docs/
 Terms of use: https://www.data.gouv.fr/pages/legal/cgu
 Privacy information: https://www.data.gouv.fr/en/suivi/
+
+= Norway — Brønnøysund Register Centre =
+
+For Norway, only the organisation name or number entered by the administrator is sent to the official open Enhetsregisteret API. Returned public identity, address, legal form and activity data may be used for optional prefill.
+
+API: https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html
+Privacy: https://www.brreg.no/en/about-us/privacy-policy/
+
+= EU / Northern Ireland — VIES VAT validation =
+
+For supported EU countries and Northern Ireland (XI), Dendrila Privacy sends only the selected country code and VAT number to the European Commission VIES service. VIES validates VAT registration for intra-EU trade. Depending on the national database, the response may not contain the organisation name or address.
+
+VIES service: https://ec.europa.eu/taxation_customs/vies/
+Information about VIES: https://europa.eu/youreurope/business/finance-and-tax/vat/check-vat-number-vies/
+European Commission privacy information: https://taxation-customs.ec.europa.eu/privacy-statement_en
 
 = Detection signatures are not external connections =
 

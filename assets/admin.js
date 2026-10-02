@@ -373,24 +373,78 @@
 
         var lookupButton = document.getElementById('ptm-company-search');
         var queryInput = document.getElementById('ptm-company-query');
+        var countrySelect = document.getElementById('ptm-company-country');
+        var lookupHelp = document.getElementById('ptm-company-lookup-help');
         var results = document.getElementById('ptm-company-results');
+
+        function updateCompanyLookupCopy() {
+            if (!queryInput || !countrySelect) { return; }
+            var country = countrySelect.value || '';
+            if ('FR' === country) {
+                queryInput.placeholder = 'Nom de l’entreprise, association, SIREN ou SIRET';
+                if (lookupHelp) { lookupHelp.textContent = 'France : recherche dans l’API publique Recherche d’entreprises (nom, SIREN ou SIRET).'; }
+            } else if ('NO' === country) {
+                queryInput.placeholder = 'Nom de la structure ou organisasjonsnummer';
+                if (lookupHelp) { lookupHelp.textContent = 'Norvège : recherche directe dans le registre public Brønnøysund par nom ou numéro d’organisation.'; }
+            } else if (country) {
+                queryInput.placeholder = 'N° TVA, avec ou sans préfixe pays';
+                if (lookupHelp) { lookupHelp.textContent = 'Autres pays proposés : vérification du numéro de TVA via VIES. Selon le registre national, VIES peut ne pas renvoyer le nom ou l’adresse.'; }
+            } else {
+                queryInput.placeholder = 'Choisissez d’abord le pays';
+                if (lookupHelp) { lookupHelp.textContent = 'Choisissez le pays de la structure pour sélectionner automatiquement le registre public adapté.'; }
+            }
+        }
+
+        if (countrySelect) {
+            countrySelect.addEventListener('change', function () {
+                updateCompanyLookupCopy();
+                if (results) { results.textContent = ''; }
+            });
+            updateCompanyLookupCopy();
+        }
+
         if (lookupButton && queryInput && results) {
             lookupButton.addEventListener('click', function () {
                 var q = (queryInput.value || '').trim();
+                var country = countrySelect ? (countrySelect.value || '') : 'FR';
+                if (!country) { results.textContent = 'Choisissez d’abord le pays de la structure.'; return; }
                 if (q.length < 2) { results.textContent = 'Saisissez au moins 2 caractères.'; return; }
                 results.textContent = 'Recherche dans le registre public…'; lookupButton.disabled = true;
-                var data = new FormData(); data.set('action','pixel_trackers_manager_company_search'); data.set('nonce',cfg.companyNonce); data.set('q',q);
+                var data = new FormData(); data.set('action','pixel_trackers_manager_company_search'); data.set('nonce',cfg.companyNonce); data.set('q',q); data.set('country',country);
                 postForm(data).then(function (out) {
                     results.textContent = '';
-                    if (!out.results || !out.results.length) { results.textContent = 'Aucun résultat. Essayez le SIREN/SIRET ou une raison sociale plus précise.'; return; }
+                    if (!out.results || !out.results.length) { results.textContent = out.message || 'Aucun résultat.'; return; }
                     out.results.forEach(function (item) {
                         var card = document.createElement('button'); card.type='button'; card.className='ptm-company-result';
-                        var title=document.createElement('strong'); title.textContent=item.name || 'Entreprise'; card.appendChild(title);
-                        var meta=document.createElement('span'); meta.textContent=[item.siren ? 'SIREN '+item.siren : '', item.address || '', item.status ? 'Statut '+item.status : ''].filter(Boolean).join(' · '); card.appendChild(meta);
+                        var title=document.createElement('strong'); title.textContent=item.name || (item.vat ? 'N° TVA '+item.vat : 'Structure'); card.appendChild(title);
+                        var meta=document.createElement('span');
+                        meta.textContent=[
+                            item.registrationNumber ? (item.registrationLabel || 'Identifiant')+' '+item.registrationNumber : '',
+                            item.address || '',
+                            item.status ? 'Statut '+item.status : ''
+                        ].filter(Boolean).join(' · ');
+                        card.appendChild(meta);
                         card.addEventListener('click', function () {
-                            setField('controller_name', item.name); setField('controller_address', item.address); setField('company_siren', item.siren); setField('company_siret', item.siret); setField('company_vat', item.vat); setField('company_legal_form', item.legalForm); setField('company_activity', item.activity); setField('entity_type', item.entityType || 'company');
-                            setField('company_lookup_source', cfg.companySource || 'https://recherche-entreprises.api.gouv.fr/'); setField('company_lookup_at', new Date().toISOString());
-                            results.textContent = 'Données préremplies. Vérifiez-les puis enregistrez ce bloc.';
+                            if (item.country) { setField('company_country', item.country); }
+                            if (item.name) { setField('controller_name', item.name); }
+                            if (item.address) { setField('controller_address', item.address); }
+                            setField('company_registration_number', item.registrationNumber || '');
+                            setField('company_registration_label', item.registrationLabel || '');
+                            if ('FR' === item.country) {
+                                setField('company_siren', item.siren || '');
+                                setField('company_siret', item.siret || '');
+                            } else {
+                                setField('company_siren', '');
+                                setField('company_siret', '');
+                            }
+                            if (typeof item.vat !== 'undefined') { setField('company_vat', item.vat || ''); }
+                            setField('company_registry', item.registry || '');
+                            setField('company_legal_form', item.legalForm || '');
+                            setField('company_activity', item.activity || '');
+                            setField('entity_type', item.entityType || 'company');
+                            setField('company_lookup_source', item.source || out.source || cfg.companySource || '');
+                            setField('company_lookup_at', new Date().toISOString());
+                            results.textContent = out.message || 'Données préremplies. Vérifiez-les puis enregistrez ce bloc.';
                         });
                         results.appendChild(card);
                     });

@@ -1,3 +1,13 @@
+Dendrila Privacy — développement en cours
+
+- Préremplissage d’organisation rendu international et piloté par le pays choisi.
+- France : conservation de la recherche DINUM par nom, SIREN ou SIRET, avec réponse minimale.
+- Norvège : recherche par nom ou numéro d’organisation via l’API publique Brønnøysund, avec identité, adresse, forme juridique et activité.
+- Autres pays UE pris en charge + Irlande du Nord (XI) : validation du numéro de TVA via VIES, avec préremplissage du nom/adresse lorsque le registre national les fournit.
+- Aucun appel externe automatique : la recherche reste déclenchée uniquement par clic explicite de l’administrateur.
+- La source du registre et le pays utilisé sont enregistrés avec le profil local pour faciliter la vérification humaine.
+- Lorsqu’une autre structure/pays est sélectionné, les métadonnées incompatibles du résultat précédent sont vidées pour éviter les mélanges.
+
 Dendrila Privacy 0.0.4
 
 - Nouveau nom public : Dendrila Privacy. Slug WordPress.org demandé : dendrila-privacy.

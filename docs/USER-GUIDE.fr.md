@@ -104,4 +104,4 @@ PTM peut donc demander confirmation lorsque le contexte humain est nécessaire, 
 
 ## Service externe facultatif
 
-La recherche d’entreprise française contacte l’API publique Recherche d’entreprises uniquement après une action explicite de l’administrateur. Les résultats d’audit du site ne sont pas envoyés à l’éditeur de PTM.
+La recherche facultative d’organisation ne part qu’après une action explicite de l’administrateur. La France utilise l’API publique Recherche d’entreprises, la Norvège l’API publique Enhetsregisteret de Brønnøysundregistrene, et les pays UE pris en charge / l’Irlande du Nord utilisent VIES pour la validation TVA. Aucun résultat d’audit, contenu de page, réponse de l’assistant ou choix de consentement visiteur n’est joint à ces requêtes.

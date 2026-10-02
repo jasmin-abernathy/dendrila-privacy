@@ -106,4 +106,4 @@ A failed page does not stop the rest of the analysis. Dendrila Privacy records t
 
 ## External service
 
-The optional French company lookup contacts the public Recherche d'entreprises API only after an administrator explicitly starts a lookup. Site-audit results are not sent to the plugin author.
+The optional organisation lookup runs only after an administrator explicitly starts it. France uses the public Recherche d'entreprises API, Norway uses the public Brønnøysund Enhetsregisteret API, and supported EU countries / Northern Ireland use VIES for VAT validation. Site-audit results, page contents, assistant answers and visitor consent choices are not attached to these requests.
