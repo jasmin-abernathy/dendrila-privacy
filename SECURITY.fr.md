@@ -15,6 +15,6 @@ Les bugs fonctionnels sans impact de sécurité peuvent utiliser le modèle publ
 
 ## Versions prises en charge
 
-Dendrila Privacy est actuellement en phase de revue pré-publication WordPress.org (`0.0.4`). Les correctifs de sécurité ciblent la ligne de développement active puis sont reportés vers la branche de test stable après validation.
+Dendrila Privacy est actuellement en préparation de la mise à jour WordPress.org (`0.0.5`). Les correctifs de sécurité ciblent la ligne de développement active puis sont reportés vers la branche de test stable après validation.
 
 Aucune build de pré-publication ne doit être considérée comme une version de sécurité maintenue à long terme.

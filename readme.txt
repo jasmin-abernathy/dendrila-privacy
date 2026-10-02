@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.4
+Stable tag: 0.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -129,6 +129,14 @@ No. It is disabled by default. If you enable it, recognised optional services ar
 No. Dendrila Privacy focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
+
+= 0.0.5 =
+* Added country-aware public organisation lookup.
+* France keeps DINUM Recherche d'entreprises lookup by name, SIREN or SIRET.
+* Norway adds official Brønnøysund Enhetsregisteret lookup by organisation name or number.
+* Supported EU countries and Northern Ireland can validate VAT numbers through VIES.
+* Added generic registration metadata for non-French organisations and cleared incompatible stale fields when switching results.
+* All external lookups remain explicit administrator actions and do not include audit results, page contents, assistant answers, or visitor consent choices.
 
 = 0.0.4 =
 * Renamed the public plugin identity to Dendrila Privacy with the requested WordPress.org slug dendrila-privacy.

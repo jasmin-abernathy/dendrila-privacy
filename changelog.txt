@@ -1,4 +1,4 @@
-Dendrila Privacy — développement en cours
+Dendrila Privacy 0.0.5
 
 - Préremplissage d’organisation rendu international et piloté par le pays choisi.
 - France : conservation de la recherche DINUM par nom, SIREN ou SIRET, avec réponse minimale.
