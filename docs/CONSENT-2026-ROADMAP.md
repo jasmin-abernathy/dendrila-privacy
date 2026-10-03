@@ -43,6 +43,8 @@ Le jeton est chiffré et authentifié, expire automatiquement, n’affiche pas l
 
 ## Lot 3 — adaptateurs e-mail
 
+État : couche de vérification commencée. Dendrila Privacy vérifie désormais l’état réel de l’outil d’origine avant d’annoncer qu’un refus a été appliqué. Les contrôles publics actuellement vérifiés pour MailPoet et FluentCRM sont globaux ; ils ne sont donc pas présentés comme une synchronisation par destinataire lorsque le suivi reste actif.
+
 Ordre prévu :
 
 1. MailPoet ;
@@ -60,7 +62,8 @@ Pour chaque adaptateur :
 - relire l’état après modification ;
 - ne jamais afficher « corrigé » quand le résultat ne peut pas être vérifié ;
 - relier le choix de la personne au registre de preuve ;
-- documenter clairement les limites quand le réglage vit chez un prestataire externe.
+- documenter clairement les limites quand le réglage vit chez un prestataire externe ;
+- ne pas détourner un filtre global en pseudo-contrôle par destinataire en s’appuyant sur un ordre d’exécution fragile ou un état global temporaire.
 
 ## Lot 4 — preuve plus robuste
 

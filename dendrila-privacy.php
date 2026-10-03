@@ -6074,6 +6074,12 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     public function public_settings() { return $this->settings(); }
+    public function public_email_tracking_tools() { return $this->email_tracking_tools( $this->installed_plugins() ); }
+    public function public_email_tracking_tool( $id ) {
+        $id = sanitize_key( (string) $id );
+        foreach ( $this->public_email_tracking_tools() as $tool ) { if ( isset( $tool['id'] ) && $id === sanitize_key( (string) $tool['id'] ) ) { return $tool; } }
+        return null;
+    }
     public function public_scan() { return get_option( self::OPTION_SCAN, array() ); }
     public function public_cmp_names() {
         $scan = $this->public_scan();
