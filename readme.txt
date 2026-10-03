@@ -32,8 +32,8 @@ Main features:
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
 * optional account-linked consent sync for logged-in users, with explicit conflict handling and a notice when a choice is applied on another device;
-* a locally anchored, hash-chained consent evidence ledger with HMAC email identifiers and privacy/JSON export;
-* initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists.
+* a locally anchored, hash-chained consent evidence ledger with HMAC email identifiers, privacy/JSON export, and an expiring encrypted no-account link for e-mail tracking choices;
+* initial checks beyond WordPress itself, including email, messaging, booking tools, external forms, payments, and files/lists.
 
 = Consent =
 
@@ -57,7 +57,7 @@ Dendrila Privacy uses WordPress APIs and public shortcodes where possible. Guten
 
 Dendrila Privacy does not send site-audit results to the plugin author and does not include advertising telemetry.
 
-Visitor choices stay in the browser by default. If account sync is enabled, logged-in users can also store the same categories in WordPress user metadata. The optional evidence ledger stays in the site's database and hashes email identifiers with a site-local key. Other administration and audit data remain local unless an administrator starts a documented external lookup below.
+Visitor choices stay in the browser by default. Account sync, when enabled, stores the same categories in WordPress user metadata. The optional evidence ledger hashes email identifiers with a site-local key. Expiring preference links keep the address encrypted inside the token instead of showing it in the URL. Other administration and audit data remain local unless an administrator starts a documented external lookup below.
 
 == External services ==
 
@@ -117,10 +117,6 @@ No. Audit results, settings, and assistant answers stay in your WordPress instal
 = Is the consent interface enabled automatically? =
 
 No. It is disabled by default. If you enable it, recognised optional services are then blocked until the visitor makes a choice.
-
-= Does Dendrila Privacy replace a security plugin? =
-
-No. Dendrila Privacy focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
 

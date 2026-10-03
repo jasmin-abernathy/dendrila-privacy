@@ -24,7 +24,9 @@ Cette feuille de route vise notamment les points où des suites comme iubenda et
 
 ## Lot 2 — préférences e-mail sans compte
 
-Créer un centre de préférences dédié aux pixels de suivi :
+État : implémenté sur la branche empilée dédiée, avant validation finale.
+
+Le centre de préférences dédié au suivi e-mail comprend :
 
 - lien signé et temporaire ;
 - aucune adresse e-mail en clair dans l’URL ;
@@ -32,9 +34,12 @@ Créer un centre de préférences dédié aux pixels de suivi :
 - retrait ou modification avec la même simplicité que l’accord ;
 - événement enregistré dans le registre local ;
 - aucune redirection de clic utilisée comme mécanisme de preuve ;
-- texte d’information versionné.
+- texte d’information versionné, avec copie et empreinte conservées dans la preuve ;
+- API locale permettant aux adaptateurs de vérifier une finalité avant d’activer un suivi individualisé ;
+- aperçu administrateur non enregistrant, afin qu’un test ne puisse pas fabriquer une preuve ;
+- effacement WordPress qui supprime aussi les ancrages HMAC associés à la personne.
 
-Le jeton doit être inutilisable après expiration et ne doit pas devenir un identifiant de pistage transversal.
+Le jeton est chiffré et authentifié, expire automatiquement, n’affiche pas l’adresse dans l’URL et n’est pas utilisé comme identifiant de mesure de clic.
 
 ## Lot 3 — adaptateurs e-mail
 
