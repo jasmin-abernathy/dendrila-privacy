@@ -168,7 +168,7 @@ jobs:
         with:
           wp-version: latest
           slug: dendrila-privacy
-          exclude-directories: '.github,docs,build,dist'
+          exclude-directories: '.github,docs,tests,build,dist'
           exclude-files: '.gitattributes,.editorconfig,.gitignore,.distignore,README.md,README.fr.md,CODE_OF_CONDUCT.md,CODE_OF_CONDUCT.fr.md,CONTRIBUTING.md,CONTRIBUTING.fr.md,SECURITY.md,SECURITY.fr.md,AGENTS.md,COPYRIGHT.md,TRADEMARKS.md'
 
   package:
