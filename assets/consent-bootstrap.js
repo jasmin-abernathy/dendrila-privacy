@@ -7,6 +7,7 @@
     var storageKey = 'pixel_trackers_manager_consent_v2';
     var fingerprint = String(config.fingerprint || (marker ? marker.getAttribute('data-consent-fingerprint') : '') || '');
     var testMode = String(config.testMode || (marker ? marker.getAttribute('data-test-mode') : '') || '');
+    var crossDevice = config.crossDevice || {};
     var domains = {
         statistics: [
             'google-analytics.com', 'googletagmanager.com/gtag/js', 'analytics.google.com',
@@ -22,7 +23,7 @@
             'google.com/maps/embed', 'maps.google.com/maps/embed', 'maps.googleapis.com'
         ]
     };
-    var current = testChoice() || readChoice();
+    var current = testChoice() || resolveCrossDeviceChoice();
     var nativeSetAttribute = Element.prototype.setAttribute;
 
     function testChoice() {
@@ -48,6 +49,77 @@
         } catch (e) {
             return null;
         }
+    }
+
+    function normaliseChoice(choice) {
+        if (!choice || !choice.savedAt) { return null; }
+        return {
+            statistics: choice.statistics === true,
+            external: choice.external === true,
+            marketing: choice.marketing === true,
+            savedAt: Number(choice.savedAt || 0),
+            fingerprint: String(choice.fingerprint || '')
+        };
+    }
+
+    function validAccountChoice(choice) {
+        choice = normaliseChoice(choice);
+        if (!choice) { return null; }
+        if (fingerprint && choice.fingerprint !== fingerprint) { return null; }
+        if (Date.now() - choice.savedAt > retentionDays * 86400000) { return null; }
+        return choice;
+    }
+
+    function sameChoice(a, b) {
+        return !!(a && b &&
+            a.statistics === b.statistics &&
+            a.external === b.external &&
+            a.marketing === b.marketing);
+    }
+
+    function writeLocalChoice(choice) {
+        try { localStorage.setItem(storageKey, JSON.stringify(choice)); } catch (e) {}
+    }
+
+    function resolveCrossDeviceChoice() {
+        var local = readChoice();
+        if (!crossDevice || crossDevice.active !== true) { return local; }
+
+        var account = validAccountChoice(crossDevice.accountChoice);
+        var strategy = crossDevice.strategy === 'device_wins' ? 'device_wins' : 'account_wins';
+        var resolution = {active:true, needsSync:false, reason:'', accountVersion:String(crossDevice.accountVersion || '')};
+
+        if (!local && !account) {
+            window.DendrilaPrivacyCrossDeviceResolution = resolution;
+            return null;
+        }
+        if (!local && account) {
+            writeLocalChoice(account);
+            resolution.reason = 'account_restored';
+            window.DendrilaPrivacyCrossDeviceResolution = resolution;
+            return account;
+        }
+        if (local && !account) {
+            resolution.needsSync = true;
+            resolution.reason = 'account_created';
+            window.DendrilaPrivacyCrossDeviceResolution = resolution;
+            return local;
+        }
+        if (sameChoice(local, account)) {
+            window.DendrilaPrivacyCrossDeviceResolution = resolution;
+            return local;
+        }
+        if (strategy === 'device_wins') {
+            resolution.needsSync = true;
+            resolution.reason = 'device_wins';
+            window.DendrilaPrivacyCrossDeviceResolution = resolution;
+            return local;
+        }
+
+        writeLocalChoice(account);
+        resolution.reason = 'account_wins';
+        window.DendrilaPrivacyCrossDeviceResolution = resolution;
+        return account;
     }
 
     function allowed(category) {

@@ -1455,3 +1455,26 @@ a.ptm-coverage-row.ptm-coverage-link .ptm-doc-status{white-space:nowrap}
     .ptm-nav-tabs .ptm-tab{min-height:39px;padding:9px 11px}
     .ptm-alert-legend{display:grid;gap:7px}
 }
+
+/* Consent 2026 — extensions of the existing Dendrila card/form system. */
+.ptm-cross-device-settings{margin-top:18px}
+.ptm-cross-device-strategies{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.ptm-cross-device-strategy{display:grid;grid-template-columns:auto 1fr;gap:4px 9px;align-items:start;padding:14px;border:1px solid var(--ptm-border-soft);border-radius:var(--ptm-radius-small);background:var(--ptm-surface-soft);cursor:pointer}
+.ptm-cross-device-strategy input{margin-top:2px}
+.ptm-cross-device-strategy strong,.ptm-cross-device-strategy p{grid-column:2}
+.ptm-cross-device-strategy p{margin:2px 0 0;color:var(--ptm-muted);line-height:1.45}
+.ptm-cross-device-strategy:has(input:checked){border-color:#9fc7a4;background:var(--ptm-accent-soft);box-shadow:inset 0 0 0 1px rgba(57,124,67,.12)}
+.ptm-proof-search{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.ptm-proof-search .ptm-field{min-width:min(360px,100%);flex:1}
+.ptm-proof-status{display:flex;align-items:center;gap:8px;margin:12px 0}
+.ptm-proof-status .ptm-badge{white-space:nowrap}
+.ptm-proof-table td{vertical-align:top}
+.ptm-proof-table details summary{cursor:pointer;color:var(--ptm-accent-dark);font-weight:650}
+.ptm-proof-table details p{max-width:660px;white-space:pre-wrap}
+.ptm-proof-form .ptm-form-grid{margin-top:0}
+.ptm-proof-form-actions{display:flex;justify-content:flex-end;margin-top:14px}
+@media(max-width:782px){.ptm-cross-device-strategies{grid-template-columns:1fr}.ptm-proof-search{display:grid}.ptm-proof-search .button,.ptm-proof-form-actions .button{width:100%;text-align:center}}
+
+.ptm-proof-search input[type=email],.ptm-proof-form .ptm-field input[type=email],.ptm-proof-form .ptm-field input[type=date]{width:100%;max-width:none}
+.ptm-proof-wide{grid-column:1/-1}
+@media(max-width:782px){.ptm-proof-wide{grid-column:auto}}
