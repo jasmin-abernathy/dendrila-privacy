@@ -15,6 +15,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
         add_action( 'admin_menu', array( $this, 'admin_menu' ), 30 );
         add_action( 'admin_post_dendrila_privacy_export_evidence', array( $this, 'export_evidence' ) );
         add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_privacy_exporter' ) );
+        add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_privacy_eraser' ) );
         add_action( 'dendrila_privacy_record_email_tracking_consent', array( $this, 'action_record_email_tracking_consent' ), 10, 4 );
         add_filter( 'dendrila_privacy_email_tracking_consent_status', array( $this, 'filter_email_tracking_status' ), 10, 2 );
     }
@@ -180,8 +181,22 @@ final class Dendrila_Privacy_Evidence_Ledger {
     }
 
     public function register_privacy_exporter( $exporters ) { $exporters['dendrila-privacy-consent-evidence']=array('exporter_friendly_name'=>'Dendrila Privacy — preuves de consentement','callback'=>array($this,'privacy_exporter'));return $exporters; }
+    public function register_privacy_eraser( $erasers ) { $erasers['dendrila-privacy-consent-evidence']=array('eraser_friendly_name'=>'Dendrila Privacy — preuves de consentement','callback'=>array($this,'privacy_eraser'));return $erasers; }
     public function privacy_exporter( $email_address, $page = 1 ) {
         $page=max(1,absint($page));$limit=100;$rows=$this->rows_for_email($email_address,$limit,($page-1)*$limit);$data=array();foreach($rows as $stored){$row=$this->decoded_row($stored);$data[]=array('group_id'=>'dendrila-privacy-consent-evidence','group_label'=>'Dendrila Privacy — preuves de consentement','item_id'=>'evidence-'.absint($row['id']),'data'=>array(array('name'=>'Portée','value'=>$row['scope']),array('name'=>'Décision','value'=>$row['decision']),array('name'=>'Finalités','value'=>implode(', ',$row['purposes'])),array('name'=>'Date UTC','value'=>$row['occurred_at']),array('name'=>'Source','value'=>$row['source']),array('name'=>'Version information','value'=>$row['notice_version']),array('name'=>'Empreinte de l’événement','value'=>$row['event_hash'])));}return array('data'=>$data,'done'=>count($rows)<$limit);
+    }
+
+    public function privacy_eraser( $email_address, $page = 1 ) {
+        if ( (int) $page > 1 ) { return array( 'items_removed'=>false, 'items_retained'=>false, 'messages'=>array(), 'done'=>true ); }
+        $this->maybe_install();
+        $subject_hash=$this->subject_hash($email_address);
+        if(''===$subject_hash){return array('items_removed'=>false,'items_retained'=>false,'messages'=>array(),'done'=>true);}
+        global $wpdb;$table=$this->table_name();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- WordPress privacy eraser explicitly removes this subject's local ledger rows.
+        $deleted=$wpdb->delete($table,array('subject_hash'=>$subject_hash),array('%s'));
+        $user=get_user_by('email',sanitize_email($email_address));
+        if($user){delete_user_meta($user->ID,'_dendrila_privacy_account_consent');}
+        return array('items_removed'=>false!==$deleted&&$deleted>0,'items_retained'=>false,'messages'=>array(),'done'=>true);
     }
 }
 
