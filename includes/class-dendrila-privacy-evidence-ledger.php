@@ -225,7 +225,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
             $first_kept = $wpdb->get_row( $wpdb->prepare( 'SELECT id, previous_hash FROM %i WHERE subject_hash = %s AND scope = %s AND occurred_at >= %s ORDER BY id ASC LIMIT 1', $table, $subject_hash, $scope, $cutoff ), ARRAY_A );
             if ( is_array( $first_kept ) && ! hash_equals( (string)$last_old['event_hash'], (string)$first_kept['previous_hash'] ) ) { $skipped++; continue; }
             if ( is_array( $first_kept ) ) { update_option( $this->retention_anchor_option_name( $subject_hash, $scope ), (string)$last_old['event_hash'], false ); }
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Retention deletes only expired rows from this plugin-owned table.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Retention deletes only expired rows from this plugin-owned table; caching a destructive maintenance query would be incorrect.
             $deleted = $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE subject_hash = %s AND scope = %s AND occurred_at < %s', $table, $subject_hash, $scope, $cutoff ) );
             if ( false !== $deleted ) { $removed += (int)$deleted; }
             if ( ! is_array( $first_kept ) ) {
@@ -403,7 +403,8 @@ final class Dendrila_Privacy_Evidence_Ledger {
             check_admin_referer('dendrila_privacy_evidence_admin','dendrila_privacy_evidence_nonce');$action=sanitize_key(wp_unslash($_POST['dendrila_privacy_evidence_action']));$lookup_email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';
             if('record'===$action){$decision=isset($_POST['evidence_decision'])?sanitize_key(wp_unslash($_POST['evidence_decision'])):'granted';$purposes=isset($_POST['evidence_purposes'])?sanitize_textarea_field(wp_unslash($_POST['evidence_purposes'])):'';$notice=isset($_POST['evidence_notice_version'])?sanitize_text_field(wp_unslash($_POST['evidence_notice_version'])):'';$notice_text=isset($_POST['evidence_notice_text'])?sanitize_textarea_field(wp_unslash($_POST['evidence_notice_text'])):'';$source=isset($_POST['evidence_source'])?sanitize_key(wp_unslash($_POST['evidence_source'])):'manual';$result=$this->record_email_tracking_consent($lookup_email,$decision,$purposes,array('notice_version'=>$notice,'notice_text'=>$notice_text,'source'=>$source,'method'=>'manual_admin'));if(is_wp_error($result)){$message=$result->get_error_message();$type='error';}else{$message='Preuve locale ajoutée au registre.';$this->log_admin_action('manual_evidence_recorded',array('scope'=>'email_tracking'));}}
             elseif ( 'rotate_signing_key' === $action ) {
-                if ( ! isset( $_POST['evidence_rotate_confirm'] ) || '1' !== (string) $_POST['evidence_rotate_confirm'] ) { $message = 'Confirmez la rotation de la clé de signature.'; $type = 'error'; }
+                $confirmed = isset( $_POST['evidence_rotate_confirm'] ) ? sanitize_key( wp_unslash( $_POST['evidence_rotate_confirm'] ) ) : '';
+                if ( '1' !== $confirmed ) { $message = 'Confirmez la rotation de la clé de signature.'; $type = 'error'; }
                 else {
                     $expected = isset( $_POST['evidence_active_key'] ) ? sanitize_key( wp_unslash( $_POST['evidence_active_key'] ) ) : '';
                     $result = $this->rotate_signing_key( $expected );
@@ -454,8 +455,13 @@ final class Dendrila_Privacy_Evidence_Ledger {
 
     public function export_evidence_csv() {
         if(!current_user_can('manage_options')){wp_die(esc_html__('Accès refusé.','dendrila-privacy'));}check_admin_referer('dendrila_privacy_evidence_export');$installed=$this->maybe_install();if(is_wp_error($installed)){wp_die(esc_html($installed->get_error_message()));}$email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';$rows=$this->rows_for_email($email,500,0);
-        $this->log_admin_action('export_csv',array('events'=>count($rows)));nocache_headers();header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="dendrila-privacy-consent-evidence.csv"');echo "\xEF\xBB\xBF";echo implode(';',array_map(array($this,'csv_value'),array('date_utc','scope','decision','purposes','source','notice_version','notice_hash','evidence_ref','event_hash','event_version','signing_key_id')))."\r\n";
-        foreach($rows as $stored){$row=$this->decoded_row($stored);$line=array($row['occurred_at'],$row['scope'],$row['decision'],$row['purposes'],$row['source'],$row['notice_version'],$row['notice_hash'],$row['evidence_ref'],$row['event_hash'],$row['event_version'],$row['signing_key_id']);echo implode(';',array_map(array($this,'csv_value'),$line))."\r\n";}exit;
+        $this->log_admin_action('export_csv',array('events'=>count($rows)));nocache_headers();header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="dendrila-privacy-consent-evidence.csv"');echo "\xEF\xBB\xBF";
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Deliberate CSV response; csv_value() performs CSV quoting and formula-prefix neutralisation, not HTML escaping.
+        echo implode(';',array_map(array($this,'csv_value'),array('date_utc','scope','decision','purposes','source','notice_version','notice_hash','evidence_ref','event_hash','event_version','signing_key_id')))."\r\n";
+        foreach($rows as $stored){$row=$this->decoded_row($stored);$line=array($row['occurred_at'],$row['scope'],$row['decision'],$row['purposes'],$row['source'],$row['notice_version'],$row['notice_hash'],$row['evidence_ref'],$row['event_hash'],$row['event_version'],$row['signing_key_id']);
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Deliberate CSV response; values are encoded by csv_value().
+            echo implode(';',array_map(array($this,'csv_value'),$line))."\r\n";
+        }exit;
     }
 
     public function register_privacy_exporter( $exporters ) { $exporters['dendrila-privacy-consent-evidence']=array('exporter_friendly_name'=>'Dendrila Privacy — preuves de consentement','callback'=>array($this,'privacy_exporter'));return $exporters; }

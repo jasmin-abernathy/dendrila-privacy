@@ -66,8 +66,8 @@ final class Dendrila_Privacy_Email_Preferences {
     private function request_token(){
         $token='';
         // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- Anonymous bearer-link workflow: encrypted token + token-bound HMAC are used instead of a WordPress session nonce.
-        if(isset($_POST[self::QUERY_KEY])&&is_scalar($_POST[self::QUERY_KEY])){$token=wp_unslash($_POST[self::QUERY_KEY]);}
-        elseif(isset($_GET[self::QUERY_KEY])&&is_scalar($_GET[self::QUERY_KEY])){$token=wp_unslash($_GET[self::QUERY_KEY]);}
+        if(isset($_POST[self::QUERY_KEY])&&is_scalar($_POST[self::QUERY_KEY])){$token=sanitize_text_field(wp_unslash($_POST[self::QUERY_KEY]));}
+        elseif(isset($_GET[self::QUERY_KEY])&&is_scalar($_GET[self::QUERY_KEY])){$token=sanitize_text_field(wp_unslash($_GET[self::QUERY_KEY]));}
         // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
         $token=is_string($token)?trim($token):'';return preg_match('/^[A-Za-z0-9._-]+$/',$token)?$token:'';
     }
@@ -88,7 +88,7 @@ final class Dendrila_Privacy_Email_Preferences {
         // phpcs:disable WordPress.Security.NonceVerification.Missing -- Token-bound HMAC is the CSRF proof for this anonymous bearer-link workflow.
         $form_key=isset($_POST['dendrila_privacy_preference_form_key'])?sanitize_text_field(wp_unslash($_POST['dendrila_privacy_preference_form_key'])):'';
         $action=isset($_POST['dendrila_privacy_preference_action'])?sanitize_key(wp_unslash($_POST['dendrila_privacy_preference_action'])):'save';
-        $posted=isset($_POST['dendrila_privacy_email_purposes'])&&is_array($_POST['dendrila_privacy_email_purposes'])?wp_unslash($_POST['dendrila_privacy_email_purposes']):array();
+        $posted=isset($_POST['dendrila_privacy_email_purposes'])&&is_array($_POST['dendrila_privacy_email_purposes'])?array_map('sanitize_text_field',wp_unslash($_POST['dendrila_privacy_email_purposes'])):array();
         // phpcs:enable WordPress.Security.NonceVerification.Missing
         if(!$form_key||!hash_equals($this->form_key($token),$form_key)){return new WP_Error('dendrila_privacy_preference_form','Le formulaire n’est plus valide. Rouvrez le lien reçu par e-mail.');}
         $allowed=$payload['purposes'];$previous=$this->current_selection($payload['email'],$allowed);$selected='reject_all'===$action?array():array_values(array_intersect($allowed,$this->normalise_purposes($posted)));
