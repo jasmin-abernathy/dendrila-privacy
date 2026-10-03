@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+require_once __DIR__ . '/includes/class-dendrila-privacy-age-assurance.php';
+
 final class Pixel_Trackers_Manager_Plugin {
     const VERSION = '0.0.5';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
@@ -45,6 +47,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     private function __construct() {
+        Dendrila_Privacy_Age_Assurance::boot();
         add_action( 'admin_menu', array( $this, 'admin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'admin_assets' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'admin_menu_icon_styles' ), 1 );
@@ -5777,6 +5780,8 @@ final class Pixel_Trackers_Manager_Plugin {
             echo '</div><p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-privacy' ) ) . '">Voir le contrôle détaillé</a></p>';
         }
         echo '</section></div>';
+
+        do_action( 'dendrila_privacy_overview_age_assurance' );
 
         echo '<div class="ptm-dashboard-bottom">';
         echo '<section class="ptm-card ptm-detected-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-share"></span> Traceurs & services détectés</h2><p>Le statut distingue une preuve de suivi actif d’une simple capacité technique détectée.</p></div><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-findings' ) ) . '">Tout examiner</a></div>';
