@@ -7,6 +7,9 @@
     var lastFocusedElement = null;
     var mountedRoot = null;
     var accountSync = cfg.accountSync || {};
+    var pendingConflictLocal = null;
+    var pendingConflictAccount = null;
+    var conflictPending = false;
 
     function readChoice() {
         try {
@@ -30,10 +33,13 @@
     function validAccountChoice(choice){if(!choice||!choice.savedAt){return null;}if(cfg.fingerprint&&String(choice.fingerprint||'')!==String(cfg.fingerprint||'')){return null;}return{statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:String(choice.fingerprint||'')};}
     function sameChoice(a,b){return!!a&&!!b&&(a.statistics===true)===(b.statistics===true)&&(a.external===true)===(b.external===true)&&(a.marketing===true)===(b.marketing===true);}
     function writeLocalChoice(choice){if(!choice||cfg.preview||cfg.testMode){return;}try{localStorage.setItem(storageKey,JSON.stringify(choice));}catch(e){}}
-    function resolveAccountChoice(localChoice){var result={choice:localChoice,storeLocal:false,pushAccount:false,message:''};if(cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn){return result;}var accountChoice=validAccountChoice(accountSync.accountChoice);if(!accountChoice){if(localChoice){result.pushAccount=true;result.message='Votre choix actuel est synchronisé avec votre compte pour être retrouvé sur vos autres appareils.';}return result;}if(!localChoice){result.choice=accountChoice;result.storeLocal=true;result.message='Vos choix enregistrés dans votre compte ont été appliqués sur cet appareil.';return result;}if(sameChoice(localChoice,accountChoice)){if(Number(accountChoice.savedAt||0)>Number(localChoice.savedAt||0)){result.choice=accountChoice;result.storeLocal=true;}else if(Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){result.pushAccount=true;}return result;}if(String(accountSync.strategy||'')==='latest_wins'&&Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){result.pushAccount=true;result.message='Le choix plus récent de cet appareil a été synchronisé avec votre compte.';return result;}result.choice=accountChoice;result.storeLocal=true;result.message='Le choix enregistré dans votre compte a été appliqué sur cet appareil. Vous pouvez le modifier à tout moment.';return result;}
+    function restrictiveChoice(localChoice,accountChoice){return{statistics:false,external:false,marketing:false,savedAt:Math.max(Number(localChoice&&localChoice.savedAt||0),Number(accountChoice&&accountChoice.savedAt||0)),fingerprint:cfg.fingerprint||''};}
+    function resolveAccountChoice(localChoice){var result={choice:localChoice,storeLocal:false,pushAccount:false,message:'',conflict:false,localChoice:localChoice,accountChoice:null};if(cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn||accountSync.userEnabled===false){return result;}var accountChoice=validAccountChoice(accountSync.accountChoice);result.accountChoice=accountChoice;if(!accountChoice){if(localChoice){result.pushAccount=true;result.message='Votre choix actuel est synchronisé avec votre compte pour être retrouvé sur vos autres appareils.';}return result;}if(!localChoice){result.choice=accountChoice;result.storeLocal=true;result.message='Vos choix enregistrés dans votre compte ont été appliqués sur cet appareil.';return result;}if(sameChoice(localChoice,accountChoice)){if(Number(accountChoice.savedAt||0)>Number(localChoice.savedAt||0)){result.choice=accountChoice;result.storeLocal=true;}else if(Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){result.pushAccount=true;}return result;}if(String(accountSync.strategy||'')==='ask_user'){result.choice=restrictiveChoice(localChoice,accountChoice);result.conflict=true;return result;}if(String(accountSync.strategy||'')==='latest_wins'&&Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){result.pushAccount=true;result.message='Le choix plus récent de cet appareil a été synchronisé avec votre compte.';return result;}result.choice=accountChoice;result.storeLocal=true;result.message='Le choix enregistré dans votre compte a été appliqué sur cet appareil. Vous pouvez le modifier à tout moment.';return result;}
     function ensureSyncNotice(){var notice=document.getElementById('dendrila-privacy-consent-sync-notice');if(notice||!document.body){return notice;}notice=document.createElement('div');notice.id='dendrila-privacy-consent-sync-notice';notice.className='dendrila-privacy-consent-sync-notice';notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');notice.hidden=true;var text=document.createElement('span');text.setAttribute('data-dendrila-sync-message','1');notice.appendChild(text);var button=document.createElement('button');button.type='button';button.className='ptm-consent-open';button.textContent='Gérer mes choix';button.addEventListener('click',function(){openPreferences();notice.hidden=true;});notice.appendChild(button);document.body.appendChild(notice);return notice;}
     function showSyncNotice(message,tone){if(!message){return;}var notice=ensureSyncNotice();if(!notice){return;}var text=notice.querySelector('[data-dendrila-sync-message]');if(text){text.textContent=message;}notice.setAttribute('data-tone',tone||'info');notice.hidden=false;}
-    function persistChoiceToAccount(choice,showSuccess,reason){if(!choice||cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn||!accountSync.endpoint||!accountSync.nonce||typeof window.fetch!=='function'){return;}var payload={statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:choice.fingerprint||'',syncReason:reason||'background'};window.fetch(accountSync.endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':accountSync.nonce},body:JSON.stringify(payload)}).then(function(response){if(!response.ok){throw new Error('sync-failed');}return response.json();}).then(function(saved){if(saved&&saved.choice){accountSync.accountChoice=saved.choice;current=saved.choice;writeLocalChoice(saved.choice);syncEarlyGuard(saved.choice);}if(showSuccess){showSyncNotice('Vos choix sont enregistrés sur cet appareil et dans votre compte.','success');}}).catch(function(){showSyncNotice('Votre choix est enregistré sur cet appareil, mais la synchronisation avec votre compte a échoué.','error');});}
+    function persistChoiceToAccount(choice,showSuccess,reason){if(!choice||cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn||accountSync.userEnabled===false||!accountSync.endpoint||!accountSync.nonce||typeof window.fetch!=='function'){return;}var payload={statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:choice.fingerprint||'',syncReason:reason||'background'};window.fetch(accountSync.endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':accountSync.nonce},body:JSON.stringify(payload)}).then(function(response){if(!response.ok){throw new Error('sync-failed');}return response.json();}).then(function(saved){if(saved&&saved.choice){accountSync.accountChoice=saved.choice;current=saved.choice;writeLocalChoice(saved.choice);syncEarlyGuard(saved.choice);}if(showSuccess){showSyncNotice('Vos choix sont enregistrés sur cet appareil et dans votre compte.','success');}}).catch(function(){showSyncNotice('Votre choix est enregistré sur cet appareil, mais la synchronisation avec votre compte a échoué.','error');});}
+    function setSyncFeedback(message){var root=bannerRoot();var feedback=root?root.querySelector('[data-ptm-account-sync-feedback]'):null;if(feedback){feedback.textContent=message||'';}}
+    function setAccountSyncEnabled(enabled){if(cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn||!accountSync.toggleEndpoint||!accountSync.nonce||typeof window.fetch!=='function'){return Promise.reject(new Error('sync-toggle-unavailable'));}setSyncFeedback('Enregistrement…');return window.fetch(accountSync.toggleEndpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':accountSync.nonce},body:JSON.stringify({enabled:enabled===true})}).then(function(response){if(!response.ok){throw new Error('sync-toggle-failed');}return response.json();}).then(function(saved){accountSync.userEnabled=!!saved.userEnabled;accountSync.accountChoice=saved.choice||null;setSyncFeedback(accountSync.userEnabled?'Synchronisation activée. Le choix de ce navigateur devient votre référence de compte.':'Synchronisation désactivée. La copie liée au compte a été supprimée ; votre choix reste dans ce navigateur.');if(accountSync.userEnabled&&current){persistChoiceToAccount(current,false,'sync_enable');}return saved;}).catch(function(error){setSyncFeedback('Impossible de modifier la synchronisation pour le moment.');throw error;});}
 
     function allowed(category) {
         return !!(current && current[category] === true);
@@ -308,6 +314,7 @@
     }
 
     function saveChoice(choice) {
+        if (conflictPending) { showConflictPanel(pendingConflictLocal,pendingConflictAccount); return false; }
         choice = normaliseChoice(choice);
         choice.savedAt = Date.now();
         choice.fingerprint = cfg.fingerprint || '';
@@ -319,15 +326,17 @@
         announceConsentUpdate();
         persistChoiceToAccount(choice, true, 'explicit');
         hideBanner(true);
+        return true;
     }
 
     function saveAll(value) {
-        saveChoice({
-            statistics: value,
-            external: value,
-            marketing: value
-        });
+        saveChoice({statistics:value,external:value,marketing:value});
     }
+    function choiceSummary(choice){if(!choice){return 'Aucun choix enregistré';}var labels=[];if(choice.statistics===true){labels.push('mesure d’audience');}if(choice.external===true){labels.push('contenus externes');}if(choice.marketing===true){labels.push('marketing et suivi');}return labels.length?'Autorisés : '+labels.join(', '):'Tous les services facultatifs sont refusés';}
+    function choiceTime(choice){var value=choice&&Number(choice.savedAt||0);if(!value){return '';}try{return 'Enregistré '+new Date(value).toLocaleString();}catch(e){return '';}}
+    function hideConflictPanel(){var root=bannerRoot();if(!root){return;}var panel=root.querySelector('[data-ptm-account-conflict]');var actions=root.querySelector('[data-ptm-main-actions]');if(panel){panel.hidden=true;}if(actions){actions.hidden=false;}root.classList.remove('is-account-conflict');conflictPending=false;pendingConflictLocal=null;pendingConflictAccount=null;}
+    function showConflictPanel(localChoice,accountChoice){var root=mountConsentRoot();if(!root){return;}var panel=root.querySelector('[data-ptm-account-conflict]');var actions=root.querySelector('[data-ptm-main-actions]');if(!panel){return;}pendingConflictLocal=localChoice||null;pendingConflictAccount=accountChoice||null;conflictPending=true;var localText=panel.querySelector('[data-ptm-conflict-local-choice]'),accountText=panel.querySelector('[data-ptm-conflict-account-choice]'),localTime=panel.querySelector('[data-ptm-conflict-local-time]'),accountTime=panel.querySelector('[data-ptm-conflict-account-time]');if(localText){localText.textContent=choiceSummary(localChoice);}if(accountText){accountText.textContent=choiceSummary(accountChoice);}if(localTime){localTime.textContent=choiceTime(localChoice);}if(accountTime){accountTime.textContent=choiceTime(accountChoice);}panel.hidden=false;if(actions){actions.hidden=true;}root.classList.add('is-account-conflict');showBanner(true,false);}
+    function resolveConflict(choice,useAccount){if(!choice){return;}var selectedSavedAt=choice.savedAt||Date.now();choice=normaliseChoice(choice);choice.savedAt=selectedSavedAt;choice.fingerprint=cfg.fingerprint||'';writeLocalChoice(choice);current=choice;syncEarlyGuard(choice);activateAllowedResources();reinitialiseDiviIntegrations();announceConsentUpdate();hideConflictPanel();hideBanner(true);if(useAccount){accountSync.accountChoice=choice;showSyncNotice('Le choix de votre compte est maintenant utilisé sur ce navigateur.','success');}else{persistChoiceToAccount(choice,true,'conflict_local');}}
 
     function bannerRoot() {
         if (mountedRoot) {
@@ -523,6 +532,10 @@
             saveAll(false);
         } else if (action === 'accept') {
             saveAll(true);
+        } else if (action === 'conflict-local') {
+            resolveConflict(pendingConflictLocal,false);
+        } else if (action === 'conflict-account') {
+            resolveConflict(pendingConflictAccount,true);
         } else if (action === 'customize') {
             var preferences = root.querySelector('.ptm-consent-preferences');
             setPreferencesVisible(root, !!(preferences && preferences.hidden));
@@ -559,7 +572,7 @@
                 };
             },
             saveChoice: function (choice) {
-                saveChoice(choice);
+                return saveChoice(choice);
             }
         };
 
@@ -579,6 +592,9 @@
         var localChoice = cfg.preview ? null : (testChoice() || readChoice());
         var accountResolution = resolveAccountChoice(localChoice);
         current = accountResolution.choice;
+        pendingConflictLocal=accountResolution.localChoice||null;
+        pendingConflictAccount=accountResolution.accountChoice||null;
+        conflictPending=!!accountResolution.conflict;
         if (accountResolution.storeLocal && current) { writeLocalChoice(current); }
         syncEarlyGuard(current);
         mountConsentRoot();
@@ -590,10 +606,11 @@
 
         var root = bannerRoot();
         if (root) {
-            root.addEventListener('keydown', function (event) {
-                trapKeyboard(event, root);
-            });
+            root.addEventListener('keydown', function (event) { trapKeyboard(event, root); });
+            var syncToggle=root.querySelector('[data-ptm-account-sync-toggle]');
+            if(syncToggle){syncToggle.checked=accountSync.userEnabled!==false;syncToggle.addEventListener('change',function(){var wanted=!!syncToggle.checked;syncToggle.disabled=true;setAccountSyncEnabled(wanted).then(function(){syncToggle.checked=accountSync.userEnabled!==false;syncToggle.disabled=false;}).catch(function(){syncToggle.checked=!wanted;syncToggle.disabled=false;});});}
         }
+        if(accountResolution.conflict){showConflictPanel(accountResolution.localChoice,accountResolution.accountChoice);}
 
         var closedThisSession = false;
         try {
@@ -602,7 +619,7 @@
             closedThisSession = false;
         }
 
-        if (!current && !closedThisSession) {
+        if (!accountResolution.conflict && !current && !closedThisSession) {
             showBanner(false, false);
         }
     }

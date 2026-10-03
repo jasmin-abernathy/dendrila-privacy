@@ -81,11 +81,16 @@ Reste volontairement à traiter séparément : rotation de la clé d’identific
 
 ## Lot 5 — multi-appareils avancé
 
-- option pour demander explicitement à la personne quelle version garder lorsqu’un conflit est détecté ;
-- écran de synthèse des appareils sans empreinte matérielle ni fingerprinting ;
-- possibilité de désactiver la synchronisation depuis « Gérer mes choix » ;
-- retrait propagé avec la même portée que l’acceptation ;
-- tests automatisés de non-régression « aucun service facultatif avant résolution du choix ».
+État : implémenté sur la branche dédiée.
+
+- mode recommandé qui demande explicitement quelle version garder lorsqu’un choix local et un choix de compte diffèrent ;
+- blocage strict de toutes les catégories facultatives tant que ce conflit n’est pas résolu ;
+- synthèse « ce navigateur / compte WordPress » avec dates, sans identifiant d’appareil, empreinte matérielle ni fingerprinting ;
+- opt-in/out par compte depuis « Gérer mes choix » : un nouveau compte n’est pas synchronisé tant que la personne ne l’active pas ; une ancienne copie déjà créée reste reconnue pour préserver la migration ; la désactivation efface la copie liée au compte sans toucher au choix local ;
+- refus et retrait explicites propagés au compte par le même chemin que l’acceptation ;
+- copie de fond et réconciliation d’un conflit distinguées d’un nouveau consentement dans le registre de preuves ;
+- test Node sans dépendance ajouté au contrôle JavaScript afin de vérifier qu’un conflit en mode recommandé garde toutes les catégories facultatives bloquées avant sa résolution ;
+- les choix en conflit restent privés dans la fermeture JavaScript et l’API publique de consentement ne peut pas contourner la résolution explicite.
 
 ## Principes non négociables
 

@@ -327,7 +327,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
         $deleted=$wpdb->delete($table,array('subject_hash'=>$subject_hash),array('%s'));
         foreach($scopes as $scope){delete_option($this->head_option_name($subject_hash,$scope));delete_option($this->retention_anchor_option_name($subject_hash,$scope));}
         $user=get_user_by('email',sanitize_email($email_address));
-        if($user){delete_user_meta($user->ID,'_dendrila_privacy_account_consent');}
+        if($user){delete_user_meta($user->ID,'_dendrila_privacy_account_consent');delete_user_meta($user->ID,'_dendrila_privacy_account_sync_enabled');}
         return array('items_removed'=>false!==$deleted&&$deleted>0,'items_retained'=>false,'messages'=>array(),'done'=>true);
     }
 }
