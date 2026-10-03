@@ -33,6 +33,7 @@ Main features:
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
 * optional account-linked consent sync for logged-in users, with explicit conflict handling and a notice when a choice is applied on another device;
 * a locally anchored, hash-chained consent evidence ledger with HMAC email identifiers, privacy/JSON export, and an expiring encrypted no-account link for e-mail tracking choices;
+* adapter-aware verification: a recipient refusal is not reported as applied unless the originating e-mail tool can be checked in a tracking-disabled state;
 * initial checks beyond WordPress itself, including email, messaging, booking tools, external forms, payments, and files/lists.
 
 = Consent =

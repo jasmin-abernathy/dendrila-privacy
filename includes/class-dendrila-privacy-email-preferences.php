@@ -9,7 +9,7 @@ final class Dendrila_Privacy_Email_Preferences {
     private static $instance = null;
 
     public static function instance() { if ( null === self::$instance ) { self::$instance = new self(); } return self::$instance; }
-    private function __construct() { add_action( 'template_redirect', array( $this, 'maybe_render_public_page' ), 0 ); add_action( 'dendrila_privacy_evidence_after_lookup', array( $this, 'render_admin_test_link' ), 10, 2 ); }
+    private function __construct() { add_action( 'template_redirect', array( $this, 'maybe_render_public_page' ), 0 ); add_action( 'dendrila_privacy_evidence_after_lookup', array( $this, 'render_admin_test_link' ), 10, 2 ); add_filter( 'dendrila_privacy_apply_email_tracking_preferences', array( $this, 'verify_adapter_application' ), 20, 5 ); }
 
     private function purposes_catalogue() {
         return array(
@@ -121,6 +121,31 @@ final class Dendrila_Privacy_Email_Preferences {
     public function render_admin_test_link($email,$latest){
         if(!current_user_can('manage_options')||!is_email($email)){return;}$url=$this->preference_url($email,array('email_open_measurement','email_click_tracking'),self::DEFAULT_TTL,array('source'=>'admin_preview','preview'=>true));if(is_wp_error($url)){echo '<div class="ptm-callout warn ptm-evidence-preference-card"><strong>Centre de préférences indisponible :</strong> '.esc_html($url->get_error_message()).'</div>';return;}
         echo '<div class="ptm-evidence-preference-card"><div><p class="ptm-eyebrow">Lien sans compte</p><h3>Aperçu du centre de préférences e-mail</h3><p>Le lien est chiffré, valable 14 jours et ne montre pas l’adresse e-mail. Ce mode d’aperçu est volontairement non enregistrant : il ne peut pas fabriquer une preuve au nom de la personne.</p></div><a class="button button-secondary" href="'.esc_url($url).'" target="_blank" rel="noopener noreferrer">Ouvrir le centre de préférences</a></div>';
+    }
+
+    public function verify_adapter_application( $result, $email, $selected, $decision, $payload ) {
+        if ( null !== $result ) { return $result; }
+        $payload = is_array( $payload ) ? $payload : array();
+        $source = isset( $payload['source'] ) ? sanitize_key( (string) $payload['source'] ) : '';
+        if ( ! in_array( $source, array( 'mailpoet', 'fluentcrm', 'newsletter', 'mailmint', 'brevo', 'mailchimp' ), true ) ) { return $result; }
+        $allowed = isset( $payload['purposes'] ) ? $this->normalise_purposes( $payload['purposes'] ) : array();
+        $selected = $this->normalise_purposes( $selected );
+        $denied = array_values( array_diff( $allowed, $selected ) );
+        if ( ! $denied ) { return $result; }
+        if ( ! class_exists( 'Pixel_Trackers_Manager_Plugin' ) || ! method_exists( 'Pixel_Trackers_Manager_Plugin', 'instance' ) ) { return new WP_Error( 'dendrila_privacy_adapter_unavailable', 'Dendrila Privacy ne peut pas vérifier l’état de l’outil d’envoi pour ce choix.' ); }
+        $plugin = Pixel_Trackers_Manager_Plugin::instance();
+        if ( ! method_exists( $plugin, 'public_email_tracking_tool' ) ) { return new WP_Error( 'dendrila_privacy_adapter_unavailable', 'Dendrila Privacy ne peut pas vérifier l’état de l’outil d’envoi pour ce choix.' ); }
+        $tool = $plugin->public_email_tracking_tool( $source );
+        if ( ! is_array( $tool ) ) { return new WP_Error( 'dendrila_privacy_adapter_not_detected', 'Le refus est enregistré, mais l’outil d’envoi indiqué par le lien n’est pas détecté sur ce WordPress.' ); }
+        $state = isset( $tool['tracking_state'] ) ? sanitize_key( (string) $tool['tracking_state'] ) : 'unknown';
+        if ( 'disabled' === $state ) {
+            return array( 'verified'=>true, 'adapter'=>$source, 'scope'=>'global', 'denied_purposes'=>$denied );
+        }
+        $name = isset( $tool['name'] ) ? sanitize_text_field( (string) $tool['name'] ) : $source;
+        if ( in_array( $source, array( 'mailpoet', 'fluentcrm' ), true ) ) {
+            return new WP_Error( 'dendrila_privacy_adapter_global_only', $name . ' expose actuellement à Dendrila Privacy un contrôle global du suivi, pas un interrupteur public fiable par destinataire. Votre refus est enregistré, mais Dendrila Privacy ne le présente pas comme appliqué tant que le suivi global reste actif.' );
+        }
+        return new WP_Error( 'dendrila_privacy_adapter_guided_only', 'Votre refus est enregistré, mais ' . $name . ' ne fournit pas encore à Dendrila Privacy de mécanisme public vérifiable pour appliquer ce choix automatiquement par destinataire.' );
     }
 
     public function tracking_allowed($email,$purpose){
