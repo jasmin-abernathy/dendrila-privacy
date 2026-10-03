@@ -6,6 +6,7 @@
     var current = null;
     var lastFocusedElement = null;
     var mountedRoot = null;
+    var accountSync = cfg.accountSync || {};
 
     function readChoice() {
         try {
@@ -25,6 +26,14 @@
             return null;
         }
     }
+
+    function validAccountChoice(choice){if(!choice||!choice.savedAt){return null;}if(cfg.fingerprint&&String(choice.fingerprint||'')!==String(cfg.fingerprint||'')){return null;}return{statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:String(choice.fingerprint||'')};}
+    function sameChoice(a,b){return!!a&&!!b&&(a.statistics===true)===(b.statistics===true)&&(a.external===true)===(b.external===true)&&(a.marketing===true)===(b.marketing===true);}
+    function writeLocalChoice(choice){if(!choice||cfg.preview||cfg.testMode){return;}try{localStorage.setItem(storageKey,JSON.stringify(choice));}catch(e){}}
+    function resolveAccountChoice(localChoice){var result={choice:localChoice,storeLocal:false,pushAccount:false,message:''};if(cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn){return result;}var accountChoice=validAccountChoice(accountSync.accountChoice);if(!accountChoice){if(localChoice){result.pushAccount=true;result.message='Votre choix actuel est synchronisé avec votre compte pour être retrouvé sur vos autres appareils.';}return result;}if(!localChoice){result.choice=accountChoice;result.storeLocal=true;result.message='Vos choix enregistrés dans votre compte ont été appliqués sur cet appareil.';return result;}if(sameChoice(localChoice,accountChoice)){if(Number(accountChoice.savedAt||0)>Number(localChoice.savedAt||0)){result.choice=accountChoice;result.storeLocal=true;}else if(Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){result.pushAccount=true;}return result;}if(String(accountSync.strategy||'')==='latest_wins'&&Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){result.pushAccount=true;result.message='Le choix plus récent de cet appareil a été synchronisé avec votre compte.';return result;}result.choice=accountChoice;result.storeLocal=true;result.message='Le choix enregistré dans votre compte a été appliqué sur cet appareil. Vous pouvez le modifier à tout moment.';return result;}
+    function ensureSyncNotice(){var notice=document.getElementById('dendrila-privacy-consent-sync-notice');if(notice||!document.body){return notice;}notice=document.createElement('div');notice.id='dendrila-privacy-consent-sync-notice';notice.className='dendrila-privacy-consent-sync-notice';notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');notice.hidden=true;var text=document.createElement('span');text.setAttribute('data-dendrila-sync-message','1');notice.appendChild(text);var button=document.createElement('button');button.type='button';button.className='ptm-consent-open';button.textContent='Gérer mes choix';button.addEventListener('click',function(){openPreferences();notice.hidden=true;});notice.appendChild(button);document.body.appendChild(notice);return notice;}
+    function showSyncNotice(message,tone){if(!message){return;}var notice=ensureSyncNotice();if(!notice){return;}var text=notice.querySelector('[data-dendrila-sync-message]');if(text){text.textContent=message;}notice.setAttribute('data-tone',tone||'info');notice.hidden=false;}
+    function persistChoiceToAccount(choice,showSuccess,reason){if(!choice||cfg.preview||cfg.testMode||!accountSync.enabled||!accountSync.loggedIn||!accountSync.endpoint||!accountSync.nonce||typeof window.fetch!=='function'){return;}var payload={statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:choice.fingerprint||'',syncReason:reason||'background'};window.fetch(accountSync.endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':accountSync.nonce},body:JSON.stringify(payload)}).then(function(response){if(!response.ok){throw new Error('sync-failed');}return response.json();}).then(function(saved){if(saved&&saved.choice){accountSync.accountChoice=saved.choice;current=saved.choice;writeLocalChoice(saved.choice);syncEarlyGuard(saved.choice);}if(showSuccess){showSyncNotice('Vos choix sont enregistrés sur cet appareil et dans votre compte.','success');}}).catch(function(){showSyncNotice('Votre choix est enregistré sur cet appareil, mais la synchronisation avec votre compte a échoué.','error');});}
 
     function allowed(category) {
         return !!(current && current[category] === true);
@@ -302,18 +311,13 @@
         choice = normaliseChoice(choice);
         choice.savedAt = Date.now();
         choice.fingerprint = cfg.fingerprint || '';
-        if (!cfg.preview && !cfg.testMode) {
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(choice));
-            } catch (e) {
-                // Consent still works for the current page if storage is unavailable.
-            }
-        }
+        writeLocalChoice(choice);
         current = choice;
         syncEarlyGuard(choice);
         activateAllowedResources();
         reinitialiseDiviIntegrations();
         announceConsentUpdate();
+        persistChoiceToAccount(choice, true, 'explicit');
         hideBanner(true);
     }
 
@@ -572,12 +576,17 @@
     }
 
     function initialise() {
-        current = cfg.preview ? null : (testChoice() || readChoice());
+        var localChoice = cfg.preview ? null : (testChoice() || readChoice());
+        var accountResolution = resolveAccountChoice(localChoice);
+        current = accountResolution.choice;
+        if (accountResolution.storeLocal && current) { writeLocalChoice(current); }
         syncEarlyGuard(current);
         mountConsentRoot();
         activateAllowedResources();
         reinitialiseDiviIntegrations();
         inheritSiteStyle();
+        if (accountResolution.pushAccount && current) { persistChoiceToAccount(current, false, 'background'); }
+        if (accountResolution.message) { showSyncNotice(accountResolution.message, 'info'); }
 
         var root = bannerRoot();
         if (root) {

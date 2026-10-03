@@ -98,6 +98,8 @@ final class Pixel_Trackers_Manager_Consent {
         return array_values( array_unique( $ids ) );
     }
 
+    public function public_fingerprint() { return $this->consent_fingerprint(); }
+
     private function consent_fingerprint() {
         $payload = array(
             'schema' => 2,
@@ -113,13 +115,16 @@ final class Pixel_Trackers_Manager_Consent {
         $settings = $this->plugin->public_settings();
         // Consent assets have their own cache suffix during the test cycle so fixes reach
         // builder test sites even before the plugin version changes.
-        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-portal2';
+        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-account-sync1';
         $bootstrap_handle = 'pixel-trackers-manager-consent-bootstrap';
         $test_mode = '';
         if ( current_user_can( 'manage_options' ) ) {
             $candidate = sanitize_key( $this->query_value( 'pixel_trackers_manager_consent_test' ) );
             if ( in_array( $candidate, array( 'reject', 'statistics', 'accept' ), true ) ) { $test_mode = $candidate; }
         }
+
+        $account_sync = array( 'enabled'=>false, 'loggedIn'=>false, 'strategy'=>'account_wins', 'accountChoice'=>null );
+        if ( class_exists( 'Dendrila_Privacy_Account_Consent' ) ) { $account_sync = Dendrila_Privacy_Account_Consent::instance( $this->plugin )->frontend_config(); }
 
         // Load the early blocker through WordPress' script API, in the head, before the
         // main consent UI. This keeps PTM compatible with Plugin Check and builders.
@@ -128,6 +133,7 @@ final class Pixel_Trackers_Manager_Consent {
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
+            'accountSync' => array( 'enabled'=>!empty($account_sync['enabled']), 'loggedIn'=>!empty($account_sync['loggedIn']), 'strategy'=>isset($account_sync['strategy'])?$account_sync['strategy']:'account_wins', 'accountChoice'=>isset($account_sync['accountChoice'])?$account_sync['accountChoice']:null ),
         );
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
@@ -144,6 +150,7 @@ final class Pixel_Trackers_Manager_Consent {
             'domains' => $this->domain_map(),
             'preview' => '' !== $this->query_value( 'pixel_trackers_manager_consent_preview' ) && current_user_can( 'manage_options' ),
             'testMode' => $test_mode,
+            'accountSync' => $account_sync,
         );
         wp_localize_script( 'pixel-trackers-manager-consent', 'DendrilaPrivacyConsent', $consent_config );
         // Backward-compatible alias for pre-publication integrations.
