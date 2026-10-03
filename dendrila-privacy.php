@@ -256,7 +256,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'pixel-trackers-manager-admin',
             plugin_dir_url( __FILE__ ) . 'assets/admin.css',
             array(),
-            self::VERSION
+            self::VERSION . '-evidence-keys-1'
         );
         if ( ! $is_ptm_page ) {
             return;

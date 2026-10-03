@@ -1464,3 +1464,15 @@ a.ptm-coverage-row.ptm-coverage-link .ptm-doc-status{white-space:nowrap}
 
 /* Evidence governance */
 .ptm-evidence-governance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}.ptm-evidence-governance-grid>div{padding:14px;border:1px solid var(--ptm-border);border-radius:10px;background:#fbfbfc}.ptm-evidence-governance-grid strong,.ptm-evidence-governance-grid span{display:block}.ptm-evidence-governance-grid strong{font-size:19px;color:var(--ptm-green-dark)}.ptm-evidence-governance-grid span{margin-top:3px;color:var(--ptm-muted);font-size:12px}.ptm-evidence-governance-form{display:grid;grid-template-columns:minmax(240px,420px) 1fr;gap:16px;align-items:end}.ptm-inline-number{display:flex;align-items:center;gap:8px}.ptm-inline-number input{width:130px}.ptm-evidence-governance-actions,.ptm-evidence-export-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ptm-evidence-export-actions{margin-top:14px}.ptm-evidence-export-actions form,.ptm-evidence-export-actions p.submit{margin:0;padding:0}@media(max-width:782px){.ptm-evidence-governance-grid{grid-template-columns:1fr}.ptm-evidence-governance-form{grid-template-columns:1fr}.ptm-evidence-governance-actions .button{width:100%;text-align:center}}
+
+/* Evidence keys share the governance card, with a separate confirmation form. */
+.ptm-evidence-keys{border-top:1px solid var(--ptm-border);margin-top:24px;padding-top:18px}
+.ptm-evidence-key-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ptm-evidence-key-facts dt{font-weight:600}.ptm-evidence-key-facts dd{margin:6px 0 0;overflow-wrap:anywhere}
+.ptm-evidence-key-facts dd span{display:block;color:var(--ptm-muted);font-size:12px;margin-top:4px}
+.ptm-evidence-key-form{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:16px}
+.ptm-evidence-key-confirm{display:flex;align-items:flex-start;gap:8px;max-width:100%;line-height:1.5}
+.ptm-evidence-key-confirm input{flex-shrink:0;margin-top:3px}
+.ptm-evidence-key-form .button{white-space:normal;height:auto;min-height:36px}
+.ptm-evidence-key-form :focus-visible{outline:2px solid var(--ptm-green-dark);outline-offset:3px}
+@media(max-width:782px){.ptm-evidence-key-facts{grid-template-columns:1fr}.ptm-evidence-key-form .button{width:100%}}

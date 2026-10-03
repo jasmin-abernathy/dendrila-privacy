@@ -31,7 +31,7 @@ Main features:
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
 * optional account-linked consent sync with per-account opt-in/out, explicit conflict resolution, and conservative blocking until resolution;
-* a local hash-chained consent evidence ledger with HMAC e-mail identifiers, JSON/CSV exports, integrity checks, retention controls, and encrypted no-account preference links;
+* a local hash-chained consent evidence ledger with stable pseudonymous identifiers, separate rotatable signing keys, JSON/CSV exports, integrity checks, retention controls, and encrypted preference links;
 * adapter-aware verification: a recipient refusal is not reported as applied unless the originating e-mail tool can be checked in a tracking-disabled state;
 * initial checks beyond WordPress itself, including email, messaging, booking tools, external forms, payments, and files/lists.
 

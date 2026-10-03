@@ -77,7 +77,7 @@ Pour chaque adaptateur :
 - preuve d’origine via source, méthode et référence ;
 - journal séparé des opérations administratives sensibles, sans recopier d’adresse e-mail.
 
-Reste volontairement à traiter séparément : rotation de la clé d’identification HMAC. La clé actuelle sert à retrouver une personne sans conserver son adresse en clair ; la remplacer sans disposer du clair empêcherait de relier les anciennes preuves. Une migration sûre doit donc séparer à l’avenir la clé d’identification stable de la clé de signature rotative, plutôt que de simuler une rotation destructrice.
+La séparation identité/signature et la rotation manuelle sont implémentées dans le lot 6 ci-dessous. La clé d’identification reste volontairement stable.
 
 ## Lot 5 — multi-appareils avancé
 
@@ -91,6 +91,23 @@ Reste volontairement à traiter séparément : rotation de la clé d’identific
 - copie de fond et réconciliation d’un conflit distinguées d’un nouveau consentement dans le registre de preuves ;
 - test Node sans dépendance ajouté au contrôle JavaScript afin de vérifier qu’un conflit en mode recommandé garde toutes les catégories facultatives bloquées avant sa résolution ;
 - les choix en conflit restent privés dans la fermeture JavaScript et l’API publique de consentement ne peut pas contourner la résolution explicite.
+
+## Lot 6 — clés de preuve séparées et rotation manuelle
+
+État : implémenté sur la branche empilée dédiée ; validation WordPress/MySQL réelle et CI complète requises avant fusion/release.
+
+- migration v3 idempotente dans une option non autoloadée : conservation de l’ancienne clé pour l’identité pseudonyme et la vérification v1/v2, nouvelle clé distincte pour signer v3 ;
+- aucune réécriture des preuves ou identifiants historiques, aucune adresse en clair ajoutée ;
+- identifiant de clé inclus dans le contenu signé v3 ; vérification par clé historique, même après plusieurs rotations ;
+- anciennes clés conservées sans purge automatique, y compris après conservation/effacement de lignes ;
+- verrou MySQL de connexion partagé entre migration, ajout, rotation, purge et effacement ; si occupé ou indisponible, opération refusée et réessayable ;
+- refus de recréer silencieusement les clés manquantes/corrompues d’un registre installé ; reprise après échec de mise à jour du schéma sans régénérer le trousseau ;
+- action dans « Intégrité et conservation », capacité administrateur + nonce + confirmation requise côté serveur, protection contre le renvoi d’un formulaire devenu obsolète ;
+- journal administratif avec identifiants uniquement ; secrets exclus de l’interface et des exports ;
+- exports JSON schéma 3 et CSV avec version et identifiant de signature ;
+- tests PHP sans dépendances (`php tests/evidence-keys.test.php`) ajoutés à la matrice syntaxe existante, sans nouvelle Action déclenchée pour cette PR empilée.
+
+Voir `EVIDENCE-KEYS.md` pour sauvegardes, limites et validation de migration.
 
 ## Principes non négociables
 
