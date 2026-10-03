@@ -67,14 +67,17 @@ Pour chaque adaptateur :
 
 ## Lot 4 — preuve plus robuste
 
-- durée de conservation configurable ;
-- export CSV en plus du JSON ;
-- contrôle d’intégrité global et par personne ;
-- compteur et date du dernier contrôle ;
-- rotation documentée de la clé HMAC avec stratégie de migration ;
-- possibilité de figer une version du texte d’information présenté ;
-- preuve d’origine : formulaire, compte WordPress, outil e-mail, import, API ;
-- journal séparé des changements administratifs.
+État : presque complet sur la branche dédiée.
+
+- durée de conservation configurable avec purge qui préserve une ancre cryptographique pour les événements encore conservés ;
+- export CSV en plus du JSON, avec protection contre l’interprétation de formules par un tableur ;
+- contrôle d’intégrité global et par personne, par lots pour éviter une limite artificielle à 500 événements ;
+- compteur, date et résultat du dernier contrôle ;
+- copie + empreinte du texte d’information présenté ;
+- preuve d’origine via source, méthode et référence ;
+- journal séparé des opérations administratives sensibles, sans recopier d’adresse e-mail.
+
+Reste volontairement à traiter séparément : rotation de la clé d’identification HMAC. La clé actuelle sert à retrouver une personne sans conserver son adresse en clair ; la remplacer sans disposer du clair empêcherait de relier les anciennes preuves. Une migration sûre doit donc séparer à l’avenir la clé d’identification stable de la clé de signature rotative, plutôt que de simuler une rotation destructrice.
 
 ## Lot 5 — multi-appareils avancé
 
