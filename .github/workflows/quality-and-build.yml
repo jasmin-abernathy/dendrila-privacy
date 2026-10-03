@@ -12,6 +12,7 @@ on:
       - 'assets/**'
       - 'languages/**'
       - 'readme.txt'
+      - 'tests/**'
       - '.distignore'
       - '.github/workflows/quality-and-build.yml'
   pull_request:
@@ -23,6 +24,7 @@ on:
       - 'assets/**'
       - 'languages/**'
       - 'readme.txt'
+      - 'tests/**'
       - '.distignore'
       - '.github/workflows/quality-and-build.yml'
   workflow_dispatch:
@@ -138,6 +140,8 @@ jobs:
       - name: Lint PHP files
         shell: bash
         run: find . -type f -name '*.php' -not -path './build/*' -print0 | xargs -0 -n1 php -l
+      - name: Consent core tests
+        run: php tests/consent-core.php
 
   javascript-syntax:
     name: JavaScript syntax

@@ -13,6 +13,7 @@ CONTRIBUTING.fr.md
 SECURITY.md
 SECURITY.fr.md
 docs/
+tests/
 build/
 dist/
 coverage/

@@ -31,6 +31,8 @@ Main features:
 * protective blocking of recognised optional services before the visitor's choice when Dendrila Privacy consent is enabled;
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
+* optional local-first consent synchronisation between devices for authenticated WordPress accounts, with an explicit conflict strategy;
+* a local proof register for email-pixel consent, refusal, withdrawal, transition records, and narrowly documented deliverability exemptions;
 * initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists.
 
 = Consent =
@@ -61,15 +63,13 @@ Other builders: Dendrila Privacy recognises several common page-level signatures
 
 Dendrila Privacy does not send site-audit results to the plugin author and does not include advertising telemetry.
 
-Visitor consent preferences are stored locally in the visitor's browser. Administration and audit data stay in the site's WordPress database unless an administrator explicitly starts the documented external lookup below.
+Visitor consent preferences stay in the browser by default. If an administrator enables account-linked synchronisation, authenticated WordPress accounts can also store those choices locally in the site's database for reuse on another device. Proof-register and audit data stay in WordPress; Dendrila Privacy does not send consent choices to the plugin author.
 
 == External services ==
 
 = Public organisation lookups (optional) =
 
-Dendrila Privacy can optionally query a public register to prefill organisation information. Nothing is sent automatically: an administrator chooses a country, enters the required identifier or search term, and clicks Search.
-
-These lookups never include site-audit results, assistant answers, visitor consent choices, page contents, or unrelated WordPress settings.
+An administrator can explicitly query a supported public register to prefill organisation information. Only the selected country and entered identifier/search term are sent; audit results, page contents, assistant answers, and consent choices are not included.
 
 = France — Recherche d'entreprises API =
 
@@ -115,18 +115,6 @@ Their presence in Dendrila Privacy's source code does not mean that Dendrila Pri
 = Does Dendrila Privacy automatically make my site GDPR compliant? =
 
 No. Dendrila Privacy provides technical observations, helps document relevant practices, and can manage a consent mechanism. Compliance still depends on the site's actual context and applicable obligations.
-
-= Are audit results sent to the plugin author? =
-
-No. Audit results, settings, and assistant answers stay in your WordPress installation. Only the optional company lookup contacts the documented public API after an administrator starts that lookup.
-
-= Is the consent interface enabled automatically? =
-
-No. It is disabled by default. If you enable it, recognised optional services are then blocked until the visitor makes a choice.
-
-= Does Dendrila Privacy replace a security plugin? =
-
-No. Dendrila Privacy focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
 
