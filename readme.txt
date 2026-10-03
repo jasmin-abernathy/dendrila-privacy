@@ -32,7 +32,7 @@ Main features:
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
 * optional account-linked consent sync for logged-in users, with explicit conflict handling and a notice when a choice is applied on another device;
-* a local tamper-evident consent evidence ledger that hashes email identifiers instead of storing them in clear text;
+* a locally anchored, hash-chained consent evidence ledger with HMAC email identifiers and privacy/JSON export;
 * initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists.
 
 = Consent =

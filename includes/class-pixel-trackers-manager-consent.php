@@ -98,6 +98,8 @@ final class Pixel_Trackers_Manager_Consent {
         return array_values( array_unique( $ids ) );
     }
 
+    public function public_fingerprint() { return $this->consent_fingerprint(); }
+
     private function consent_fingerprint() {
         $payload = array(
             'schema' => 2,

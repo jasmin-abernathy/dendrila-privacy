@@ -5,6 +5,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
     const DB_VERSION = '1';
     const OPTION_DB_VERSION = 'dendrila_privacy_evidence_db_version';
     const OPTION_CHAIN_KEY = 'dendrila_privacy_evidence_chain_key';
+    const OPTION_HEAD_PREFIX = 'dendrila_privacy_evidence_head_';
     private static $instance = null;
 
     public static function instance() { if ( null === self::$instance ) { self::$instance = new self(); } return self::$instance; }
@@ -61,6 +62,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
 
     private function normalise_email( $email ) { $email = sanitize_email( strtolower( trim( (string) $email ) ) ); return is_email( $email ) ? $email : ''; }
     private function subject_hash( $email ) { $email = $this->normalise_email( $email ); return '' === $email ? '' : hash_hmac( 'sha256', $email, $this->chain_key() ); }
+    private function head_option_name( $subject_hash, $scope ) { return self::OPTION_HEAD_PREFIX . hash( 'sha256', (string) $subject_hash . '|' . sanitize_key( (string) $scope ) ); }
 
     private function normalise_purposes( $purposes ) {
         if ( is_string( $purposes ) ) { $purposes = preg_split( '/[,\r\n]+/', $purposes ); }
@@ -104,13 +106,15 @@ final class Dendrila_Privacy_Evidence_Ledger {
         if ( ! empty( $context['occurred_at'] ) ) { $timestamp = strtotime( (string) $context['occurred_at'] ); if ( false !== $timestamp ) { $occurred_at = gmdate( 'Y-m-d H:i:s', $timestamp ); } }
         $clean_context = $this->sanitise_context( $context );
         global $wpdb; $table = $this->table_name();
-        $previous_sql = $wpdb->prepare( 'SELECT event_hash FROM %i WHERE subject_hash = %s AND scope = %s ORDER BY id DESC LIMIT 1', $table, $subject_hash, $scope );
-        $previous_hash = (string) $wpdb->get_var( $previous_sql );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- This plugin-owned append-only ledger must read the immediately previous hash before writing the next event.
+        $previous_hash = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT event_hash FROM %i WHERE subject_hash = %s AND scope = %s ORDER BY id DESC LIMIT 1', $table, $subject_hash, $scope ) );
         $recorded_at = current_time( 'mysql', true );
         $row = array( 'subject_hash'=>$subject_hash, 'scope'=>$scope, 'decision'=>$decision, 'purposes'=>$purposes, 'notice_version'=>$notice_version, 'source'=>$source, 'evidence_ref'=>$evidence_ref, 'occurred_at'=>$occurred_at, 'recorded_at'=>$recorded_at, 'actor_user_id'=>get_current_user_id(), 'previous_hash'=>$previous_hash, 'context'=>$clean_context );
         $event_hash = hash_hmac( 'sha256', $this->canonical_payload( $row ), $this->chain_key() );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Dedicated plugin-owned evidence table; there is no WordPress CRUD API for this ledger.
         $inserted = $wpdb->insert( $table, array( 'subject_hash'=>$subject_hash, 'scope'=>$scope, 'decision'=>$decision, 'purposes'=>wp_json_encode($purposes,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE), 'notice_version'=>$notice_version, 'source'=>$source, 'evidence_ref'=>$evidence_ref, 'occurred_at'=>$occurred_at, 'recorded_at'=>$recorded_at, 'actor_user_id'=>get_current_user_id(), 'previous_hash'=>$previous_hash, 'event_hash'=>$event_hash, 'context_json'=>wp_json_encode($clean_context,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ), array( '%s','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%s','%s' ) );
         if ( false === $inserted ) { return new WP_Error( 'dendrila_privacy_evidence_insert', 'Impossible d’enregistrer la preuve locale.' ); }
+        update_option( $this->head_option_name( $subject_hash, $scope ), $event_hash, false );
         return (int) $wpdb->insert_id;
     }
 
@@ -120,25 +124,31 @@ final class Dendrila_Privacy_Evidence_Ledger {
     private function rows_for_email( $email, $limit = 500, $offset = 0 ) {
         $this->maybe_install(); $subject_hash = $this->subject_hash( $email ); if ( '' === $subject_hash ) { return array(); }
         global $wpdb; $table = $this->table_name(); $limit=max(1,min(500,absint($limit))); $offset=max(0,absint($offset));
-        $sql = $wpdb->prepare( 'SELECT * FROM %i WHERE subject_hash = %s ORDER BY id ASC LIMIT %d OFFSET %d', $table, $subject_hash, $limit, $offset );
-        return (array) $wpdb->get_results( $sql, ARRAY_A );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Evidence lookups must reflect the current append-only ledger immediately.
+        return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE subject_hash = %s ORDER BY id ASC LIMIT %d OFFSET %d', $table, $subject_hash, $limit, $offset ), ARRAY_A );
     }
 
     private function decoded_row( $row ) { $row['purposes']=json_decode((string)$row['purposes'],true);$row['purposes']=is_array($row['purposes'])?$row['purposes']:array();$row['context']=json_decode((string)$row['context_json'],true);$row['context']=is_array($row['context'])?$row['context']:array();return $row; }
 
     public function latest_for_email( $email, $scope = 'email_tracking' ) {
         $this->maybe_install(); $subject_hash=$this->subject_hash($email); if(''===$subject_hash){return null;} global $wpdb; $table=$this->table_name(); $scope=sanitize_key((string)$scope);
-        $sql=$wpdb->prepare('SELECT * FROM %i WHERE subject_hash = %s AND scope = %s ORDER BY id DESC LIMIT 1',$table,$subject_hash,$scope); $row=$wpdb->get_row($sql,ARRAY_A);
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Consent status must reflect the latest ledger event without stale cache state.
+        $row=$wpdb->get_row($wpdb->prepare('SELECT * FROM %i WHERE subject_hash = %s AND scope = %s ORDER BY id DESC LIMIT 1',$table,$subject_hash,$scope),ARRAY_A);
         return is_array($row)?$this->decoded_row($row):null;
     }
 
     public function verify_chain_for_email( $email ) {
-        $rows=$this->rows_for_email($email,500,0); $previous_by_scope=array();
+        $subject_hash=$this->subject_hash($email);if(''===$subject_hash){return false;}$rows=$this->rows_for_email($email,500,0);$previous_by_scope=array();
+        if(!$rows){foreach(array('email_tracking','site_consent') as $known_scope){if(''!==(string)get_option($this->head_option_name($subject_hash,$known_scope),'')){return false;}}return true;}
         foreach($rows as $stored){$row=$this->decoded_row($stored);$scope=(string)$row['scope'];$expected_previous=isset($previous_by_scope[$scope])?$previous_by_scope[$scope]:'';if(!hash_equals($expected_previous,(string)$row['previous_hash'])){return false;}
             $payload=array('subject_hash'=>(string)$row['subject_hash'],'scope'=>$scope,'decision'=>(string)$row['decision'],'purposes'=>$row['purposes'],'notice_version'=>(string)$row['notice_version'],'source'=>(string)$row['source'],'evidence_ref'=>(string)$row['evidence_ref'],'occurred_at'=>(string)$row['occurred_at'],'recorded_at'=>(string)$row['recorded_at'],'actor_user_id'=>(int)$row['actor_user_id'],'previous_hash'=>(string)$row['previous_hash'],'context'=>$row['context']);
             $expected=hash_hmac('sha256',$this->canonical_payload($payload),$this->chain_key());if(!hash_equals($expected,(string)$row['event_hash'])){return false;}$previous_by_scope[$scope]=(string)$row['event_hash'];}
+        foreach($previous_by_scope as $scope=>$last_hash){$anchor=(string)get_option($this->head_option_name($subject_hash,$scope),'');if(''!==$anchor&&!hash_equals($anchor,$last_hash)){return false;}}
         return true;
     }
+
+    private function decision_label( $decision ) { $labels=array('granted'=>'Consentement donné','partial'=>'Consentement partiel','denied'=>'Refus','withdrawn'=>'Retrait');return isset($labels[$decision])?$labels[$decision]:(string)$decision; }
+    private function scope_label( $scope ) { $labels=array('email_tracking'=>'Suivi des e-mails','site_consent'=>'Consentement du site');return isset($labels[$scope])?$labels[$scope]:(string)$scope; }
 
     public function filter_email_tracking_status( $status, $email ) { $latest=$this->latest_for_email($email,'email_tracking'); return $latest?$latest:$status; }
     public function admin_menu() { add_submenu_page('pixel-trackers-manager','Preuves de consentement','Preuves','manage_options','dendrila-privacy-evidence',array($this,'render_admin_page')); }
@@ -155,8 +165,8 @@ final class Dendrila_Privacy_Evidence_Ledger {
         if($message){echo '<div class="notice notice-'.esc_attr($type).' inline"><p>'.esc_html($message).'</p></div>';}
         echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-search" aria-hidden="true"></span>Retrouver une preuve</h2><p>La recherche utilise une empreinte HMAC propre à ce WordPress. L’adresse saisie sert à retrouver l’historique mais n’est pas enregistrée dans le registre.</p></div></div>';
         echo '<form method="post" class="ptm-evidence-search">';wp_nonce_field('dendrila_privacy_evidence_admin','dendrila_privacy_evidence_nonce');echo '<input type="hidden" name="dendrila_privacy_evidence_action" value="lookup"><label class="ptm-field" for="dendrila-evidence-email"><span>Adresse e-mail</span><input id="dendrila-evidence-email" type="email" name="evidence_email" value="'.esc_attr($lookup_email).'" required><small>Aucune adresse n’est ajoutée au registre lors d’une simple recherche.</small></label>';submit_button('Rechercher','secondary','submit',false);echo '</form>';
-        if($lookup_email){$latest=$rows?$this->decoded_row(end($rows)):null;echo '<div class="ptm-evidence-summary"><div><strong>'.esc_html(count($rows)).'</strong><span>événement(s) retrouvé(s)</span></div><div><strong>'.($rows?($verified?'Vérifiée':'À contrôler'):'—').'</strong><span>intégrité de la chaîne</span></div><div><strong>'.esc_html($latest?$latest['decision']:'—').'</strong><span>dernier état enregistré</span></div></div>';
-            if($rows){echo '<div class="ptm-table-wrap"><table class="widefat striped ptm-dashboard-table ptm-evidence-table"><thead><tr><th>Date UTC</th><th>Portée</th><th>Décision</th><th>Finalités</th><th>Source</th><th>Information</th></tr></thead><tbody>';foreach(array_reverse($rows) as $stored){$row=$this->decoded_row($stored);echo '<tr><td>'.esc_html($row['occurred_at']).'</td><td>'.esc_html($row['scope']).'</td><td>'.esc_html($row['decision']).'</td><td>'.esc_html(implode(', ',$row['purposes'])).'</td><td>'.esc_html($row['source']).'</td><td>'.esc_html($row['notice_version']).'</td></tr>';}echo '</tbody></table></div>';
+        if($lookup_email){$latest=$rows?$this->decoded_row(end($rows)):null;echo '<div class="ptm-evidence-summary"><div><strong>'.esc_html(count($rows)).'</strong><span>événement(s) retrouvé(s)</span></div><div><strong>'.($rows?($verified?'Vérifiée':'À contrôler'):'—').'</strong><span>intégrité de la chaîne</span></div><div><strong>'.esc_html($latest?$this->decision_label($latest['decision']):'—').'</strong><span>dernier état enregistré</span></div></div>';
+            if($rows){echo '<div class="ptm-table-wrap"><table class="widefat striped ptm-dashboard-table ptm-evidence-table"><thead><tr><th>Date UTC</th><th>Portée</th><th>Décision</th><th>Finalités</th><th>Source</th><th>Information</th></tr></thead><tbody>';foreach(array_reverse($rows) as $stored){$row=$this->decoded_row($stored);echo '<tr><td>'.esc_html($row['occurred_at']).'</td><td>'.esc_html($this->scope_label($row['scope'])).'</td><td>'.esc_html($this->decision_label($row['decision'])).'</td><td>'.esc_html(implode(', ',$row['purposes'])).'</td><td>'.esc_html($row['source']).'</td><td>'.esc_html($row['notice_version']).'</td></tr>';}echo '</tbody></table></div>';
                 echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" style="margin-top:14px"><input type="hidden" name="action" value="dendrila_privacy_export_evidence"><input type="hidden" name="evidence_email" value="'.esc_attr($lookup_email).'">';wp_nonce_field('dendrila_privacy_evidence_export');submit_button('Exporter la preuve JSON','secondary','submit',false);echo '</form>';
             }else{echo '<div class="ptm-callout neutral"><strong>Aucune preuve trouvée.</strong> Vérifiez l’adresse ou ajoutez une preuve seulement si l’outil concerné ne peut pas encore la transmettre automatiquement.</div>';}}
         echo '</section>';

@@ -12,6 +12,7 @@ final class Dendrila_Privacy_Account_Consent {
     private function enabled() { $settings=$this->settings(); return !empty($settings['consent_account_sync']); }
     private function strategy() { $settings=$this->settings();$strategy=isset($settings['consent_account_conflict_policy'])?sanitize_key((string)$settings['consent_account_conflict_policy']):'account_wins';return in_array($strategy,array('account_wins','latest_wins'),true)?$strategy:'account_wins'; }
     private function server_milliseconds() { return sprintf('%.0f',floor(microtime(true)*1000)); }
+    private function expected_fingerprint() { if(!class_exists('Pixel_Trackers_Manager_Consent')){return '';}return (string)Pixel_Trackers_Manager_Consent::instance($this->plugin)->public_fingerprint(); }
 
     private function normalise_choice( $raw ) {
         $raw=is_array($raw)?$raw:array();$saved_at=isset($raw['savedAt'])?preg_replace('/[^0-9]/','',(string)$raw['savedAt']):'';
@@ -30,8 +31,11 @@ final class Dendrila_Privacy_Account_Consent {
 
     public function rest_update( WP_REST_Request $request ) {
         if(!$this->enabled()){return new WP_Error('dendrila_privacy_account_sync_disabled','La synchronisation de consentement par compte est désactivée.',array('status'=>409));}
-        $params=$request->get_json_params();if(!is_array($params)){$params=$request->get_params();}$choice=$this->normalise_choice($params);if(''===$choice['fingerprint']){return new WP_Error('dendrila_privacy_account_sync_fingerprint','Empreinte de configuration manquante.',array('status'=>400));}
-        $user_id=get_current_user_id();$before=$this->current_choice($user_id);update_user_meta($user_id,self::USER_META,$choice);$user=get_userdata($user_id);
+        $params=$request->get_json_params();if(!is_array($params)){$params=$request->get_params();}$choice=$this->normalise_choice($params);$expected=$this->expected_fingerprint();
+        if(''===$choice['fingerprint']||''===$expected||!hash_equals($expected,$choice['fingerprint'])){return new WP_Error('dendrila_privacy_account_sync_fingerprint','La configuration de consentement a changé. Un nouveau choix est nécessaire.',array('status'=>409));}
+        $reason=isset($params['syncReason'])?sanitize_key((string)$params['syncReason']):'background';$user_id=get_current_user_id();$before=$this->current_choice($user_id);
+        if('latest_wins'===$this->strategy()&&'explicit'!==$reason&&$before&&((float)$choice['savedAt']<=(float)$before['savedAt'])){return rest_ensure_response(array('choice'=>$before,'strategy'=>$this->strategy(),'ignored'=>'older_choice'));}
+        $choice['savedAt']=$this->server_milliseconds();update_user_meta($user_id,self::USER_META,$choice);$user=get_userdata($user_id);
         if($user&&!empty($user->user_email)&&function_exists('dendrila_privacy_record_consent_evidence')){dendrila_privacy_record_consent_evidence($user->user_email,'site_consent',$this->evidence_decision($before,$choice),$this->evidence_purposes($choice),array('notice_version'=>'consent-copy-1','source'=>'wordpress_account_sync','evidence_ref'=>'wordpress-account','method'=>'native_consent','metadata'=>array('statistics'=>!empty($choice['statistics'])?'1':'0','external'=>!empty($choice['external'])?'1':'0','marketing'=>!empty($choice['marketing'])?'1':'0','conflict_strategy'=>$this->strategy())));}
         do_action('dendrila_privacy_account_consent_updated',$user_id,$choice,$before);return rest_ensure_response(array('choice'=>$choice,'strategy'=>$this->strategy()));
     }
