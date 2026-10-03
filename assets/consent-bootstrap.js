@@ -53,7 +53,7 @@
 
     function validAccountChoice(choice){if(!choice||!choice.savedAt){return null;}if(fingerprint&&String(choice.fingerprint||'')!==fingerprint){return null;}return{statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:String(choice.fingerprint||'')};}
     function sameChoice(a,b){return!!a&&!!b&&(a.statistics===true)===(b.statistics===true)&&(a.external===true)===(b.external===true)&&(a.marketing===true)===(b.marketing===true);}
-    function resolveInitialChoice(localChoice){if(testMode||!accountSync.enabled||!accountSync.loggedIn){return localChoice;}var accountChoice=validAccountChoice(accountSync.accountChoice);if(!accountChoice){return localChoice;}if(!localChoice){return accountChoice;}if(sameChoice(localChoice,accountChoice)){return Number(accountChoice.savedAt||0)>Number(localChoice.savedAt||0)?accountChoice:localChoice;}if(String(accountSync.strategy||'')==='latest_wins'&&Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){return localChoice;}return accountChoice;}
+    function resolveInitialChoice(localChoice){if(testMode||!accountSync.enabled||!accountSync.loggedIn||accountSync.userEnabled===false){return localChoice;}var accountChoice=validAccountChoice(accountSync.accountChoice);if(!accountChoice){return localChoice;}if(!localChoice){return accountChoice;}if(sameChoice(localChoice,accountChoice)){return Number(accountChoice.savedAt||0)>Number(localChoice.savedAt||0)?accountChoice:localChoice;}if(String(accountSync.strategy||'')==='ask_user'){return{statistics:false,external:false,marketing:false,savedAt:Math.max(Number(localChoice.savedAt||0),Number(accountChoice.savedAt||0)),fingerprint:fingerprint};}if(String(accountSync.strategy||'')==='latest_wins'&&Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){return localChoice;}return accountChoice;}
 
     function allowed(category) {
         return !!(current && current[category] === true);
@@ -187,6 +187,7 @@
 
     var earlyApi = {
         classify: classify,
+        getCurrent: function () { return current; },
         setCurrent: function (choice) {
             current = choice || null;
         }

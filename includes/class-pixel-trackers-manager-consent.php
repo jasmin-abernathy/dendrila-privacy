@@ -115,7 +115,7 @@ final class Pixel_Trackers_Manager_Consent {
         $settings = $this->plugin->public_settings();
         // Consent assets have their own cache suffix during the test cycle so fixes reach
         // builder test sites even before the plugin version changes.
-        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-account-sync1';
+        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-account-sync2';
         $bootstrap_handle = 'pixel-trackers-manager-consent-bootstrap';
         $test_mode = '';
         if ( current_user_can( 'manage_options' ) ) {
@@ -123,7 +123,7 @@ final class Pixel_Trackers_Manager_Consent {
             if ( in_array( $candidate, array( 'reject', 'statistics', 'accept' ), true ) ) { $test_mode = $candidate; }
         }
 
-        $account_sync = array( 'enabled'=>false, 'loggedIn'=>false, 'strategy'=>'account_wins', 'accountChoice'=>null );
+        $account_sync = array( 'enabled'=>false, 'loggedIn'=>false, 'userEnabled'=>false, 'strategy'=>'ask_user', 'accountChoice'=>null );
         if ( class_exists( 'Dendrila_Privacy_Account_Consent' ) ) { $account_sync = Dendrila_Privacy_Account_Consent::instance( $this->plugin )->frontend_config(); }
 
         // Load the early blocker through WordPress' script API, in the head, before the
@@ -133,7 +133,7 @@ final class Pixel_Trackers_Manager_Consent {
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
-            'accountSync' => array( 'enabled'=>!empty($account_sync['enabled']), 'loggedIn'=>!empty($account_sync['loggedIn']), 'strategy'=>isset($account_sync['strategy'])?$account_sync['strategy']:'account_wins', 'accountChoice'=>isset($account_sync['accountChoice'])?$account_sync['accountChoice']:null ),
+            'accountSync' => array( 'enabled'=>!empty($account_sync['enabled']), 'loggedIn'=>!empty($account_sync['loggedIn']), 'userEnabled'=>!array_key_exists('userEnabled',$account_sync)||!empty($account_sync['userEnabled']), 'strategy'=>isset($account_sync['strategy'])?$account_sync['strategy']:'ask_user', 'accountChoice'=>isset($account_sync['accountChoice'])?$account_sync['accountChoice']:null ),
         );
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
@@ -225,6 +225,8 @@ final class Pixel_Trackers_Manager_Consent {
         if ( ! $this->enabled() || $this->rendered ) { return; }
         $this->rendered = true;
         $cats = $this->active_categories();
+        $account_sync = array( 'enabled'=>false, 'loggedIn'=>false, 'userEnabled'=>false );
+        if ( class_exists( 'Dendrila_Privacy_Account_Consent' ) ) { $account_sync = Dendrila_Privacy_Account_Consent::instance( $this->plugin )->frontend_config(); }
         ?>
         <div id="pixel-trackers-manager-consent" class="ptm-consent" data-ptm-consent-root="1" data-ptm-style="<?php echo esc_attr( $this->plugin->public_settings()['consent_style'] ); ?>" data-ptm-layout="<?php echo esc_attr( isset( $this->plugin->public_settings()['consent_layout'] ) ? $this->plugin->public_settings()['consent_layout'] : 'bar' ); ?>" aria-hidden="true" hidden>
             <div class="ptm-consent-dialog" role="dialog" aria-modal="true" aria-labelledby="ptm-consent-title" aria-describedby="ptm-consent-copy" tabindex="-1">
@@ -232,7 +234,20 @@ final class Pixel_Trackers_Manager_Consent {
                 <div class="ptm-consent-main">
                     <h2 id="ptm-consent-title">Votre choix compte</h2>
                     <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.</p>
-                    <div class="ptm-consent-actions" role="group" aria-label="Choix de consentement">
+                    <div class="ptm-consent-conflict" data-ptm-account-conflict hidden>
+                        <p class="ptm-consent-eyebrow">Choix sur plusieurs appareils</p>
+                        <h3>Deux choix différents ont été retrouvés</h3>
+                        <p>Pour éviter d’activer un service par erreur, Dendrila Privacy bloque toutes les catégories facultatives jusqu’à ce que vous choisissiez la version à conserver.</p>
+                        <div class="ptm-consent-conflict-summary">
+                            <div><strong>Ce navigateur</strong><span data-ptm-conflict-local-choice>—</span><small data-ptm-conflict-local-time></small></div>
+                            <div><strong>Votre compte WordPress</strong><span data-ptm-conflict-account-choice>—</span><small data-ptm-conflict-account-time></small></div>
+                        </div>
+                        <div class="ptm-consent-conflict-actions" role="group" aria-label="Résoudre le conflit de consentement">
+                            <button type="button" class="ptm-consent-choice" data-ptm-action="conflict-local">Garder le choix de ce navigateur</button>
+                            <button type="button" class="ptm-consent-choice" data-ptm-action="conflict-account">Utiliser le choix de mon compte</button>
+                        </div>
+                    </div>
+                    <div class="ptm-consent-actions" data-ptm-main-actions role="group" aria-label="Choix de consentement">
                         <button type="button" class="ptm-consent-choice" data-ptm-action="reject">Tout refuser</button>
                         <button type="button" class="ptm-consent-choice" data-ptm-action="accept">Tout accepter</button>
                         <button type="button" class="ptm-consent-customize" data-ptm-action="customize" aria-expanded="false">Personnaliser</button>
@@ -242,6 +257,7 @@ final class Pixel_Trackers_Manager_Consent {
                         <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Mesure d’audience</strong><small>Comprendre l’usage du site.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
                         <?php if ( in_array('external',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Contenus externes</strong><small>Vidéos, cartes ou contenus venant d’un autre service.</small></span><input type="checkbox" data-ptm-category-toggle="external"></label><?php endif; ?>
                         <?php if ( in_array('marketing',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Marketing et suivi</strong><small>Mesure individualisée ou publicité.</small></span><input type="checkbox" data-ptm-category-toggle="marketing"></label><?php endif; ?>
+                        <?php if ( ! empty($account_sync['enabled']) && ! empty($account_sync['loggedIn']) ) : ?><label class="ptm-consent-row ptm-consent-sync-row"><span><strong>Retrouver mes choix sur mes autres appareils</strong><small>La copie liée au compte reste dans ce WordPress. Vous pouvez couper la synchronisation ici à tout moment.</small></span><input type="checkbox" data-ptm-account-sync-toggle <?php checked( !array_key_exists('userEnabled',$account_sync) || !empty($account_sync['userEnabled']) ); ?>></label><p class="ptm-consent-sync-feedback" data-ptm-account-sync-feedback role="status" aria-live="polite"></p><?php endif; ?>
                         <button type="button" class="ptm-consent-save" data-ptm-action="save">Enregistrer mes choix</button>
                     </div>
                 </div>
