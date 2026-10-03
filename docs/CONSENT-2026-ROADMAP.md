@@ -94,7 +94,7 @@ La séparation identité/signature et la rotation manuelle sont implémentées d
 
 ## Lot 6 — clés de preuve séparées et rotation manuelle
 
-État : implémenté sur la branche empilée dédiée ; validation WordPress/MariaDB réelle réussie le 3 octobre 2026. La CI complète reste requise sur le SHA final avant fusion/release.
+État : implémenté et validé sur la branche empilée dédiée. Le 3 octobre 2026, la validation WordPress/MariaDB/Redis réelle et la matrice CI complète (PHP 7.4/8.3/8.4, JavaScript, métadonnées, Plugin Check et ZIP) ont réussi. Aucune fusion ni publication n’est effectuée automatiquement.
 
 - migration v3 idempotente dans une option non autoloadée : conservation de l’ancienne clé pour l’identité pseudonyme et la vérification v1/v2, nouvelle clé distincte pour signer v3 ;
 - aucune réécriture des preuves ou identifiants historiques, aucune adresse en clair ajoutée ;
