@@ -2,7 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Dendrila_Privacy_Evidence_Ledger {
-    const DB_VERSION = '2';
+    const DB_VERSION = '3';
     const OPTION_DB_VERSION = 'dendrila_privacy_evidence_db_version';
     const OPTION_CHAIN_KEY = 'dendrila_privacy_evidence_chain_key';
     const OPTION_HEAD_PREFIX = 'dendrila_privacy_evidence_head_';
@@ -29,16 +29,106 @@ final class Dendrila_Privacy_Evidence_Ledger {
 
     private function table_name() { global $wpdb; return $wpdb->prefix . 'dendrila_privacy_evidence'; }
 
+    // One atomic option keeps migration restartable: no half-created identity/keyring pair.
+    const OPTION_KEYRING = 'dendrila_privacy_evidence_keyring';
+    private $key_lock_held = false;
+
+    private function key_error() {
+        return new WP_Error( 'dendrila_privacy_evidence_keys', 'Clés du registre indisponibles. Restaurez la sauvegarde des clés et du registre ; aucune clé existante ne sera remplacée automatiquement.' );
+    }
+
+    private function with_key_lock( $callback ) {
+        if ( $this->key_lock_held ) { return call_user_func( $callback ); }
+        global $wpdb;
+        $name = 'dendrila_evidence_' . substr( hash( 'sha256', $wpdb->prefix ), 0, 40 );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Connection-scoped lock serializes migration, append and rotation; released even on exceptions.
+        if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $name ) ) ) {
+            return new WP_Error( 'dendrila_privacy_evidence_busy', 'Le registre est occupé. Réessayez dans quelques instants.' );
+        }
+        $this->key_lock_held = true;
+        try {
+            // Another request may have rotated while this request had a cached option.
+            wp_cache_delete( self::OPTION_KEYRING, 'options' );
+            wp_cache_delete( self::OPTION_CHAIN_KEY, 'options' );
+            wp_cache_delete( self::OPTION_DB_VERSION, 'options' );
+            wp_cache_delete( 'notoptions', 'options' );
+            return call_user_func( $callback );
+        } finally {
+            $this->key_lock_held = false;
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Release only the lock acquired by this connection.
+            $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
+        }
+    }
+
+    private function valid_keyring( $ring ) {
+        if ( ! is_array( $ring ) || ! isset( $ring['identity_key'], $ring['active'], $ring['keys'], $ring['last_rotated_at'] ) || ! is_string( $ring['active'] ) || ! is_string( $ring['last_rotated_at'] ) || ! is_string( $ring['identity_key'] ) || strlen( $ring['identity_key'] ) < 32 || ! is_array( $ring['keys'] ) ) { return false; }
+        $active = 0;
+        foreach ( $ring['keys'] as $id => $key ) {
+            if ( ! preg_match( '/^[a-f0-9]{32}$/D', (string) $id ) || ! is_array( $key ) || ! isset( $key['material'], $key['status'], $key['created_at'] ) || ! is_string( $key['created_at'] ) || ! is_string( $key['material'] ) || ! preg_match( '/^[a-f0-9]{64}$/D', $key['material'] ) || ! in_array( $key['status'], array( 'active', 'retired' ), true ) ) { return false; }
+            if ( 'active' === $key['status'] ) { $active++; if ( $ring['active'] !== $id ) { return false; } }
+        }
+        return 1 === $active && isset( $ring['keys'][ $ring['active'] ] ) && isset( $ring['legacy_key'] ) && is_string( $ring['legacy_key'] ) && ( '' === $ring['legacy_key'] || strlen( $ring['legacy_key'] ) >= 32 );
+    }
+
+    private function keyring() {
+        $ring = get_option( self::OPTION_KEYRING, null );
+        if ( null !== $ring ) { return $this->valid_keyring( $ring ) ? $ring : $this->key_error(); }
+        return $this->with_key_lock( function () {
+            $ring = get_option( self::OPTION_KEYRING, null );
+            if ( null !== $ring ) { return $this->valid_keyring( $ring ) ? $ring : $this->key_error(); }
+            $version = (string) get_option( self::OPTION_DB_VERSION, '' );
+            $legacy = get_option( self::OPTION_CHAIN_KEY, null );
+            // Never invent a replacement for keys missing from an existing installation.
+            if ( '3' === $version || ( null !== $legacy && ( ! is_string( $legacy ) || strlen( $legacy ) < 32 ) ) || ( '' !== $version && null === $legacy ) ) { return $this->key_error(); }
+            try {
+                $id = bin2hex( random_bytes( 16 ) );
+                $ring = array( 'identity_key' => null !== $legacy ? $legacy : bin2hex( random_bytes( 32 ) ), 'legacy_key' => null !== $legacy ? $legacy : '', 'active' => $id, 'last_rotated_at' => '', 'keys' => array( $id => array( 'material' => bin2hex( random_bytes( 32 ) ), 'status' => 'active', 'created_at' => gmdate( 'c' ) ) ) );
+            } catch ( Exception $error ) { return $this->key_error(); }
+            if ( ! add_option( self::OPTION_KEYRING, $ring, '', 'no' ) ) { return $this->key_error(); }
+            return $ring;
+        } );
+    }
+
     private function chain_key() {
-        $key = get_option( self::OPTION_CHAIN_KEY, '' );
-        if ( is_string( $key ) && strlen( $key ) >= 32 ) { return $key; }
-        $generated = wp_generate_password( 64, true, true );
-        add_option( self::OPTION_CHAIN_KEY, $generated, '', 'no' );
-        $stored = get_option( self::OPTION_CHAIN_KEY, $generated );
-        return is_string( $stored ) && '' !== $stored ? $stored : $generated;
+        $ring = $this->keyring();
+        return is_wp_error( $ring ) ? '' : $ring['identity_key'];
+    }
+
+    private function verification_key( $row ) {
+        $ring = $this->keyring();
+        if ( is_wp_error( $ring ) ) { return ''; }
+        $version = (int) $row['event_version'];
+        if ( 1 === $version || 2 === $version ) { return $ring['legacy_key']; }
+        $id = isset( $row['signing_key_id'] ) ? (string) $row['signing_key_id'] : '';
+        return 3 === $version && isset( $ring['keys'][ $id ] ) ? $ring['keys'][ $id ]['material'] : '';
+    }
+
+    private function rotate_signing_key( $expected_id ) {
+        return $this->with_key_lock( function () use ( $expected_id ) {
+            $ring = $this->keyring();
+            if ( is_wp_error( $ring ) ) { return $ring; }
+            if ( ! hash_equals( $ring['active'], (string) $expected_id ) ) { return new WP_Error( 'dendrila_privacy_evidence_stale_key', 'La clé a déjà changé. Rechargez la page avant une nouvelle rotation.' ); }
+            try { $id = bin2hex( random_bytes( 16 ) ); $material = bin2hex( random_bytes( 32 ) ); }
+            catch ( Exception $error ) { return $this->key_error(); }
+            if ( isset( $ring['keys'][ $id ] ) ) { return $this->key_error(); }
+            $now = gmdate( 'c' ); $old = $ring['active'];
+            $ring['keys'][ $old ]['status'] = 'retired';
+            $ring['keys'][ $old ]['retired_at'] = $now;
+            $ring['keys'][ $id ] = array( 'material' => $material, 'status' => 'active', 'created_at' => $now );
+            $ring['active'] = $id; $ring['last_rotated_at'] = $now;
+            if ( ! update_option( self::OPTION_KEYRING, $ring, false ) ) { return $this->key_error(); }
+            $this->log_admin_action( 'signing_key_rotated', array( 'previous_key_id' => $old, 'active_key_id' => $id ) );
+            return $id;
+        } );
     }
 
     public function maybe_install() {
+        return $this->with_key_lock( array( $this, 'install_locked' ) );
+    }
+
+    private function install_locked() {
+        $ring = $this->keyring();
+        if ( is_wp_error( $ring ) ) { return $ring; }
         if ( self::DB_VERSION === (string) get_option( self::OPTION_DB_VERSION, '' ) ) { return; }
         global $wpdb;
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -57,6 +147,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
             recorded_at datetime NOT NULL,
             actor_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
             event_version tinyint(3) unsigned NOT NULL DEFAULT 1,
+            signing_key_id varchar(32) NOT NULL DEFAULT '',
             notice_hash char(64) NOT NULL DEFAULT '',
             notice_snapshot longtext NULL,
             previous_hash char(64) NOT NULL DEFAULT '',
@@ -67,12 +158,15 @@ final class Dendrila_Privacy_Evidence_Ledger {
             KEY occurred_at (occurred_at)
         ) {$charset};";
         dbDelta( $sql );
+        // dbDelta can fail without throwing. Do not mark a partial schema upgrade complete.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Confirm the new column before marking this migration complete.
+        $column = $wpdb->get_var( $wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', $table, 'signing_key_id' ) );
+        if ( 'signing_key_id' !== $column ) { return new WP_Error( 'dendrila_privacy_evidence_schema', 'La mise à jour du registre a échoué. Réessayez après vérification de la base.' ); }
         update_option( self::OPTION_DB_VERSION, self::DB_VERSION, false );
-        $this->chain_key();
     }
 
     private function normalise_email( $email ) { $email = sanitize_email( strtolower( trim( (string) $email ) ) ); return is_email( $email ) ? $email : ''; }
-    private function subject_hash( $email ) { $email = $this->normalise_email( $email ); return '' === $email ? '' : hash_hmac( 'sha256', $email, $this->chain_key() ); }
+    private function subject_hash( $email ) { $email = $this->normalise_email( $email ); $key = $this->chain_key(); return '' === $email || '' === $key ? '' : hash_hmac( 'sha256', $email, $key ); }
     private function head_option_name( $subject_hash, $scope ) { return self::OPTION_HEAD_PREFIX . hash( 'sha256', (string) $subject_hash . '|' . sanitize_key( (string) $scope ) ); }
     private function retention_anchor_option_name( $subject_hash, $scope ) { return self::OPTION_RETENTION_PREFIX . hash( 'sha256', (string) $subject_hash . '|' . sanitize_key( (string) $scope ) ); }
 
@@ -107,7 +201,13 @@ final class Dendrila_Privacy_Evidence_Ledger {
     }
 
     private function cleanup_retention( $force = false ) {
-        $this->maybe_install();
+        $result = $this->with_key_lock( function () use ( $force ) { return $this->cleanup_retention_locked( $force ); } );
+        return is_wp_error( $result ) ? array( 'removed'=>0, 'skipped'=>0, 'groups'=>0, 'cutoff'=>'', 'error'=>$result->get_error_message() ) : $result;
+    }
+
+    private function cleanup_retention_locked( $force ) {
+        $installed = $this->maybe_install();
+        if ( is_wp_error( $installed ) ) { return $installed; }
         global $wpdb; $table = $this->table_name();
         $cutoff = gmdate( 'Y-m-d H:i:s', time() - ( $this->retention_days() * DAY_IN_SECONDS ) );
         $limit = $force ? 1000 : 250;
@@ -125,7 +225,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
             $first_kept = $wpdb->get_row( $wpdb->prepare( 'SELECT id, previous_hash FROM %i WHERE subject_hash = %s AND scope = %s AND occurred_at >= %s ORDER BY id ASC LIMIT 1', $table, $subject_hash, $scope, $cutoff ), ARRAY_A );
             if ( is_array( $first_kept ) && ! hash_equals( (string)$last_old['event_hash'], (string)$first_kept['previous_hash'] ) ) { $skipped++; continue; }
             if ( is_array( $first_kept ) ) { update_option( $this->retention_anchor_option_name( $subject_hash, $scope ), (string)$last_old['event_hash'], false ); }
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Retention deletes only expired rows from this plugin-owned table.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Retention deletes only expired rows from this plugin-owned table; caching a destructive maintenance query would be incorrect.
             $deleted = $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE subject_hash = %s AND scope = %s AND occurred_at < %s', $table, $subject_hash, $scope, $cutoff ) );
             if ( false !== $deleted ) { $removed += (int)$deleted; }
             if ( ! is_array( $first_kept ) ) {
@@ -164,11 +264,23 @@ final class Dendrila_Privacy_Evidence_Ledger {
             'recorded_at'=>(string)$row['recorded_at'], 'actor_user_id'=>(int)$row['actor_user_id'], 'previous_hash'=>(string)$row['previous_hash'], 'context'=>is_array($row['context'])?$row['context']:array(),
         );
         if ( isset( $row['event_version'] ) && (int) $row['event_version'] >= 2 ) { $payload['event_version']=(int)$row['event_version']; $payload['notice_hash']=isset($row['notice_hash'])?(string)$row['notice_hash']:''; }
+        if ( isset( $row['event_version'] ) && 3 === (int) $row['event_version'] ) { $payload['signing_key_id'] = (string) $row['signing_key_id']; }
         return wp_json_encode( $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
     }
 
     public function record_event( $email, $scope, $decision, $purposes, $context = array() ) {
-        $this->maybe_install(); $subject_hash = $this->subject_hash( $email );
+        return $this->with_key_lock( function () use ( $email, $scope, $decision, $purposes, $context ) {
+            return $this->record_event_locked( $email, $scope, $decision, $purposes, $context );
+        } );
+    }
+
+    private function record_event_locked( $email, $scope, $decision, $purposes, $context ) {
+        $installed = $this->maybe_install();
+        if ( is_wp_error( $installed ) ) { return $installed; }
+        $ring = $this->keyring();
+        if ( is_wp_error( $ring ) ) { return $ring; }
+        $signing_key_id = $ring['active'];
+        $subject_hash = $this->subject_hash( $email );
         if ( '' === $subject_hash ) { return new WP_Error( 'dendrila_privacy_evidence_email', 'Adresse e-mail invalide.' ); }
         $scope = sanitize_key( (string) $scope ); if ( '' === $scope ) { $scope = 'email_tracking'; }
         $decision = sanitize_key( (string) $decision );
@@ -186,10 +298,10 @@ final class Dendrila_Privacy_Evidence_Ledger {
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- This plugin-owned append-only ledger must read the immediately previous hash before writing the next event.
         $previous_hash = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT event_hash FROM %i WHERE subject_hash = %s AND scope = %s ORDER BY id DESC LIMIT 1', $table, $subject_hash, $scope ) );
         $recorded_at = current_time( 'mysql', true );
-        $row = array( 'subject_hash'=>$subject_hash, 'scope'=>$scope, 'decision'=>$decision, 'purposes'=>$purposes, 'notice_version'=>$notice_version, 'source'=>$source, 'evidence_ref'=>$evidence_ref, 'occurred_at'=>$occurred_at, 'recorded_at'=>$recorded_at, 'actor_user_id'=>get_current_user_id(), 'event_version'=>2, 'notice_hash'=>$notice_hash, 'previous_hash'=>$previous_hash, 'context'=>$clean_context );
-        $event_hash = hash_hmac( 'sha256', $this->canonical_payload( $row ), $this->chain_key() );
+        $row = array( 'subject_hash'=>$subject_hash, 'scope'=>$scope, 'decision'=>$decision, 'purposes'=>$purposes, 'notice_version'=>$notice_version, 'source'=>$source, 'evidence_ref'=>$evidence_ref, 'occurred_at'=>$occurred_at, 'recorded_at'=>$recorded_at, 'actor_user_id'=>get_current_user_id(), 'event_version'=>3, 'signing_key_id'=>$signing_key_id, 'notice_hash'=>$notice_hash, 'previous_hash'=>$previous_hash, 'context'=>$clean_context );
+        $event_hash = hash_hmac( 'sha256', $this->canonical_payload( $row ), $ring['keys'][ $signing_key_id ]['material'] );
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Dedicated plugin-owned evidence table; there is no WordPress CRUD API for this ledger.
-        $inserted = $wpdb->insert( $table, array( 'subject_hash'=>$subject_hash, 'scope'=>$scope, 'decision'=>$decision, 'purposes'=>wp_json_encode($purposes,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE), 'notice_version'=>$notice_version, 'source'=>$source, 'evidence_ref'=>$evidence_ref, 'occurred_at'=>$occurred_at, 'recorded_at'=>$recorded_at, 'actor_user_id'=>get_current_user_id(), 'event_version'=>2, 'notice_hash'=>$notice_hash, 'notice_snapshot'=>$notice_snapshot, 'previous_hash'=>$previous_hash, 'event_hash'=>$event_hash, 'context_json'=>wp_json_encode($clean_context,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ), array( '%s','%s','%s','%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%s','%s','%s' ) );
+        $inserted = $wpdb->insert( $table, array( 'subject_hash'=>$subject_hash, 'scope'=>$scope, 'decision'=>$decision, 'purposes'=>wp_json_encode($purposes,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE), 'notice_version'=>$notice_version, 'source'=>$source, 'evidence_ref'=>$evidence_ref, 'occurred_at'=>$occurred_at, 'recorded_at'=>$recorded_at, 'actor_user_id'=>get_current_user_id(), 'event_version'=>3, 'signing_key_id'=>$signing_key_id, 'notice_hash'=>$notice_hash, 'notice_snapshot'=>$notice_snapshot, 'previous_hash'=>$previous_hash, 'event_hash'=>$event_hash, 'context_json'=>wp_json_encode($clean_context,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ), array( '%s','%s','%s','%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%s','%s','%s','%s' ) );
         if ( false === $inserted ) { return new WP_Error( 'dendrila_privacy_evidence_insert', 'Impossible d’enregistrer la preuve locale.' ); }
         update_option( $this->head_option_name( $subject_hash, $scope ), $event_hash, false );
         return (int) $wpdb->insert_id;
@@ -205,7 +317,7 @@ final class Dendrila_Privacy_Evidence_Ledger {
         return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE subject_hash = %s ORDER BY id ASC LIMIT %d OFFSET %d', $table, $subject_hash, $limit, $offset ), ARRAY_A );
     }
 
-    private function decoded_row( $row ) { $row['purposes']=json_decode((string)$row['purposes'],true);$row['purposes']=is_array($row['purposes'])?$row['purposes']:array();$row['context']=json_decode((string)$row['context_json'],true);$row['context']=is_array($row['context'])?$row['context']:array();$row['event_version']=isset($row['event_version'])?(int)$row['event_version']:1;$row['notice_hash']=isset($row['notice_hash'])?(string)$row['notice_hash']:'';$row['notice_snapshot']=isset($row['notice_snapshot'])?(string)$row['notice_snapshot']:'';return $row; }
+    private function decoded_row( $row ) { $row['purposes']=json_decode((string)$row['purposes'],true);$row['purposes']=is_array($row['purposes'])?$row['purposes']:array();$row['context']=json_decode((string)$row['context_json'],true);$row['context']=is_array($row['context'])?$row['context']:array();$row['event_version']=isset($row['event_version'])?(int)$row['event_version']:1;$row['notice_hash']=isset($row['notice_hash'])?(string)$row['notice_hash']:'';$row['notice_snapshot']=isset($row['notice_snapshot'])?(string)$row['notice_snapshot']:'';$row['signing_key_id']=isset($row['signing_key_id'])?(string)$row['signing_key_id']:'';return $row; }
 
     public function latest_for_email( $email, $scope = 'email_tracking' ) {
         $this->maybe_install(); $subject_hash=$this->subject_hash($email); if(''===$subject_hash){return null;} global $wpdb; $table=$this->table_name(); $scope=sanitize_key((string)$scope);
@@ -227,7 +339,10 @@ final class Dendrila_Privacy_Evidence_Ledger {
                 if ( ! hash_equals( (string)$previous_by_scope[$scope], (string)$row['previous_hash'] ) ) { return false; }
                 if ( (int)$row['event_version'] >= 2 && '' !== $row['notice_hash'] && ! hash_equals( $row['notice_hash'], hash( 'sha256', $row['notice_snapshot'] ) ) ) { return false; }
                 $payload=array('subject_hash'=>(string)$row['subject_hash'],'scope'=>$scope,'decision'=>(string)$row['decision'],'purposes'=>$row['purposes'],'notice_version'=>(string)$row['notice_version'],'source'=>(string)$row['source'],'evidence_ref'=>(string)$row['evidence_ref'],'occurred_at'=>(string)$row['occurred_at'],'recorded_at'=>(string)$row['recorded_at'],'actor_user_id'=>(int)$row['actor_user_id'],'event_version'=>(int)$row['event_version'],'notice_hash'=>(string)$row['notice_hash'],'previous_hash'=>(string)$row['previous_hash'],'context'=>$row['context']);
-                $expected=hash_hmac('sha256',$this->canonical_payload($payload),$this->chain_key());
+                $payload['signing_key_id'] = $row['signing_key_id'];
+                $key = $this->verification_key( $row );
+                if ( '' === $key ) { return false; }
+                $expected=hash_hmac('sha256',$this->canonical_payload($payload),$key);
                 if(!hash_equals($expected,(string)$row['event_hash'])){return false;}
                 $previous_by_scope[$scope]=(string)$row['event_hash'];
             }
@@ -243,7 +358,9 @@ final class Dendrila_Privacy_Evidence_Ledger {
     }
 
     private function verify_all_chains() {
-        $this->maybe_install(); global $wpdb; $table=$this->table_name();
+        $installed = $this->maybe_install();
+        if ( is_wp_error( $installed ) ) { return array( 'checked_at'=>gmdate('c'), 'subjects'=>0, 'failed'=>0, 'verified'=>false, 'truncated'=>false, 'error'=>$installed->get_error_message() ); }
+        global $wpdb; $table=$this->table_name();
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Manual integrity sweep reads pseudonymous subject hashes from the plugin-owned ledger.
         $subjects=(array)$wpdb->get_col($wpdb->prepare('SELECT DISTINCT subject_hash FROM %i ORDER BY subject_hash ASC LIMIT %d',$table,5001));
         $truncated=count($subjects)>5000;if($truncated){$subjects=array_slice($subjects,0,5000);}
@@ -258,22 +375,54 @@ final class Dendrila_Privacy_Evidence_Ledger {
     public function filter_email_tracking_status( $status, $email ) { $latest=$this->latest_for_email($email,'email_tracking'); return $latest?$latest:$status; }
     public function admin_menu() { add_submenu_page('pixel-trackers-manager','Preuves de consentement','Preuves','manage_options','dendrila-privacy-evidence',array($this,'render_admin_page')); }
 
+    private function key_date_label( $date ) {
+        $time = strtotime( (string) $date );
+        return false === $time ? 'Date indisponible' : gmdate( 'd/m/Y H:i', $time ) . ' UTC';
+    }
+
+    private function render_key_management() {
+        $ring = $this->keyring();
+        echo '<div class="ptm-evidence-keys"><h3>Clés de signature</h3>';
+        if ( is_wp_error( $ring ) ) {
+            echo '<div class="notice notice-error inline" role="status"><p>' . esc_html( $ring->get_error_message() ) . '</p></div></div>';
+            return;
+        }
+        $id = $ring['active'];
+        $count = count( $ring['keys'] ) + ( '' !== $ring['legacy_key'] ? 1 : 0 );
+        echo '<dl class="ptm-evidence-key-facts"><div><dt>Clé active</dt><dd><code>' . esc_html( substr( $id, 0, 12 ) ) . '</code><span>Créée le ' . esc_html( $this->key_date_label( $ring['keys'][ $id ]['created_at'] ) ) . '</span></dd></div><div><dt>Clés de vérification conservées</dt><dd>' . esc_html( $count ) . '<span>Clé active et anciennes clés</span></dd></div><div><dt>Dernière rotation</dt><dd>' . esc_html( $ring['last_rotated_at'] ? $this->key_date_label( $ring['last_rotated_at'] ) : 'Aucune' ) . '</dd></div></dl>';
+        echo '<p id="dendrila-key-help">La rotation protège les nouvelles signatures sans modifier les identifiants pseudonymes ni réécrire les anciennes preuves. Les anciennes clés restent disponibles pour vérifier l’historique.</p><p class="ptm-muted">Ce registre local détecte les altérations selon les clés conservées. Il ne protège pas contre une personne pouvant modifier à la fois la base et les clés. Sauvegardez-les ensemble.</p>';
+        echo '<form method="post" class="ptm-evidence-key-form" aria-describedby="dendrila-key-help">';
+        wp_nonce_field( 'dendrila_privacy_evidence_admin', 'dendrila_privacy_evidence_nonce' );
+        echo '<input type="hidden" name="evidence_active_key" value="' . esc_attr( $id ) . '"><label class="ptm-evidence-key-confirm"><input type="checkbox" name="evidence_rotate_confirm" value="1" required><span>Je confirme la création d’une nouvelle clé de signature.</span></label><button type="submit" class="button" name="dendrila_privacy_evidence_action" value="rotate_signing_key">Faire tourner la clé de signature</button></form></div>';
+    }
+
     public function render_admin_page() {
         if(!current_user_can('manage_options')){wp_die(esc_html__('Accès refusé.','dendrila-privacy'));}
         $message='';$type='success';$lookup_email='';
         if(isset($_POST['dendrila_privacy_evidence_action'])){
             check_admin_referer('dendrila_privacy_evidence_admin','dendrila_privacy_evidence_nonce');$action=sanitize_key(wp_unslash($_POST['dendrila_privacy_evidence_action']));$lookup_email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';
             if('record'===$action){$decision=isset($_POST['evidence_decision'])?sanitize_key(wp_unslash($_POST['evidence_decision'])):'granted';$purposes=isset($_POST['evidence_purposes'])?sanitize_textarea_field(wp_unslash($_POST['evidence_purposes'])):'';$notice=isset($_POST['evidence_notice_version'])?sanitize_text_field(wp_unslash($_POST['evidence_notice_version'])):'';$notice_text=isset($_POST['evidence_notice_text'])?sanitize_textarea_field(wp_unslash($_POST['evidence_notice_text'])):'';$source=isset($_POST['evidence_source'])?sanitize_key(wp_unslash($_POST['evidence_source'])):'manual';$result=$this->record_email_tracking_consent($lookup_email,$decision,$purposes,array('notice_version'=>$notice,'notice_text'=>$notice_text,'source'=>$source,'method'=>'manual_admin'));if(is_wp_error($result)){$message=$result->get_error_message();$type='error';}else{$message='Preuve locale ajoutée au registre.';$this->log_admin_action('manual_evidence_recorded',array('scope'=>'email_tracking'));}}
+            elseif ( 'rotate_signing_key' === $action ) {
+                $confirmed = isset( $_POST['evidence_rotate_confirm'] ) ? sanitize_key( wp_unslash( $_POST['evidence_rotate_confirm'] ) ) : '';
+                if ( '1' !== $confirmed ) { $message = 'Confirmez la rotation de la clé de signature.'; $type = 'error'; }
+                else {
+                    $expected = isset( $_POST['evidence_active_key'] ) ? sanitize_key( wp_unslash( $_POST['evidence_active_key'] ) ) : '';
+                    $result = $this->rotate_signing_key( $expected );
+                    if ( is_wp_error( $result ) ) { $message = $result->get_error_message(); $type = 'error'; }
+                    else { $message = 'Clé de signature renouvelée. Les identifiants et les preuves historiques sont conservés.'; }
+                }
+            }
             elseif('save_retention'===$action){$days=isset($_POST['evidence_retention_days'])?max(30,min(3650,absint($_POST['evidence_retention_days']))):730;update_option(self::OPTION_RETENTION_DAYS,$days,false);$this->log_admin_action('retention_changed',array('days'=>$days));$message='Durée de conservation enregistrée : '.$days.' jours.';}
-            elseif('verify_all'===$action){$result=$this->verify_all_chains();$this->log_admin_action('integrity_check',array('subjects'=>$result['subjects'],'failed'=>$result['failed'],'truncated'=>$result['truncated']?'1':'0'));$message=$result['verified']?'Contrôle d’intégrité terminé : aucune rupture détectée.':'Contrôle terminé : '.$result['failed'].' chaîne(s) demandent une vérification.';$type=$result['verified']?'success':'warning';}
-            elseif('cleanup_now'===$action){$result=$this->cleanup_retention(true);$this->log_admin_action('retention_cleanup',array('removed'=>$result['removed'],'skipped'=>$result['skipped']));$message=$result['removed'].' événement(s) expiré(s) supprimé(s).'.($result['skipped']?' '.$result['skipped'].' groupe(s) conservé(s) car la continuité de chaîne n’était pas vérifiable.':'');$type=$result['skipped']?'warning':'success';}
+            elseif('verify_all'===$action){$result=$this->verify_all_chains();$this->log_admin_action('integrity_check',array('subjects'=>$result['subjects'],'failed'=>$result['failed'],'truncated'=>$result['truncated']?'1':'0'));$message=$result['verified']?'Contrôle d’intégrité terminé : aucune rupture détectée.':'Contrôle terminé : '.$result['failed'].' chaîne(s) demandent une vérification.';$type=$result['verified']?'success':'warning';if(isset($result['error'])){$message=$result['error'];$type='error';}}
+            elseif('cleanup_now'===$action){$result=$this->cleanup_retention(true);if(isset($result['error'])){$message=$result['error'];$type='error';}else{$this->log_admin_action('retention_cleanup',array('removed'=>$result['removed'],'skipped'=>$result['skipped']));$message=$result['removed'].' événement(s) expiré(s) supprimé(s).'.($result['skipped']?' '.$result['skipped'].' groupe(s) conservé(s) car la continuité de chaîne n’était pas vérifiable.':'');$type=$result['skipped']?'warning':'success';}}
         }
         $rows=$lookup_email?$this->rows_for_email($lookup_email,500,0):array();$verified=$lookup_email&&$rows?$this->verify_chain_for_email($lookup_email):null;
         $last_integrity=get_option(self::OPTION_LAST_INTEGRITY,array());$last_integrity=is_array($last_integrity)?$last_integrity:array();$admin_log=$this->admin_log_entries();
         echo '<div class="wrap ptm-wrap"><header class="ptm-head"><div><p class="ptm-eyebrow">Consentement vérifiable</p><h1>Preuves de consentement</h1><p>Un historique local, lisible et exportable — sans stocker l’adresse e-mail en clair dans le registre.</p></div></header>';
-        if($message){echo '<div class="notice notice-'.esc_attr($type).' inline"><p>'.esc_html($message).'</p></div>';}
+        if($message){echo '<div class="notice notice-'.esc_attr($type).' inline" role="status"><p>'.esc_html($message).'</p></div>';}
         echo '<section class="ptm-card ptm-evidence-governance"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-shield" aria-hidden="true"></span>Intégrité et conservation</h2><p>Le registre peut supprimer les événements expirés sans casser la preuve des événements conservés : la frontière cryptographique de la chaîne est gardée localement.</p></div></div><div class="ptm-evidence-governance-grid"><div><strong>'.esc_html($this->retention_days()).' jours</strong><span>conservation actuelle</span></div><div><strong>'.esc_html(isset($last_integrity['subjects'])?$last_integrity['subjects']:'—').'</strong><span>sujet(s) contrôlé(s)</span></div><div><strong>'.(!empty($last_integrity)?(empty($last_integrity['failed'])?'Vérifiée':'À contrôler'):'Jamais').'</strong><span>dernier contrôle global</span></div></div>';
         echo '<form method="post" class="ptm-evidence-governance-form">';wp_nonce_field('dendrila_privacy_evidence_admin','dendrila_privacy_evidence_nonce');echo '<label class="ptm-field"><span>Durée de conservation du registre</span><div class="ptm-inline-number"><input type="number" min="30" max="3650" step="1" name="evidence_retention_days" value="'.esc_attr($this->retention_days()).'"><span>jours</span></div><small>Entre 30 jours et 10 ans. Le nettoyage automatique est vérifié au plus une fois par jour dans l’administration.</small></label><div class="ptm-evidence-governance-actions"><button class="button button-primary" type="submit" name="dendrila_privacy_evidence_action" value="save_retention">Enregistrer</button><button class="button" type="submit" name="dendrila_privacy_evidence_action" value="verify_all">Contrôler l’intégrité</button><button class="button" type="submit" name="dendrila_privacy_evidence_action" value="cleanup_now">Appliquer la conservation maintenant</button></div></form>';
+        $this->render_key_management();
         if(!empty($last_integrity['checked_at'])){echo '<p class="ptm-muted">Dernier contrôle : '.esc_html($last_integrity['checked_at']).' UTC'.(!empty($last_integrity['truncated'])?' — contrôle limité aux 5 000 premiers sujets.':'').'.</p>';}
         echo '</section>';
         echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-search" aria-hidden="true"></span>Retrouver une preuve</h2><p>La recherche utilise une empreinte HMAC propre à ce WordPress. L’adresse saisie sert à retrouver l’historique mais n’est pas enregistrée dans le registre.</p></div></div>';
@@ -292,9 +441,9 @@ final class Dendrila_Privacy_Evidence_Ledger {
     }
 
     public function export_evidence() {
-        if(!current_user_can('manage_options')){wp_die(esc_html__('Accès refusé.','dendrila-privacy'));}check_admin_referer('dendrila_privacy_evidence_export');$email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';$rows=$this->rows_for_email($email,500,0);$events=array();foreach($rows as $stored){$row=$this->decoded_row($stored);unset($row['context_json']);$events[]=$row;}
+        if(!current_user_can('manage_options')){wp_die(esc_html__('Accès refusé.','dendrila-privacy'));}check_admin_referer('dendrila_privacy_evidence_export');$installed=$this->maybe_install();if(is_wp_error($installed)){wp_die(esc_html($installed->get_error_message()));}$email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';$rows=$this->rows_for_email($email,500,0);$events=array();foreach($rows as $stored){$row=$this->decoded_row($stored);unset($row['context_json']);$events[]=$row;}
         $this->log_admin_action('export_json',array('events'=>count($events)));
-        $payload=array('schema'=>2,'subject_hash'=>$this->subject_hash($email),'chain_verified'=>$rows?$this->verify_chain_for_email($email):true,'retention_days'=>$this->retention_days(),'exported_at'=>gmdate('c'),'events'=>$events);nocache_headers();header('Content-Type: application/json; charset=utf-8');header('Content-Disposition: attachment; filename="dendrila-privacy-consent-evidence.json"');echo wp_json_encode($payload,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);exit;
+        $payload=array('schema'=>3,'subject_hash'=>$this->subject_hash($email),'chain_verified'=>$rows?$this->verify_chain_for_email($email):true,'retention_days'=>$this->retention_days(),'exported_at'=>gmdate('c'),'events'=>$events);nocache_headers();header('Content-Type: application/json; charset=utf-8');header('Content-Disposition: attachment; filename="dendrila-privacy-consent-evidence.json"');echo wp_json_encode($payload,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);exit;
     }
 
     private function csv_value( $value ) {
@@ -305,9 +454,14 @@ final class Dendrila_Privacy_Evidence_Ledger {
     }
 
     public function export_evidence_csv() {
-        if(!current_user_can('manage_options')){wp_die(esc_html__('Accès refusé.','dendrila-privacy'));}check_admin_referer('dendrila_privacy_evidence_export');$email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';$rows=$this->rows_for_email($email,500,0);
-        $this->log_admin_action('export_csv',array('events'=>count($rows)));nocache_headers();header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="dendrila-privacy-consent-evidence.csv"');echo "\xEF\xBB\xBF";echo implode(';',array_map(array($this,'csv_value'),array('date_utc','scope','decision','purposes','source','notice_version','notice_hash','evidence_ref','event_hash')))."\r\n";
-        foreach($rows as $stored){$row=$this->decoded_row($stored);$line=array($row['occurred_at'],$row['scope'],$row['decision'],$row['purposes'],$row['source'],$row['notice_version'],$row['notice_hash'],$row['evidence_ref'],$row['event_hash']);echo implode(';',array_map(array($this,'csv_value'),$line))."\r\n";}exit;
+        if(!current_user_can('manage_options')){wp_die(esc_html__('Accès refusé.','dendrila-privacy'));}check_admin_referer('dendrila_privacy_evidence_export');$installed=$this->maybe_install();if(is_wp_error($installed)){wp_die(esc_html($installed->get_error_message()));}$email=isset($_POST['evidence_email'])?sanitize_email(wp_unslash($_POST['evidence_email'])):'';$rows=$this->rows_for_email($email,500,0);
+        $this->log_admin_action('export_csv',array('events'=>count($rows)));nocache_headers();header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="dendrila-privacy-consent-evidence.csv"');echo "\xEF\xBB\xBF";
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Deliberate CSV response; csv_value() performs CSV quoting and formula-prefix neutralisation, not HTML escaping.
+        echo implode(';',array_map(array($this,'csv_value'),array('date_utc','scope','decision','purposes','source','notice_version','notice_hash','evidence_ref','event_hash','event_version','signing_key_id')))."\r\n";
+        foreach($rows as $stored){$row=$this->decoded_row($stored);$line=array($row['occurred_at'],$row['scope'],$row['decision'],$row['purposes'],$row['source'],$row['notice_version'],$row['notice_hash'],$row['evidence_ref'],$row['event_hash'],$row['event_version'],$row['signing_key_id']);
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Deliberate CSV response; values are encoded by csv_value().
+            echo implode(';',array_map(array($this,'csv_value'),$line))."\r\n";
+        }exit;
     }
 
     public function register_privacy_exporter( $exporters ) { $exporters['dendrila-privacy-consent-evidence']=array('exporter_friendly_name'=>'Dendrila Privacy — preuves de consentement','callback'=>array($this,'privacy_exporter'));return $exporters; }
@@ -317,14 +471,21 @@ final class Dendrila_Privacy_Evidence_Ledger {
     }
 
     public function privacy_eraser( $email_address, $page = 1 ) {
-        if ( (int) $page > 1 ) { return array( 'items_removed'=>false, 'items_retained'=>false, 'messages'=>array(), 'done'=>true ); }
-        $this->maybe_install();
+        $result = $this->with_key_lock( function () use ( $email_address, $page ) { return $this->privacy_eraser_locked( $email_address, $page ); } );
+        return is_wp_error( $result ) ? array( 'items_removed'=>false, 'items_retained'=>true, 'messages'=>array( $result->get_error_message() ), 'done'=>false ) : $result;
+    }
+
+    private function privacy_eraser_locked( $email_address, $page ) {
+        $installed = $this->maybe_install();
+        if ( is_wp_error( $installed ) ) { return $installed; }
         $subject_hash=$this->subject_hash($email_address);
         if(''===$subject_hash){return array('items_removed'=>false,'items_retained'=>false,'messages'=>array(),'done'=>true);}
-        $rows_before=$this->rows_for_email($email_address,500,0);$scopes=array('email_tracking','site_consent');foreach($rows_before as $row){if(!empty($row['scope'])){$scopes[]=sanitize_key((string)$row['scope']);}}$scopes=array_values(array_unique(array_filter($scopes)));
         global $wpdb;$table=$this->table_name();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Erasure must include every scope, including those beyond the first 500 rows.
+        $scopes = (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT scope FROM %i WHERE subject_hash = %s', $table, $subject_hash ) );
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- WordPress privacy eraser explicitly removes this subject's local ledger rows.
         $deleted=$wpdb->delete($table,array('subject_hash'=>$subject_hash),array('%s'));
+        if ( false === $deleted ) { return new WP_Error( 'dendrila_privacy_evidence_erase', 'Effacement du registre impossible. Réessayez.' ); }
         foreach($scopes as $scope){delete_option($this->head_option_name($subject_hash,$scope));delete_option($this->retention_anchor_option_name($subject_hash,$scope));}
         $user=get_user_by('email',sanitize_email($email_address));
         if($user){delete_user_meta($user->ID,'_dendrila_privacy_account_consent');delete_user_meta($user->ID,'_dendrila_privacy_account_sync_enabled');}

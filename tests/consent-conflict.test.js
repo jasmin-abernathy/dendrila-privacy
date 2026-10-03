@@ -37,8 +37,10 @@ function run(localChoice, accountSync) {
   return context.window.DendrilaPrivacyConsentEarly.getCurrent();
 }
 
-const local = { statistics: true, external: true, marketing: true, savedAt: 2000, fingerprint: 'fp' };
-const account = { statistics: true, external: false, marketing: true, savedAt: 1000, fingerprint: 'fp' };
+// Both choices must be unexpired to reach the conflict-resolution branch.
+const now = Date.now();
+const local = { statistics: true, external: true, marketing: true, savedAt: now - 1000, fingerprint: 'fp' };
+const account = { statistics: true, external: false, marketing: true, savedAt: now - 2000, fingerprint: 'fp' };
 
 const conflict = run(local, { enabled: true, loggedIn: true, userEnabled: true, strategy: 'ask_user', accountChoice: account });
 if (!conflict || conflict.statistics || conflict.external || conflict.marketing) {
