@@ -21,7 +21,6 @@ Main features:
 * standard or full analysis of public site content;
 * detection of known trackers, third-party services, external content, and consent tools;
 * distinction between observed technical evidence, an available integration, and something that still needs human verification;
-* progressive scans where one failing page does not stop the remaining analysis;
 * a guided privacy assistant that reuses information WordPress can already provide before asking questions;
 * documentation coverage based only on requirements that actually apply;
 * management of Legal Notice, Privacy Policy, and Cookies / Consent reference pages;
@@ -32,7 +31,7 @@ Main features:
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
 * optional account-linked consent sync for logged-in users, with explicit conflict handling and a notice when a choice is applied on another device;
-* a locally anchored, hash-chained consent evidence ledger with HMAC email identifiers, privacy/JSON export, and an expiring encrypted no-account link for e-mail tracking choices;
+* a local hash-chained consent evidence ledger with HMAC e-mail identifiers, JSON/CSV exports, integrity checks, retention controls, and encrypted no-account preference links;
 * adapter-aware verification: a recipient refusal is not reported as applied unless the originating e-mail tool can be checked in a tracking-disabled state;
 * initial checks beyond WordPress itself, including email, messaging, booking tools, external forms, payments, and files/lists.
 
