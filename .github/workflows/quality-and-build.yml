@@ -12,6 +12,7 @@ on:
       - 'assets/**'
       - 'languages/**'
       - 'readme.txt'
+      - 'tests/**'
       - '.distignore'
       - '.github/workflows/quality-and-build.yml'
   pull_request:
@@ -23,6 +24,7 @@ on:
       - 'assets/**'
       - 'languages/**'
       - 'readme.txt'
+      - 'tests/**'
       - '.distignore'
       - '.github/workflows/quality-and-build.yml'
   workflow_dispatch:
@@ -138,6 +140,8 @@ jobs:
       - name: Lint PHP files
         shell: bash
         run: find . -type f -name '*.php' -not -path './build/*' -print0 | xargs -0 -n1 php -l
+      - name: Age assurance companion regression
+        run: php tests/age-assurance-companion.php
 
   javascript-syntax:
     name: JavaScript syntax
@@ -164,7 +168,7 @@ jobs:
         with:
           wp-version: latest
           slug: dendrila-privacy
-          exclude-directories: '.github,docs,build,dist'
+          exclude-directories: '.github,docs,tests,build,dist'
           exclude-files: '.gitattributes,.editorconfig,.gitignore,.distignore,README.md,README.fr.md,CODE_OF_CONDUCT.md,CODE_OF_CONDUCT.fr.md,CONTRIBUTING.md,CONTRIBUTING.fr.md,SECURITY.md,SECURITY.fr.md,AGENTS.md,COPYRIGHT.md,TRADEMARKS.md'
 
   package:
@@ -208,7 +212,7 @@ jobs:
           unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/readme.txt'
           unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/LICENSE'
 
-          for forbidden in '.github/' 'docs/' 'README.md' 'README.fr.md' '.distignore' '.gitignore' '.gitattributes' '.editorconfig' 'CODE_OF_CONDUCT.md' 'CONTRIBUTING.md' 'SECURITY.md' 'AGENTS.md' 'COPYRIGHT.md' 'TRADEMARKS.md'; do
+          for forbidden in '.github/' 'docs/' 'tests/' 'README.md' 'README.fr.md' '.distignore' '.gitignore' '.gitattributes' '.editorconfig' 'CODE_OF_CONDUCT.md' 'CONTRIBUTING.md' 'SECURITY.md' 'AGENTS.md' 'COPYRIGHT.md' 'TRADEMARKS.md'; do
             if unzip -Z1 "$ZIP" | grep -q "^dendrila-privacy/${forbidden}"; then
               echo "Development-only path leaked into distribution: ${forbidden}"
               exit 1
