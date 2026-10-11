@@ -83,6 +83,7 @@ final class Pixel_Trackers_Manager_Plugin {
         add_filter( 'elementor/frontend/the_content', array( $this, 'rewrite_legacy_shortcode_markup' ), 8 );
         $this->maybe_migrate_data();
         $this->apply_adapter_overrides();
+        $this->init_advanced_consent();
         $this->init_consent_manager();
     }
 
@@ -242,7 +243,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     public function admin_assets( $hook ) {
         $page = sanitize_key( $this->query_value( 'page' ) );
-        $is_ptm_page = 0 === strpos( $page, 'dendrila-privacy' );
+        $is_ptm_page = 0 === strpos( $page, 'dendrila-privacy' ) || 0 === strpos( $page, 'pixel-trackers-manager' );
         $is_dashboard = 'index.php' === $hook;
         if ( ! $is_ptm_page && ! $is_dashboard ) {
             return;
@@ -4935,6 +4936,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_section_form_start( 'email' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 7</div><h3>Vos e-mails mesurent-ils les ouvertures ou les clics ?</h3><p class="ptm-question-intro">Dendrila Privacy vérifie automatiquement les réglages accessibles. Pour les outils dont le réglage est externe ou privé, il indique simplement « À vérifier ».</p>';
         if ( ! $mailing_present ) { echo '<p class="ptm-muted">Aucun outil d’e-mailing connu n’est détecté actuellement. Si vos envois passent par un service externe, vous pouvez tout de même renseigner cette étape.</p>'; }
         else { echo '<div class="ptm-email-status-list">'; foreach ( (array) $scan['mailing'] as $mail_tool ) { $state = isset( $mail_tool['tracking_state'] ) ? $mail_tool['tracking_state'] : 'unknown'; $tone = 'active' === $state ? 'bad' : ( 'disabled' === $state ? 'good' : 'neutral' ); $label = 'active' === $state ? 'suivi d’engagement actif' : ( 'disabled' === $state ? 'suivi des ouvertures et des clics désactivé' : 'réglages à vérifier' ); echo '<span class="ptm-badge ' . esc_attr( $tone ) . '"><strong>' . esc_html( isset( $mail_tool['name'] ) ? $mail_tool['name'] : 'Outil e-mail' ) . '</strong> : ' . esc_html( $label ) . '</span>'; } echo '</div>'; }
+        echo '<div class="ptm-callout neutral"><strong>Preuves individuelles des pixels</strong><p>Le registre local distingue consentement, retrait, régime transitoire et exemption de délivrabilité documentée.</p><p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=dendrila-privacy-consent-proof' ) ) . '">Ouvrir le registre de preuves</a></p></div>';
         echo '<div class="ptm-email-purpose-suggestions"><strong>Exemples de finalités adaptés à ce qui est détecté :</strong><div class="ptm-template-buttons">';
         echo '<button type="button" class="button ptm-email-purpose" data-target="email_pixel_purposes" data-value="Mesurer la délivrabilité technique des e-mails lorsque ce suivi est réellement utilisé">Délivrabilité</button>';
         if ( 'yes' === $profile['email_pixels'] ) { echo '<button type="button" class="button ptm-email-purpose is-detected" data-target="email_pixel_purposes" data-value="Mesurer les ouvertures des e-mails afin d’évaluer l’engagement des destinataires">Mesurer les ouvertures <small>suivi détecté</small></button>'; }
@@ -5826,7 +5828,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     private function render_findings_tab( $scan ) {
-        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Outils e-mail et suivi d’engagement</h2><p>Dendrila Privacy indique uniquement l’état utile à comprendre, sans afficher les valeurs internes des réglages.</p></div></div>';
+        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Outils e-mail et suivi d’engagement</h2><p>Dendrila Privacy indique uniquement l’état utile à comprendre, sans afficher les valeurs internes des réglages.</p></div><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=dendrila-privacy-consent-proof' ) ) . '">Preuves de consentement</a></div>';
         if(empty($scan['mailing'])){echo '<p>Aucun outil d’e-mailing connu détecté.</p>';} else {
             echo '<div class="ptm-findings">';
             foreach($scan['mailing'] as $tool){
@@ -6040,6 +6042,25 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->render_legal_wizard( $settings, is_array( $audit ) ? $audit : array() );
     }
 
+    private function init_advanced_consent() {
+        $files = array(
+            plugin_dir_path( __FILE__ ) . 'includes/class-dendrila-privacy-consent-core.php',
+            plugin_dir_path( __FILE__ ) . 'includes/class-dendrila-privacy-consent-ledger.php',
+            plugin_dir_path( __FILE__ ) . 'includes/class-dendrila-privacy-cross-device-consent.php',
+        );
+        foreach ( $files as $file ) {
+            if ( file_exists( $file ) ) {
+                require_once $file;
+            }
+        }
+        if ( class_exists( 'Dendrila_Privacy_Consent_Ledger' ) ) {
+            Dendrila_Privacy_Consent_Ledger::instance( $this );
+        }
+        if ( class_exists( 'Dendrila_Privacy_Cross_Device_Consent' ) ) {
+            Dendrila_Privacy_Cross_Device_Consent::instance( $this );
+        }
+    }
+
     private function init_consent_manager() {
         $file = plugin_dir_path( __FILE__ ) . 'includes/class-pixel-trackers-manager-consent.php';
         if ( file_exists( $file ) ) {
@@ -6078,6 +6099,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<div class="ptm-form-grid"><label class="ptm-field"><span>Apparence</span><select name="consent_style"><option value="inherit" ' . selected( $settings['consent_style'], 'inherit', false ) . '>S’intégrer au style du site</option><option value="neutral" ' . selected( $settings['consent_style'], 'neutral', false ) . '>Style neutre Dendrila Privacy</option></select><small>Les couleurs de marque ne sont pas reprises lorsqu’elles créeraient une asymétrie Accepter / Refuser.</small></label><label class="ptm-field"><span>Mémoriser le choix</span><div><input type="number" min="30" max="365" name="consent_retention_days" value="' . esc_attr( (int) $settings['consent_retention_days'] ) . '"> jours</div><small>À expiration, l’interface est proposée à nouveau.</small></label></div>';
         echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_footer_link" value="1" ' . checked( ! empty( $settings['consent_footer_link'] ), true, false ) . '><span><strong>Ajouter « Gérer mes choix » en bas du site</strong><small>Le code court <code>[dendrila_privacy_consent_settings]</code> reste disponible pour un emplacement personnalisé.</small></span></label>';
         echo '</div>'; submit_button( 'Enregistrer la gestion du consentement', 'primary' ); $this->form_end();
+        do_action( 'dendrila_privacy_after_consent_settings', $settings );
         echo '<div class="ptm-consent-test-actions"><strong>Tester dans votre navigateur d’administrateur</strong><p>Ces liens ne modifient pas le choix des visiteurs.</p><div><a class="button button-secondary" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_preview', '1', home_url('/') ) ) . '">Voir sans choix ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'reject', home_url('/') ) ) . '">Simuler « Tout refuser » ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'statistics', home_url('/') ) ) . '">Statistiques seulement ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'accept', home_url('/') ) ) . '">Simuler « Tout accepter » ↗</a></div></div>';
         echo '</section>';
         $blocked_count = 0; $still_active = 0;

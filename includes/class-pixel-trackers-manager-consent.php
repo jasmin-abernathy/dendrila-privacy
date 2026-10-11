@@ -116,9 +116,13 @@ final class Pixel_Trackers_Manager_Consent {
         $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-portal2';
         $bootstrap_handle = 'pixel-trackers-manager-consent-bootstrap';
         $test_mode = '';
+        $cross_device_config = array( 'enabled' => false, 'active' => false );
         if ( current_user_can( 'manage_options' ) ) {
             $candidate = sanitize_key( $this->query_value( 'pixel_trackers_manager_consent_test' ) );
             if ( in_array( $candidate, array( 'reject', 'statistics', 'accept' ), true ) ) { $test_mode = $candidate; }
+        }
+        if ( class_exists( 'Dendrila_Privacy_Cross_Device_Consent' ) ) {
+            $cross_device_config = Dendrila_Privacy_Cross_Device_Consent::public_config( $this->plugin, $this->consent_fingerprint() );
         }
 
         // Load the early blocker through WordPress' script API, in the head, before the
@@ -128,6 +132,7 @@ final class Pixel_Trackers_Manager_Consent {
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
+            'crossDevice' => $cross_device_config,
         );
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
@@ -144,10 +149,20 @@ final class Pixel_Trackers_Manager_Consent {
             'domains' => $this->domain_map(),
             'preview' => '' !== $this->query_value( 'pixel_trackers_manager_consent_preview' ) && current_user_can( 'manage_options' ),
             'testMode' => $test_mode,
+            'crossDevice' => $cross_device_config,
         );
         wp_localize_script( 'pixel-trackers-manager-consent', 'DendrilaPrivacyConsent', $consent_config );
         // Backward-compatible alias for pre-publication integrations.
         wp_localize_script( 'pixel-trackers-manager-consent', 'PixelTrackersManagerConsent', $consent_config );
+        if ( ! empty( $cross_device_config['active'] ) ) {
+            wp_enqueue_script(
+                'dendrila-privacy-account-consent-sync',
+                plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent-account-sync.js',
+                array( 'pixel-trackers-manager-consent' ),
+                $asset_version,
+                false
+            );
+        }
     }
 
     private function active_categories() {
@@ -218,13 +233,17 @@ final class Pixel_Trackers_Manager_Consent {
         if ( ! $this->enabled() || $this->rendered ) { return; }
         $this->rendered = true;
         $cats = $this->active_categories();
+        $banner_copy = apply_filters(
+            'dendrila_privacy_consent_banner_copy',
+            'Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.'
+        );
         ?>
         <div id="pixel-trackers-manager-consent" class="ptm-consent" data-ptm-consent-root="1" data-ptm-style="<?php echo esc_attr( $this->plugin->public_settings()['consent_style'] ); ?>" data-ptm-layout="<?php echo esc_attr( isset( $this->plugin->public_settings()['consent_layout'] ) ? $this->plugin->public_settings()['consent_layout'] : 'bar' ); ?>" aria-hidden="true" hidden>
             <div class="ptm-consent-dialog" role="dialog" aria-modal="true" aria-labelledby="ptm-consent-title" aria-describedby="ptm-consent-copy" tabindex="-1">
                 <button type="button" class="ptm-consent-close" data-ptm-action="close" aria-label="Fermer sans accepter">×</button>
                 <div class="ptm-consent-main">
                     <h2 id="ptm-consent-title">Votre choix compte</h2>
-                    <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.</p>
+                    <p id="ptm-consent-copy"><?php echo esc_html( $banner_copy ); ?></p>
                     <div class="ptm-consent-actions" role="group" aria-label="Choix de consentement">
                         <button type="button" class="ptm-consent-choice" data-ptm-action="reject">Tout refuser</button>
                         <button type="button" class="ptm-consent-choice" data-ptm-action="accept">Tout accepter</button>
