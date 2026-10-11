@@ -14,7 +14,7 @@ Local privacy audits, legal documentation assistance, and optional consent manag
 
 Dendrila Privacy helps WordPress administrators understand what their site actually does with trackers and third-party services, keep privacy-related documentation up to date, and optionally manage visitor consent.
 
-Dendrila Privacy is designed local-first: audit results, settings, and assistant answers stay in WordPress by default. The plugin does not certify GDPR compliance and does not replace legal advice adapted to an organisation's actual activities.
+Local-first by design, audit results, settings, and assistant answers stay in WordPress by default. The plugin does not certify GDPR compliance or replace context-specific legal advice.
 
 Main features:
 
@@ -31,6 +31,8 @@ Main features:
 * protective blocking of recognised optional services before the visitor's choice when Dendrila Privacy consent is enabled;
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
+* optional account-linked consent sync for logged-in users, with explicit conflict handling and a notice when a choice is applied on another device;
+* a locally anchored, hash-chained consent evidence ledger with HMAC email identifiers and privacy/JSON export;
 * initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists.
 
 = Consent =
@@ -49,19 +51,13 @@ Public shortcodes: `[dendrila_privacy_legal_notice]`, `[dendrila_privacy_privacy
 
 = Page builders =
 
-WordPress / Gutenberg: Dendrila Privacy uses WordPress APIs and public shortcodes for supported content.
-
-Elementor: Dendrila Privacy can inspect known local widget content, explicitly create supported legal pages, and provides a Manage my choices widget.
-
-Divi: Dendrila Privacy reads recognised content conservatively. It prefers a native structure only when that structure is clearly understood and falls back to a shortcode when a safe rewrite cannot be guaranteed.
-
-Other builders: Dendrila Privacy recognises several common page-level signatures conservatively and prefers a manual fallback over modifying unknown builder storage.
+Dendrila Privacy uses WordPress APIs and public shortcodes where possible. Gutenberg, Elementor and Divi receive dedicated conservative handling; for other recognised builders, it prefers a manual fallback over rewriting unknown storage.
 
 = Data and privacy =
 
 Dendrila Privacy does not send site-audit results to the plugin author and does not include advertising telemetry.
 
-Visitor consent preferences are stored locally in the visitor's browser. Administration and audit data stay in the site's WordPress database unless an administrator explicitly starts the documented external lookup below.
+Visitor choices stay in the browser by default. If account sync is enabled, logged-in users can also store the same categories in WordPress user metadata. The optional evidence ledger stays in the site's database and hashes email identifiers with a site-local key. Other administration and audit data remain local unless an administrator starts a documented external lookup below.
 
 == External services ==
 
@@ -103,12 +99,10 @@ Their presence in Dendrila Privacy's source code does not mean that Dendrila Pri
 
 == Installation ==
 
-1. Upload the Dendrila Privacy ZIP through Plugins > Add Plugin > Upload Plugin.
-2. Activate the plugin.
-3. Open Dendrila Privacy. The guided setup starts on first access, not during activation.
-4. Review the proposed Legal Notice, Privacy Policy, and Cookies / Consent reference pages.
-5. Start an analysis when you choose. Installation does not automatically launch a full-site scan.
-6. Enable the native consent interface only if you want Dendrila Privacy to manage visitor choices and blocking as well.
+1. Upload and activate Dendrila Privacy.
+2. Open Dendrila Privacy and review the proposed legal reference pages.
+3. Start an analysis when you choose; installation does not automatically launch a full-site scan.
+4. Enable consent management and account sync only when needed.
 
 == Frequently Asked Questions ==
 

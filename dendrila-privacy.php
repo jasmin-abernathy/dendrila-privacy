@@ -83,6 +83,7 @@ final class Pixel_Trackers_Manager_Plugin {
         add_filter( 'elementor/frontend/the_content', array( $this, 'rewrite_legacy_shortcode_markup' ), 8 );
         $this->maybe_migrate_data();
         $this->apply_adapter_overrides();
+        $this->init_advanced_privacy_modules();
         $this->init_consent_manager();
     }
 
@@ -180,6 +181,9 @@ final class Pixel_Trackers_Manager_Plugin {
 
         $content = '<p><strong>Dendrila Privacy</strong> analyse localement la configuration et les contenus publics du site afin d’identifier des services tiers, des traceurs et des éléments utiles à la documentation de confidentialité. Les résultats d’audit et les réglages Dendrila Privacy sont conservés dans la base de données WordPress du site.</p>';
         $content .= '<p>Lorsque la gestion du consentement Dendrila Privacy est activée, le choix du visiteur est enregistré localement dans son navigateur. Dendrila Privacy n’envoie pas les résultats d’audit à l’éditeur du plugin et n’ajoute pas de télémétrie publicitaire.</p>';
+        $privacy_settings = $this->settings();
+        if ( ! empty( $privacy_settings['consent_account_sync'] ) ) { $content .= '<p>Lorsque la synchronisation multi-appareils est activée et que la personne est connectée à un compte WordPress, une copie de ses catégories de consentement peut être enregistrée dans les métadonnées de ce compte afin de réappliquer ou réconcilier son choix sur un autre appareil. Cette synchronisation reste hébergée dans le WordPress du site et peut être modifiée en utilisant le même contrôle « Gérer mes choix ».</p>'; }
+        $content .= '<p>Si le registre de preuves de Dendrila Privacy est utilisé, l’adresse e-mail concernée est remplacée par une empreinte HMAC liée à ce WordPress. Le registre peut conserver la décision, les finalités, la version de l’information présentée, la source et les dates nécessaires pour documenter le choix ; l’adresse e-mail en clair n’est pas stockée dans cette table.</p>';
         $content .= '<p>La recherche facultative d’une structure n’est déclenchée qu’après une action explicite d’un administrateur. Selon le pays choisi, Dendrila Privacy interroge l’API publique Recherche d’entreprises de la DINUM (France), l’API publique Enhetsregisteret de Brønnøysundregistrene (Norvège), ou VIES de la Commission européenne pour vérifier un numéro de TVA dans les autres pays pris en charge. Seuls le pays choisi et le terme ou numéro saisi sont utilisés ; aucun résultat d’audit, contenu de page, réponse de l’assistant ni choix de consentement n’est joint à la requête.</p>';
 
         wp_add_privacy_policy_content( 'Dendrila Privacy', wp_kses_post( $content ) );
@@ -378,6 +382,8 @@ final class Pixel_Trackers_Manager_Plugin {
             'consent_layout' => 'bar',
             'consent_retention_days' => 180,
             'consent_footer_link' => 1,
+            'consent_account_sync' => 0,
+            'consent_account_conflict_policy' => 'account_wins',
         );
         $settings = wp_parse_args( $stored, $defaults );
         $settings['privacy_page_id'] = absint( $settings['privacy_page_id'] );
@@ -406,6 +412,9 @@ final class Pixel_Trackers_Manager_Plugin {
         $settings['consent_layout'] = in_array( isset( $settings['consent_layout'] ) ? $settings['consent_layout'] : 'bar', array( 'bar', 'card' ), true ) ? $settings['consent_layout'] : 'bar';
         $settings['consent_retention_days'] = max( 30, min( 365, absint( $settings['consent_retention_days'] ) ) );
         $settings['consent_footer_link'] = empty( $settings['consent_footer_link'] ) ? 0 : 1;
+        $settings['consent_account_sync'] = empty( $settings['consent_account_sync'] ) ? 0 : 1;
+        $account_policy = isset( $settings['consent_account_conflict_policy'] ) ? sanitize_key( (string) $settings['consent_account_conflict_policy'] ) : 'account_wins';
+        $settings['consent_account_conflict_policy'] = in_array( $account_policy, array( 'account_wins', 'latest_wins' ), true ) ? $account_policy : 'account_wins';
         return $settings;
     }
 
@@ -1295,6 +1304,9 @@ final class Pixel_Trackers_Manager_Plugin {
             $settings['consent_layout'] = in_array( $consent_layout, array( 'bar', 'card' ), true ) ? $consent_layout : 'bar';
             $settings['consent_retention_days'] = isset( $_POST['consent_retention_days'] ) ? max( 30, min( 365, absint( $_POST['consent_retention_days'] ) ) ) : 180;
             $settings['consent_footer_link'] = empty( $_POST['consent_footer_link'] ) ? 0 : 1;
+            $settings['consent_account_sync'] = empty( $_POST['consent_account_sync'] ) ? 0 : 1;
+            $account_policy = isset( $_POST['consent_account_conflict_policy'] ) ? sanitize_key( wp_unslash( $_POST['consent_account_conflict_policy'] ) ) : 'account_wins';
+            $settings['consent_account_conflict_policy'] = in_array( $account_policy, array( 'account_wins', 'latest_wins' ), true ) ? $account_policy : 'account_wins';
             $this->update_settings( $settings );
             $message = $settings['consent_enabled'] ? 'Bannière Dendrila Privacy activée : les services facultatifs reconnus sont bloqués avant le choix.' : 'Bannière Dendrila Privacy désactivée.';
         } elseif ( 'audit_page' === $action ) {
@@ -4929,6 +4941,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_page_url_select( 'cookie_preferences', 'Sur quelle page peut-on retirer ou modifier son choix ?', $profile['cookie_preferences'], 'Dendrila Privacy essaie de repérer la bonne page à partir du gestionnaire de consentement détecté. Corrigez la sélection si nécessaire.' );
         $this->legal_cookie_retention_select( $profile['cookie_choice_retention'] );
         $this->legal_select( 'cookie_cross_device', 'Le choix de cookies est-il conservé sur les autres appareils ?', $profile['cookie_cross_device'], array( 'unknown'=>'Impossible à déterminer automatiquement','yes'=>'Oui, le choix peut être retrouvé sur les autres appareils','no'=>'Non, le choix doit généralement être refait' ) );
+        if ( ! empty( $settings['consent_account_sync'] ) ) { echo '<div class="ptm-callout neutral"><strong>Synchronisation Dendrila détectée :</strong> pour les personnes connectées, Dendrila Privacy peut retrouver le choix enregistré dans leur compte WordPress. Vérifiez que la réponse ci-dessus décrit bien le comportement que vous avez activé.</div>'; }
         $this->legal_textarea( 'cookie_cross_device_explanation', 'Comment le vérifier / précision utile', $profile['cookie_cross_device_explanation'], 'Test simple : faites un choix ici, puis ouvrez le site sur un autre navigateur ou téléphone. Si la bannière redemande un choix, il n’est pas synchronisé.' );
         echo '</div><div class="ptm-callout neutral"><strong>Vous ne savez pas pour les appareils ?</strong> C’est normal. Dendrila Privacy essaie de le déduire du gestionnaire de consentement. Sinon, faites le test sur un autre navigateur/appareil ou laissez « ne peut pas encore le déterminer » : cela restera seulement une action à vérifier.</div></div>'; $this->legal_section_form_end();
 
@@ -6040,6 +6053,13 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->render_legal_wizard( $settings, is_array( $audit ) ? $audit : array() );
     }
 
+    private function init_advanced_privacy_modules() {
+        $ledger_file = plugin_dir_path( __FILE__ ) . 'includes/class-dendrila-privacy-evidence-ledger.php';
+        if ( file_exists( $ledger_file ) ) { require_once $ledger_file; if ( class_exists( 'Dendrila_Privacy_Evidence_Ledger' ) ) { Dendrila_Privacy_Evidence_Ledger::instance(); } }
+        $account_file = plugin_dir_path( __FILE__ ) . 'includes/class-dendrila-privacy-account-consent.php';
+        if ( file_exists( $account_file ) ) { require_once $account_file; if ( class_exists( 'Dendrila_Privacy_Account_Consent' ) ) { Dendrila_Privacy_Account_Consent::instance( $this ); } }
+    }
+
     private function init_consent_manager() {
         $file = plugin_dir_path( __FILE__ ) . 'includes/class-pixel-trackers-manager-consent.php';
         if ( file_exists( $file ) ) {
@@ -6077,6 +6097,9 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<div class="ptm-consent-preview-options"><div><strong>Présentation</strong><p>Barre en bas ou encart centré.</p></div><label class="ptm-layout-choice"><input type="radio" name="consent_layout" value="bar" ' . checked( $settings['consent_layout'], 'bar', false ) . '><span class="ptm-layout-demo is-bar"><i></i><i></i></span><strong>Barre en bas</strong></label><label class="ptm-layout-choice"><input type="radio" name="consent_layout" value="card" ' . checked( $settings['consent_layout'], 'card', false ) . '><span class="ptm-layout-demo is-card"><i></i></span><strong>Encart centré</strong></label></div>';
         echo '<div class="ptm-form-grid"><label class="ptm-field"><span>Apparence</span><select name="consent_style"><option value="inherit" ' . selected( $settings['consent_style'], 'inherit', false ) . '>S’intégrer au style du site</option><option value="neutral" ' . selected( $settings['consent_style'], 'neutral', false ) . '>Style neutre Dendrila Privacy</option></select><small>Les couleurs de marque ne sont pas reprises lorsqu’elles créeraient une asymétrie Accepter / Refuser.</small></label><label class="ptm-field"><span>Mémoriser le choix</span><div><input type="number" min="30" max="365" name="consent_retention_days" value="' . esc_attr( (int) $settings['consent_retention_days'] ) . '"> jours</div><small>À expiration, l’interface est proposée à nouveau.</small></label></div>';
         echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_footer_link" value="1" ' . checked( ! empty( $settings['consent_footer_link'] ), true, false ) . '><span><strong>Ajouter « Gérer mes choix » en bas du site</strong><small>Le code court <code>[dendrila_privacy_consent_settings]</code> reste disponible pour un emplacement personnalisé.</small></span></label>';
+        echo '<div class="ptm-consent-sync-settings"><div><p class="ptm-eyebrow">Plusieurs appareils</p><h3>Retrouver le même choix après connexion</h3><p class="ptm-muted">Par défaut, le choix reste uniquement dans ce navigateur. Cette option utilise le compte WordPress du site, sans cloud Dendrila.</p></div>';
+        echo '<label class="ptm-consent-toggle-card is-compact"><input type="checkbox" name="consent_account_sync" value="1" ' . checked( ! empty( $settings['consent_account_sync'] ), true, false ) . '><span><strong>Synchroniser les choix des personnes connectées</strong><small>Les visiteurs non connectés restent en stockage local uniquement.</small></span></label>';
+        echo '<label class="ptm-field"><span>Si cet appareil et le compte contiennent deux choix différents</span><select name="consent_account_conflict_policy"><option value="account_wins" ' . selected( $settings['consent_account_conflict_policy'], 'account_wins', false ) . '>Appliquer le choix du compte après connexion</option><option value="latest_wins" ' . selected( $settings['consent_account_conflict_policy'], 'latest_wins', false ) . '>Conserver le choix le plus récent</option></select><small>Dans les deux cas, Dendrila informe immédiatement la personne lorsqu’un choix synchronisé est appliqué sur ce terminal.</small></label></div>';
         echo '</div>'; submit_button( 'Enregistrer la gestion du consentement', 'primary' ); $this->form_end();
         echo '<div class="ptm-consent-test-actions"><strong>Tester dans votre navigateur d’administrateur</strong><p>Ces liens ne modifient pas le choix des visiteurs.</p><div><a class="button button-secondary" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_preview', '1', home_url('/') ) ) . '">Voir sans choix ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'reject', home_url('/') ) ) . '">Simuler « Tout refuser » ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'statistics', home_url('/') ) ) . '">Statistiques seulement ↗</a><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( add_query_arg( 'pixel_trackers_manager_consent_test', 'accept', home_url('/') ) ) . '">Simuler « Tout accepter » ↗</a></div></div>';
         echo '</section>';

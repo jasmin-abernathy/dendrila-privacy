@@ -7,6 +7,7 @@
     var storageKey = 'pixel_trackers_manager_consent_v2';
     var fingerprint = String(config.fingerprint || (marker ? marker.getAttribute('data-consent-fingerprint') : '') || '');
     var testMode = String(config.testMode || (marker ? marker.getAttribute('data-test-mode') : '') || '');
+    var accountSync = config.accountSync || {};
     var domains = {
         statistics: [
             'google-analytics.com', 'googletagmanager.com/gtag/js', 'analytics.google.com',
@@ -22,7 +23,7 @@
             'google.com/maps/embed', 'maps.google.com/maps/embed', 'maps.googleapis.com'
         ]
     };
-    var current = testChoice() || readChoice();
+    var current = resolveInitialChoice(testChoice() || readChoice());
     var nativeSetAttribute = Element.prototype.setAttribute;
 
     function testChoice() {
@@ -49,6 +50,10 @@
             return null;
         }
     }
+
+    function validAccountChoice(choice){if(!choice||!choice.savedAt){return null;}if(fingerprint&&String(choice.fingerprint||'')!==fingerprint){return null;}return{statistics:choice.statistics===true,external:choice.external===true,marketing:choice.marketing===true,savedAt:choice.savedAt,fingerprint:String(choice.fingerprint||'')};}
+    function sameChoice(a,b){return!!a&&!!b&&(a.statistics===true)===(b.statistics===true)&&(a.external===true)===(b.external===true)&&(a.marketing===true)===(b.marketing===true);}
+    function resolveInitialChoice(localChoice){if(testMode||!accountSync.enabled||!accountSync.loggedIn){return localChoice;}var accountChoice=validAccountChoice(accountSync.accountChoice);if(!accountChoice){return localChoice;}if(!localChoice){return accountChoice;}if(sameChoice(localChoice,accountChoice)){return Number(accountChoice.savedAt||0)>Number(localChoice.savedAt||0)?accountChoice:localChoice;}if(String(accountSync.strategy||'')==='latest_wins'&&Number(localChoice.savedAt||0)>Number(accountChoice.savedAt||0)){return localChoice;}return accountChoice;}
 
     function allowed(category) {
         return !!(current && current[category] === true);
