@@ -1,5 +1,5 @@
 <?php
-if ( ! defined( 'ABSPATH' ) && ! defined( 'DENDRILA_PRIVACY_STANDALONE_TEST' ) ) { exit; }
+if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Dendrila_Privacy_Consent_Core {
     public static function normalize_choice( $choice ) {

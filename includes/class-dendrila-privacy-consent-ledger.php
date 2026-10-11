@@ -124,7 +124,8 @@ final class Dendrila_Privacy_Consent_Ledger {
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $previous_hash = (string) $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT event_hash FROM {$table} WHERE subject_hash = %s AND channel = %s ORDER BY id DESC LIMIT 1",
+                "SELECT event_hash FROM %i WHERE subject_hash = %s AND channel = %s ORDER BY id DESC LIMIT 1",
+                $table,
                 $subject_hash,
                 $channel
             )
@@ -218,7 +219,8 @@ final class Dendrila_Privacy_Consent_Ledger {
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         return $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$table} WHERE subject_hash = %s ORDER BY id ASC LIMIT %d",
+                "SELECT * FROM %i WHERE subject_hash = %s ORDER BY id ASC LIMIT %d",
+                $table,
                 $subject_hash,
                 max( 1, min( 1000, absint( $limit ) ) )
             ),
@@ -255,9 +257,11 @@ final class Dendrila_Privacy_Consent_Ledger {
 
     private function query_email() {
         // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only lookup; it does not change state.
-        $email = isset( $_GET['dendrila_subject_email'] ) ? wp_unslash( $_GET['dendrila_subject_email'] ) : '';
+        $email = isset( $_GET['dendrila_subject_email'] ) && is_string( $_GET['dendrila_subject_email'] )
+            ? sanitize_email( wp_unslash( $_GET['dendrila_subject_email'] ) )
+            : '';
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
-        return sanitize_email( $email );
+        return $email;
     }
 
     private function query_notice() {

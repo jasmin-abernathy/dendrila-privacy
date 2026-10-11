@@ -1,5 +1,5 @@
 <?php
-define( 'DENDRILA_PRIVACY_STANDALONE_TEST', true );
+define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 require dirname( __DIR__ ) . '/includes/class-dendrila-privacy-consent-core.php';
 
 function dp_assert( $condition, $message ) {
