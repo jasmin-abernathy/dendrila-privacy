@@ -32,7 +32,7 @@ Main features:
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
 * initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists;
-* a local age-assurance companion check that reports Dendrila Age Assurance status or flags another age-gating plugin for human verification.
+* local age-gating plugin detection, with a manual review when a different age-assurance tool is installed.
 
 = Consent =
 
@@ -98,7 +98,9 @@ European Commission privacy information: https://taxation-customs.ec.europa.eu/p
 
 = Detection signatures are not external connections =
 
-Dendrila Privacy stores local signatures for services such as Google Analytics, Google Tag Manager, Meta/Facebook Pixel, YouTube, Vimeo, and Google Maps. They only recognise or block services already present on the site; Dendrila Privacy does not load those providers or send data to them.
+Dendrila Privacy contains literal domain and path signatures for services such as Google Analytics, Google Tag Manager, Meta/Facebook Pixel, YouTube, Vimeo, and Google Maps. Those strings are used locally to recognise third-party services in the site's own markup and to classify or block them when the optional Dendrila Privacy consent feature is enabled.
+
+Their presence in Dendrila Privacy's source code does not mean that Dendrila Privacy loads those services or sends data to them. Dendrila Privacy itself does not add analytics or advertising trackers. A request to one of those providers can only originate from the site, theme, or plugin integration that Dendrila Privacy is inspecting, subject to that integration and the site's consent configuration.
 
 == Installation ==
 
@@ -144,19 +146,12 @@ No. Dendrila Privacy focuses on privacy-related technical checks and documentati
 * Internal stored-data keys remain unchanged to avoid losing existing settings on test sites.
 
 = 0.0.3 =
-* WordPress.org review hardening: admin menu CSS now uses the WordPress enqueue API.
-* Public shortcodes now use the unique pixel_trackers_manager_ namespace; pre-publication ptm_ markup is rewritten at render time for compatibility.
-* Full-page consent fallback uses WordPress 6.9+'s standardized template enhancement output buffer instead of opening a plugin-owned buffer.
-* External-service documentation now distinguishes the optional DINUM company lookup from local detection signatures for third-party services.
+* Admin CSS uses WordPress enqueue; public shortcodes have a unique namespace with compatibility rewrites.
+* Consent fallback uses the WordPress template buffer. Third-party signatures and external lookups are documented separately.
 
 = 0.0.2 =
-* Dedicated GDPR assistant tab with AJAX saves that do not trigger hidden public-page audits.
-* Updated navigation and responsive overview.
-* Non-public WordPress pages separated from genuine public HTTP errors.
-* Guided legal-page creation with Elementor and Divi compatibility.
-* Better separation of legal roles and contact details in generated documentation.
-* Expanded coverage of external tools, retention settings, and backups.
-* Builder-independent consent interface and more reliable Manage my choices control.
-* WordPress 7.1-targeted test matrix.
+* GDPR assistant, responsive navigation and guided legal pages for Elementor and Divi.
+* Clearer privacy roles, external tools, retention settings and backups.
+* Improved page-audit error handling and builder-independent consent controls.
 
 Detailed development-build history is kept in `changelog.txt`.

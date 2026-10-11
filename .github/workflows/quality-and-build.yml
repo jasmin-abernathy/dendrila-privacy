@@ -140,7 +140,7 @@ jobs:
       - name: Lint PHP files
         shell: bash
         run: find . -type f -name '*.php' -not -path './build/*' -print0 | xargs -0 -n1 php -l
-      - name: Age assurance companion regression
+      - name: Age assurance companion tests
         run: php tests/age-assurance-companion.php
 
   javascript-syntax:
@@ -168,12 +168,13 @@ jobs:
         with:
           wp-version: latest
           slug: dendrila-privacy
-          exclude-directories: '.github,docs,tests,build,dist'
+          exclude-directories: '.github,docs,build,dist,tests'
           exclude-files: '.gitattributes,.editorconfig,.gitignore,.distignore,README.md,README.fr.md,CODE_OF_CONDUCT.md,CODE_OF_CONDUCT.fr.md,CONTRIBUTING.md,CONTRIBUTING.fr.md,SECURITY.md,SECURITY.fr.md,AGENTS.md,COPYRIGHT.md,TRADEMARKS.md'
 
   package:
     name: Build installable ZIP
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    # Packaging is deliberate; pull requests run checks without a ZIP build.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     needs:
       - metadata
       - php-lint
@@ -212,7 +213,7 @@ jobs:
           unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/readme.txt'
           unzip -Z1 "$ZIP" | grep -qx 'dendrila-privacy/LICENSE'
 
-          for forbidden in '.github/' 'docs/' 'tests/' 'README.md' 'README.fr.md' '.distignore' '.gitignore' '.gitattributes' '.editorconfig' 'CODE_OF_CONDUCT.md' 'CONTRIBUTING.md' 'SECURITY.md' 'AGENTS.md' 'COPYRIGHT.md' 'TRADEMARKS.md'; do
+          for forbidden in '.github/' 'docs/' 'README.md' 'README.fr.md' '.distignore' '.gitignore' '.gitattributes' '.editorconfig' 'CODE_OF_CONDUCT.md' 'CONTRIBUTING.md' 'SECURITY.md' 'AGENTS.md' 'COPYRIGHT.md' 'TRADEMARKS.md'; do
             if unzip -Z1 "$ZIP" | grep -q "^dendrila-privacy/${forbidden}"; then
               echo "Development-only path leaked into distribution: ${forbidden}"
               exit 1

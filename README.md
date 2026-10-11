@@ -6,7 +6,7 @@ Dendrila Privacy is a **local-first** WordPress privacy audit, documentation and
 
 It helps administrators understand what their site actually does: identify trackers and third-party services, review legal pages, document relevant data practices and optionally manage visitor consent.
 
-> **Current status:** WordPress.org release candidate `0.0.5` under the public name **Dendrila Privacy**. Dendrila Privacy is not a legal certification tool and does not replace advice adapted to the organisation's actual activities.
+> **Current status:** **Dendrila Privacy 0.0.5 is published on WordPress.org**: https://wordpress.org/plugins/dendrila-privacy/. Dendrila Privacy is not a legal certification tool and does not replace advice adapted to the organisation's actual activities.
 
 ## Core principles
 
@@ -89,7 +89,7 @@ The metadata currently targets WordPress 7.1. Before a build is submitted to Wor
 
 ## Versioning and WordPress.org
 
-`0.0.5` is the current **WordPress.org release candidate**, with the same numeric version in the PHP header, runtime constant and `Stable tag`.
+`0.0.5` is the stable version currently published on **WordPress.org**, with the same numeric version in the PHP header, runtime constant and `Stable tag`.
 
 The WordPress.org SVN repository will be treated as a release repository rather than a mirror of every GitHub commit.
 
