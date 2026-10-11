@@ -151,13 +151,8 @@ No. Dendrila Privacy focuses on privacy-related technical checks and documentati
 * External-service documentation now distinguishes the optional DINUM company lookup from local detection signatures for third-party services.
 
 = 0.0.2 =
-* Dedicated GDPR assistant tab with AJAX saves that do not trigger hidden public-page audits.
-* Updated navigation and responsive overview.
-* Non-public WordPress pages separated from genuine public HTTP errors.
-* Guided legal-page creation with Elementor and Divi compatibility.
-* Better separation of legal roles and contact details in generated documentation.
-* Expanded coverage of external tools, retention settings, and backups.
-* Builder-independent consent interface and more reliable Manage my choices control.
-* WordPress 7.1-targeted test matrix.
+* GDPR assistant, responsive navigation and guided legal pages for Elementor and Divi.
+* Clearer privacy roles, external tools, retention settings and backups.
+* Improved page-audit error handling and builder-independent consent controls.
 
 Detailed development-build history is kept in `changelog.txt`.
