@@ -31,7 +31,8 @@ Main features:
 * protective blocking of recognised optional services before the visitor's choice when Dendrila Privacy consent is enabled;
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
-* initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists.
+* initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists;
+* local age-gating plugin detection, with a manual review when a different age-assurance tool is installed.
 
 = Consent =
 
@@ -145,10 +146,8 @@ No. Dendrila Privacy focuses on privacy-related technical checks and documentati
 * Internal stored-data keys remain unchanged to avoid losing existing settings on test sites.
 
 = 0.0.3 =
-* WordPress.org review hardening: admin menu CSS now uses the WordPress enqueue API.
-* Public shortcodes now use the unique pixel_trackers_manager_ namespace; pre-publication ptm_ markup is rewritten at render time for compatibility.
-* Full-page consent fallback uses WordPress 6.9+'s standardized template enhancement output buffer instead of opening a plugin-owned buffer.
-* External-service documentation now distinguishes the optional DINUM company lookup from local detection signatures for third-party services.
+* Admin CSS uses WordPress enqueue; public shortcodes have a unique namespace with compatibility rewrites.
+* Consent fallback uses the WordPress template buffer. Third-party signatures and external lookups are documented separately.
 
 = 0.0.2 =
 * GDPR assistant, responsive navigation and guided legal pages for Elementor and Divi.

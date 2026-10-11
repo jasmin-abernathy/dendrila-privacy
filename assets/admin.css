@@ -1455,3 +1455,56 @@ a.ptm-coverage-row.ptm-coverage-link .ptm-doc-status{white-space:nowrap}
     .ptm-nav-tabs .ptm-tab{min-height:39px;padding:9px 11px}
     .ptm-alert-legend{display:grid;gap:7px}
 }
+
+/* Local age-assurance companion status */
+.ptm-age-assurance-card {
+    margin-bottom: 14px;
+}
+
+.ptm-age-assurance-summary {
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 10px;
+    margin: 14px 0;
+}
+
+.ptm-age-assurance-summary > div {
+    padding: 12px 14px;
+    border: 1px solid var(--ptm-border-soft);
+    border-radius: 9px;
+    background: var(--ptm-surface-soft);
+}
+
+.ptm-age-assurance-summary strong,
+.ptm-age-assurance-summary span {
+    display: block;
+}
+
+.ptm-age-assurance-summary strong {
+    color: var(--ptm-text);
+    margin-bottom: 3px;
+}
+
+.ptm-age-assurance-summary span,
+.ptm-age-assurance-note {
+    color: var(--ptm-muted);
+}
+
+.ptm-age-assurance-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 0;
+    font-size: 12px;
+}
+
+.ptm-age-assurance-note .dashicons {
+    flex: 0 0 auto;
+    color: var(--ptm-green);
+}
+
+@media (max-width: 782px) {
+    .ptm-age-assurance-summary {
+        grid-template-columns: 1fr;
+    }
+}
