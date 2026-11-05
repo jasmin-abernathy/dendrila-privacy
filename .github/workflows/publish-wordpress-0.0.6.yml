@@ -1,0 +1,71 @@
+name: Publier la 0.0.6 sur WordPress.org
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: wordpress-org-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Recuperer exactement la version validee
+        uses: actions/checkout@v7
+        with:
+          ref: e9fdd7b70e5c7bb6b6c1eba712ff81312f3f8296
+          persist-credentials: false
+
+      - name: Verifier le mot de passe et les controles de cette version
+        env:
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$SVN_PASSWORD" ]; then
+            echo "::error::Ajoutez le secret SVN_PASSWORD dans Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          from pathlib import Path
+          sha = "e9fdd7b70e5c7bb6b6c1eba712ff81312f3f8296"
+          url = "https://api.github.com/repos/jasmin-abernathy/dendrila-privacy/actions/runs/42042748536"
+          request = urllib.request.Request(url, headers={
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "Accept": "application/vnd.github+json",
+          })
+          with urllib.request.urlopen(request, timeout=30) as response:
+              run = json.load(response)
+          assert run["head_sha"] == sha and run["conclusion"] == "success", "Controles de publication non valides"
+          source = Path("dendrila-privacy.php").read_text()
+          readme = Path("readme.txt").read_text()
+          assert re.search(r"Version:\s*0\.0\.6\s", source)
+          assert "const VERSION = '0.0.6';" in source
+          assert re.search(r"^Stable tag:\s*0\.0\.6\s*$", readme, re.M)
+          for path in ("assets/admin.css", "assets/admin.js", ".distignore"):
+              assert Path(path).is_file(), path
+          print("Version 0.0.6 et controles PHP/JS/Plugin Check confirmes.")
+          PY
+
+      - name: Publier dans le repertoire WordPress.org
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
+        env:
+          SVN_USERNAME: juliane16
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: dendrila-privacy
+          VERSION: 0.0.6
+
+      - name: Indiquer la derniere etape
+        shell: bash
+        run: |
+          echo "### Envoi SVN termine" >> "$GITHUB_STEP_SUMMARY"
+          echo "Si WordPress.org demande une confirmation de publication, validez-la depuis votre compte ou le courriel recu." >> "$GITHUB_STEP_SUMMARY"
+          echo "Fiche : https://wordpress.org/plugins/dendrila-privacy/" >> "$GITHUB_STEP_SUMMARY"
