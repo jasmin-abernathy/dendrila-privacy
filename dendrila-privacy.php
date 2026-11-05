@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Dendrila Privacy
  * Description: Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management.
- * Version: 0.0.5
+ * Version: 0.0.6
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/includes/class-dendrila-privacy-age-assurance.php';
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.5';
+    const VERSION = '0.0.6';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';
@@ -243,9 +243,26 @@ final class Pixel_Trackers_Manager_Plugin {
         );
     }
 
+    /**
+     * The public brand changed, but installed admin routes remain compatible.
+     * Keep asset loading and onboarding aligned with the registered menu slugs.
+     */
+    private function is_plugin_admin_page( $page ) {
+        return in_array( $page, array(
+            'pixel-trackers-manager',
+            'pixel-trackers-manager-setup',
+            'pixel-trackers-manager-findings',
+            'pixel-trackers-manager-privacy',
+            'pixel-trackers-manager-assistant',
+            'pixel-trackers-manager-consent',
+            'pixel-trackers-manager-journal',
+            'pixel-trackers-manager-settings',
+        ), true );
+    }
+
     public function admin_assets( $hook ) {
         $page = sanitize_key( $this->query_value( 'page' ) );
-        $is_ptm_page = 0 === strpos( $page, 'dendrila-privacy' );
+        $is_ptm_page = $this->is_plugin_admin_page( $page );
         $is_dashboard = 'index.php' === $hook;
         if ( ! $is_ptm_page && ! $is_dashboard ) {
             return;
@@ -307,7 +324,7 @@ final class Pixel_Trackers_Manager_Plugin {
             return;
         }
         $page = sanitize_key( $this->query_value( 'page' ) );
-        if ( 0 !== strpos( $page, 'dendrila-privacy' ) || 'pixel-trackers-manager-setup' === $page ) {
+        if ( ! $this->is_plugin_admin_page( $page ) || 'pixel-trackers-manager-setup' === $page ) {
             return;
         }
         if ( $this->onboarding_allows_plugin_access() ) {
@@ -350,7 +367,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $scan_url = add_query_arg( 'pixel_trackers_manager_autostart_scan', 'full', admin_url( 'admin.php?page=pixel-trackers-manager' ) );
         $dismiss_url = wp_nonce_url( add_query_arg( 'ptm_dashboard_dismiss', $kind, admin_url( 'index.php' ) ), 'pixel_trackers_manager_dashboard_dismiss_' . $kind );
         echo '<div class="ptm-wp-dashboard-card">';
-        echo '<div class="ptm-wp-dashboard-brand"><img src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div>';
+        echo '<div class="ptm-wp-dashboard-brand"><img width="38" height="38" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div>';
         if ( $needs_setup ) {
             echo '<strong>Dendrila Privacy n’est pas encore configuré</strong><p>Terminez la configuration pour associer vos pages légales, préparer le consentement et lancer votre premier contrôle complet.</p>';
             echo '<p><a class="button button-primary" href="' . esc_url( $setup_url ) . '">Configurer Dendrila Privacy</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">Masquer</a></p>';
@@ -5516,10 +5533,10 @@ final class Pixel_Trackers_Manager_Plugin {
         $scan = get_option( self::OPTION_SCAN, array() );
         $page_audit = get_option( self::OPTION_PAGE_AUDIT, array() );
         $log = get_option( self::OPTION_AUDIT_LOG, array() );
-        $page = sanitize_key( $this->query_value( 'page', 'dendrila-privacy' ) );
+        $page = sanitize_key( $this->query_value( 'page', 'pixel-trackers-manager' ) );
 
         echo '<div class="wrap ptm-wrap">';
-        echo '<header class="ptm-head"><div class="ptm-brand"><img class="ptm-brand-mark" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div><h1>Dendrila Privacy <span class="ptm-version">' . esc_html( self::VERSION ) . '</span></h1><p><strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong> — audit de confidentialité et assistant de documentation</p></div></div></header>';
+        echo '<header class="ptm-head"><div class="ptm-brand"><img width="64" height="64" class="ptm-brand-mark" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div><h1>Dendrila Privacy <span class="ptm-version">' . esc_html( self::VERSION ) . '</span></h1><p><strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong> — audit de confidentialité et assistant de documentation</p></div></div></header>';
 
         if ( 'pixel-trackers-manager-setup' === $page ) {
             $this->admin_notice();
@@ -5562,7 +5579,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
         echo '<main class="ptm-setup" data-ptm-setup-step="' . esc_attr( $step ) . '">';
         echo '<div class="ptm-setup-shell">';
-        echo '<div class="ptm-setup-topline"><div class="ptm-setup-mini-brand"><img src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><span>Dendrila Privacy</span></div><span>Étape ' . esc_html( $step_number[$step] ) . ' sur 4</span></div>';
+        echo '<div class="ptm-setup-topline"><div class="ptm-setup-mini-brand"><img width="24" height="24" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><span>Dendrila Privacy</span></div><span>Étape ' . esc_html( $step_number[$step] ) . ' sur 4</span></div>';
         echo '<div class="ptm-setup-meter" aria-label="Progression de la configuration"><span style="width:' . esc_attr( $step_number[$step] * 25 ) . '%"></span></div>';
 
         if ( 'welcome' === $step ) {

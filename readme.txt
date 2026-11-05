@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.5
+Stable tag: 0.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -131,27 +131,11 @@ No. Dendrila Privacy focuses on privacy-related technical checks and documentati
 
 == Changelog ==
 
-= 0.0.5 =
-* Added country-aware public organisation lookup.
-* France keeps DINUM Recherche d'entreprises lookup by name, SIREN or SIRET.
-* Norway adds official Brønnøysund Enhetsregisteret lookup by organisation name or number.
-* Supported EU countries and Northern Ireland can validate VAT numbers through VIES.
-* Added generic registration metadata for non-French organisations and cleared incompatible stale fields when switching results.
-* All external lookups remain explicit administrator actions and do not include audit results, page contents, assistant answers, or visitor consent choices.
+= 0.0.6 =
+* Fixed admin styles and scan JavaScript not loading after the public plugin rename.
+* Restored first-open setup routing and the default overview tab.
+* Constrained logo dimensions even when styles fail to load.
+* Added regression coverage for all admin menu pages and scan configuration.
+* Included local age-assurance companion detection already described above.
 
-= 0.0.4 =
-* Renamed the public plugin identity to Dendrila Privacy with the requested WordPress.org slug dendrila-privacy.
-* Text domain and public shortcodes now use the Dendrila Privacy namespace.
-* Pre-publication shortcode markup and consent JavaScript globals remain compatible through non-breaking aliases.
-* Internal stored-data keys remain unchanged to avoid losing existing settings on test sites.
-
-= 0.0.3 =
-* Admin CSS uses WordPress enqueue; public shortcodes have a unique namespace with compatibility rewrites.
-* Consent fallback uses the WordPress template buffer. Third-party signatures and external lookups are documented separately.
-
-= 0.0.2 =
-* GDPR assistant, responsive navigation and guided legal pages for Elementor and Divi.
-* Clearer privacy roles, external tools, retention settings and backups.
-* Improved page-audit error handling and builder-independent consent controls.
-
-Detailed development-build history is kept in `changelog.txt`.
+Detailed release history is kept in `changelog.txt`.
