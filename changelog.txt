@@ -1,3 +1,7 @@
+= 0.0.6 =
+* Restore admin CSS, scan scripts and onboarding on the preserved pixel-trackers-manager routes.
+* Keep logo dimensions bounded without CSS; add admin routing and scan regression checks.
+
 Dendrila Privacy 0.0.5
 
 - Préremplissage d’organisation rendu international et piloté par le pays choisi.
