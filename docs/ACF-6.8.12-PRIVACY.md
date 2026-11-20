@@ -53,3 +53,7 @@ Source : `includes/admin/admin-email-opt-in-banner.php`.
 - Formulaires ACF réellement présents dans le thème et traitements associés.
 - Activer/désactiver Abilities dans ACF et vérifier la correspondance de l'encart.
 - Vérifier l'affichage mobile, l'assistant et le parcours de consentement sans régression Divi/WooCommerce.
+
+### Types de contenu et taxonomies ACF
+
+L’analyse compte également les types de contenu et taxonomies configurés par ACF (fonctions `acf_get_acf_post_types()` et `acf_get_acf_taxonomies()`) : `show_in_rest`, `enable_acf_abilities` et état actif. Ces éléments sont distincts des groupes de champs et REST peut être activé par défaut sur eux. Leurs compteurs indiquent une **configuration**, pas un accès anonyme ni la présence d'un client d'IA.

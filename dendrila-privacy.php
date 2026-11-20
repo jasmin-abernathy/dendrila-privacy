@@ -5144,9 +5144,9 @@ final class Pixel_Trackers_Manager_Plugin {
             if ( ! $acf_review['readable'] ) {
                 echo '<p>ACF est détecté, mais ses réglages ne peuvent pas encore être lus : vérifiez-les manuellement dans ACF.</p>';
             } else {
-                echo '<p>' . esc_html( $acf_review['groups_checked'] ) . ' groupe(s) actif(s) examinés ; ' . esc_html( $acf_review['rest_groups'] ) . ' groupe(s) sont configurés pour apparaître dans les réponses REST. <strong>Cela ne signifie pas que des données privées sont accessibles sans connexion.</strong> Vérifiez les permissions de chaque type de contenu et les réponses de l’API en navigation déconnectée.</p>';
+                echo '<p>' . esc_html( $acf_review['groups_checked'] ) . ' groupe(s) actif(s) examinés ; ' . esc_html( $acf_review['rest_groups'] ) . ' groupe(s) sont configurés pour apparaître dans les réponses REST. <strong>Cela ne signifie pas que des données privées sont accessibles sans connexion.</strong> En outre, ' . esc_html( $acf_review['rest_post_types'] ) . ' type(s) de contenu et ' . esc_html( $acf_review['rest_taxonomies'] ) . ' taxonomie(s) créés par ACF sont configurés pour REST. Vérifiez les permissions de chaque type de contenu et les réponses de l’API en navigation déconnectée.</p>';
                 if ( $acf_review['abilities_enabled'] ) {
-                    echo '<p><strong>Abilities API configurée comme activée</strong>' . ( $acf_review['abilities_available'] ? ' et disponible sur ce WordPress.' : ', mais l’API WordPress nécessaire n’est pas disponible actuellement.' ) . ' ' . esc_html( $acf_review['abilities_groups'] ) . ' groupe(s) actif(s) ont l’accès Abilities autorisé dans leurs réglages. Cette configuration ne prouve pas qu’un service d’IA ou un client MCP est connecté : vérifiez les extensions d’accès à l’API et leurs autorisations.</p>';
+                    echo '<p><strong>Abilities API configurée comme activée</strong>' . ( $acf_review['abilities_available'] ? ' et disponible sur ce WordPress.' : ', mais l’API WordPress nécessaire n’est pas disponible actuellement.' ) . ' ' . esc_html( $acf_review['abilities_groups'] ) . ' groupe(s), ' . esc_html( $acf_review['abilities_post_types'] ) . ' type(s) de contenu et ' . esc_html( $acf_review['abilities_taxonomies'] ) . ' taxonomie(s) sont configurés pour les Abilities. Cette configuration ne prouve pas qu’un service d’IA ou un client MCP est connecté : vérifiez les extensions d’accès à l’API et leurs autorisations.</p>';
                 } else {
                     echo '<p>Abilities API : désactivée dans les réglages ACF actuels.</p>';
                 }
@@ -5459,6 +5459,10 @@ final class Pixel_Trackers_Manager_Plugin {
             'abilities_groups' => 0,
             'google_map_fields' => 0,
             'data_input_fields' => 0,
+            'rest_post_types' => 0,
+            'rest_taxonomies' => 0,
+            'abilities_post_types' => 0,
+            'abilities_taxonomies' => 0,
             'truncated' => false,
         );
         foreach ( (array) ( isset( $scan['plugins'] ) ? $scan['plugins'] : array() ) as $item ) {
@@ -5521,6 +5525,28 @@ final class Pixel_Trackers_Manager_Plugin {
                 }
                 if ( in_array( $type, array( 'email', 'password', 'user' ), true ) ) {
                     ++$result['data_input_fields'];
+                }
+            }
+        }
+        // Registered ACF content types and taxonomies are separate from field
+        // groups: their REST visibility defaults to true in ACF 6.8.12.
+        // This is a configuration review, never a claim of anonymous access.
+        foreach ( array(
+            'acf_get_acf_post_types' => array( 'show_in_rest' => 'rest_post_types', 'ability' => 'abilities_post_types' ),
+            'acf_get_acf_taxonomies' => array( 'show_in_rest' => 'rest_taxonomies', 'ability' => 'abilities_taxonomies' ),
+        ) as $reader => $keys ) {
+            if ( ! function_exists( $reader ) ) { continue; }
+            $items = $reader();
+            if ( ! is_array( $items ) ) { continue; }
+            $index = 0;
+            foreach ( $items as $item ) {
+                if ( ++$index > 200 ) { $result['truncated'] = true; break; }
+                if ( ! is_array( $item ) || ( isset( $item['active'] ) && ! $item['active'] ) ) { continue; }
+                if ( empty( $item['show_in_rest'] ) ) { continue; }
+                ++$result[ $keys['show_in_rest'] ];
+                if ( $result['abilities_enabled'] && $result['abilities_available'] &&
+                    ! empty( $item['enable_acf_abilities'] ) ) {
+                    ++$result[ $keys['ability'] ];
                 }
             }
         }

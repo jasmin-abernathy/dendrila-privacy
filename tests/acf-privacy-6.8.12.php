@@ -17,6 +17,12 @@ function acf_get_field_groups() {
     ++$GLOBALS['acf_group_reads'];
     return $GLOBALS['acf_groups'];
 }
+function acf_get_acf_post_types() {
+    return $GLOBALS['acf_post_types'];
+}
+function acf_get_acf_taxonomies() {
+    return $GLOBALS['acf_taxonomies'];
+}
 function acf_get_fields( $group ) {
     return isset( $GLOBALS['acf_fields'][ $group['key'] ] ) ? $GLOBALS['acf_fields'][ $group['key'] ] : array();
 }
@@ -38,6 +44,14 @@ $review->setAccessible( true );
 
 $GLOBALS['acf_settings'] = array( 'rest_api_enabled' => true, 'enable_abilities' => true );
 $GLOBALS['acf_group_reads'] = 0;
+$GLOBALS['acf_post_types'] = array(
+    array( 'post_type'=>'acf_event', 'active'=>true, 'show_in_rest'=>true, 'enable_acf_abilities'=>true ),
+    array( 'post_type'=>'acf_local', 'active'=>true, 'show_in_rest'=>false, 'enable_acf_abilities'=>true ),
+);
+$GLOBALS['acf_taxonomies'] = array(
+    array( 'taxonomy'=>'acf_topic', 'active'=>true, 'show_in_rest'=>true, 'enable_acf_abilities'=>true ),
+    array( 'taxonomy'=>'acf_off', 'active'=>false, 'show_in_rest'=>true, 'enable_acf_abilities'=>true ),
+);
 $GLOBALS['acf_groups'] = array(
     array( 'key' => 'group_public', 'active' => true, 'show_in_rest' => true, 'enable_acf_abilities' => true ),
     array( 'key' => 'group_local', 'active' => true, 'show_in_rest' => false, 'enable_acf_abilities' => true ),
@@ -61,6 +75,10 @@ check( 2 === $out['groups_checked'], 'inactive groups ignored' );
 check( 1 === $out['rest_groups'], 'REST-enabled active field group counted' );
 check( 2 === $out['abilities_groups'], 'Abilities group setting read without assuming remote AI connection' );
 check( 1 === $out['google_map_fields'], 'map field configuration counted' );
+check( 1 === $out['rest_post_types'], 'only active, REST-enabled ACF custom post types counted' );
+check( 1 === $out['rest_taxonomies'], 'only active REST-enabled ACF taxonomies counted' );
+check( 1 === $out['abilities_post_types'], 'abilities on ACF post type counted' );
+check( 1 === $out['abilities_taxonomies'], 'abilities on ACF taxonomy counted' );
 check( 1 === $out['data_input_fields'], 'potential personal data field type counted' );
 check( false === strpos( json_encode( $out ), 'PRIVATE_VALUE_DO_NOT_COPY' ), 'no field values exposed' );
 check( false === strpos( json_encode( $out ), 'never-export-this@example.invalid' ), 'no field defaults exported' );
@@ -71,6 +89,8 @@ $GLOBALS['acf_settings']['rest_api_enabled'] = false;
 check( 0 === $review->invoke( $plugin, $acf )['rest_groups'], 'global REST setting respected' );
 $GLOBALS['acf_settings']['enable_abilities'] = false;
 check( 0 === $review->invoke( $plugin, $acf )['abilities_groups'], 'disabled Abilities not shown as active' );
+check( 0 === $review->invoke( $plugin, $acf )['abilities_post_types'], 'disabled abilities hide ACF post types' );
+check( 0 === $review->invoke( $plugin, $acf )['abilities_taxonomies'], 'disabled abilities hide ACF taxonomies' );
 
 $GLOBALS['acf_settings']['rest_api_enabled'] = true;
 $GLOBALS['acf_groups'] = array( array( 'key' => 'only_local', 'show_in_rest' => false, 'active' => true ) );
