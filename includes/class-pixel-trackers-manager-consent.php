@@ -15,6 +15,8 @@ final class Pixel_Trackers_Manager_Consent {
         $this->plugin = $plugin;
         add_filter( 'wp_template_enhancement_output_buffer', array( $this, 'filter_full_html' ), 10, 2 );
         add_filter( 'wp_get_consent_type', array( $this, 'filter_wp_consent_type' ), 20 );
+        add_filter( 'wp_has_consent', array( $this, 'filter_wp_has_consent' ), 20, 3 );
+        add_filter( 'wp_has_service_consent', array( $this, 'filter_wp_has_service_consent' ), 20, 3 );
         add_filter( 'wp_consent_api_registered_dendrila-privacy/dendrila-privacy.php', array( $this, 'register_wp_consent_manager' ) );
         add_filter( 'wp_consent_api_cookie_expiration', array( $this, 'wp_consent_cookie_expiration' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ), 1 );
@@ -30,18 +32,84 @@ final class Pixel_Trackers_Manager_Consent {
      * WP Consent API integration is opt-in only while our native CMP is active.
      * The API itself remains optional: none of these filters require its plugin.
      */
+    /**
+     * Keep the opt-in policy on admin-ajax.php, REST and admin requests, where
+     * WordPress plugins may call wp_has_consent() without rendering our banner.
+     */
+    private function manages_wp_consent() {
+        $settings = $this->plugin->public_settings();
+        return ! empty( $settings['consent_enabled'] );
+    }
+
     public function filter_wp_consent_type( $type ) {
-        return $this->enabled() ? 'optin' : $type;
+        return $this->manages_wp_consent() ? 'optin' : $type;
     }
 
     public function register_wp_consent_manager( $registered ) {
-        return $this->enabled() ? true : $registered;
+        return $this->manages_wp_consent() ? true : $registered;
     }
 
     public function wp_consent_cookie_expiration( $days ) {
-        if ( ! $this->enabled() ) { return $days; }
+        if ( ! $this->manages_wp_consent() ) { return $days; }
         $settings = $this->plugin->public_settings();
         return max( 1, (int) $settings['consent_retention_days'] );
+    }
+
+    /**
+     * WP Consent API trusts its category cookies independently from Dendrila's
+     * localStorage. Check a first-party choice marker to reject obsolete grants
+     * from another CMP or after the current consent fingerprint has changed.
+     */
+    private function choice_cookie_bits() {
+        if ( ! isset( $_COOKIE['dendrila_privacy_consent_v1'] ) || ! is_string( $_COOKIE['dendrila_privacy_consent_v1'] ) ) {
+            return null;
+        }
+        $raw = wp_unslash( $_COOKIE['dendrila_privacy_consent_v1'] );
+        if ( strlen( $raw ) > 150 || ! preg_match( '/^1\\.([0-9]{10,16})\\.([01]{3})\\.([a-f0-9]{64})$/D', $raw, $matches ) ) {
+            return null;
+        }
+        if ( ! hash_equals( $this->consent_fingerprint(), $matches[3] ) ) {
+            return null;
+        }
+        $settings = $this->plugin->public_settings();
+        $age_ms = (int) ( time() * 1000 ) - (int) $matches[1];
+        $retention_ms = max( 1, (int) $settings['consent_retention_days'] ) * 86400000;
+        if ( $age_ms < 0 || $age_ms > $retention_ms ) {
+            return null;
+        }
+        return $matches[2]; // Order: statistics, external, marketing.
+    }
+
+    public function filter_wp_has_consent( $has_consent, $category, $requested_by = null ) {
+        if ( ! $this->manages_wp_consent() ) { return $has_consent; }
+        if ( 'functional' === $category ) { return true; }
+        if ( 'preferences' === $category ) { return false; }
+        $bits = $this->choice_cookie_bits();
+        if ( null === $bits ) { return false; }
+        if ( 'statistics' === $category || 'statistics-anonymous' === $category ) {
+            return (bool) $has_consent && '1' === $bits[0];
+        }
+        if ( 'marketing' === $category ) {
+            return (bool) $has_consent && '1' === $bits[2];
+        }
+        return false;
+    }
+
+    /**
+     * In WP Consent API >= 2.0 an explicit grant for a service takes priority
+     * over its category cookie. Do not allow it to bypass a later category denial.
+     */
+    public function filter_wp_has_service_consent( $has_consent, $service, $requested_by = null ) {
+        if ( ! $has_consent || ! $this->manages_wp_consent() ) { return $has_consent; }
+        if ( ! class_exists( 'WP_Consent_API' ) ||
+            ! isset( WP_Consent_API::$cookie_info ) ||
+            ! is_object( WP_Consent_API::$cookie_info ) ||
+            ! method_exists( WP_Consent_API::$cookie_info, 'get_service_category' ) ||
+            ! function_exists( 'wp_has_consent' ) ) {
+            return false;
+        }
+        $category = WP_Consent_API::$cookie_info->get_service_category( $service );
+        return wp_has_consent( $category, $requested_by );
     }
 
     /**
@@ -134,8 +202,9 @@ final class Pixel_Trackers_Manager_Consent {
         $settings = $this->plugin->public_settings();
         // Consent assets have their own cache suffix during the test cycle so fixes reach
         // builder test sites even before the plugin version changes.
-        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-api1';
+        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-api2';
         $bootstrap_handle = 'pixel-trackers-manager-consent-bootstrap';
+        $wp_consent_available = function_exists( 'wp_get_consent_type' );
         $test_mode = '';
         if ( current_user_can( 'manage_options' ) ) {
             $candidate = sanitize_key( $this->query_value( 'pixel_trackers_manager_consent_test' ) );
@@ -149,13 +218,17 @@ final class Pixel_Trackers_Manager_Consent {
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
-            'wpConsentApi' => function_exists( 'wp_get_consent_type' ),
+            'wpConsentApi' => $wp_consent_available,
         );
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
         wp_localize_script( $bootstrap_handle, 'PixelTrackersManagerConsentEarlyConfig', $early_config );
         wp_enqueue_style( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.css', array(), $asset_version );
-        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.js', array( $bootstrap_handle ), $asset_version, false );
+        // WP Consent API 2.1.0 registers its footer script at a very late
+        // wp_enqueue_scripts priority. WordPress resolves dependencies by output time.
+        // Only the UI waits for it; the independent early blocker stays in the head.
+        $deps = $wp_consent_available ? array( $bootstrap_handle, 'wp-consent-api' ) : array( $bootstrap_handle );
+        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.js', $deps, $asset_version, $wp_consent_available );
         $consent_config = array(
             'storageKey' => 'pixel_trackers_manager_consent_v2',
             'retentionDays' => (int) $settings['consent_retention_days'],
@@ -166,7 +239,7 @@ final class Pixel_Trackers_Manager_Consent {
             'domains' => $this->domain_map(),
             'preview' => '' !== $this->query_value( 'pixel_trackers_manager_consent_preview' ) && current_user_can( 'manage_options' ),
             'testMode' => $test_mode,
-            'wpConsentApi' => function_exists( 'wp_get_consent_type' ),
+            'wpConsentApi' => $wp_consent_available,
         );
         wp_localize_script( 'pixel-trackers-manager-consent', 'DendrilaPrivacyConsent', $consent_config );
         // Backward-compatible alias for pre-publication integrations.
