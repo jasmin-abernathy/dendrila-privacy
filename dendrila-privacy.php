@@ -2079,8 +2079,10 @@ final class Pixel_Trackers_Manager_Plugin {
                 }
             }
         }
+        // Do not turn commented CSS URLs into a potential remote load.
+        $without_css_comments = preg_replace( '~/\*.*?\*/~s', '', $visible );
         if ( ! $loads && ! $hints &&
-            ( false !== stripos( $visible, 'fonts.googleapis.com' ) || false !== stripos( $visible, 'fonts.gstatic.com' ) ) ) {
+            ( false !== stripos( $without_css_comments, 'fonts.googleapis.com' ) || false !== stripos( $without_css_comments, 'fonts.gstatic.com' ) ) ) {
             $hints[] = 'Mention de Google Fonts dans le HTML, sans chargement externe déclaré';
         }
         return array( 'load' => array_values( array_unique( $loads ) ), 'hint' => array_values( array_unique( $hints ) ) );
