@@ -20,6 +20,7 @@ Main features:
 
 * standard or full analysis of public site content;
 * detection of known trackers, third-party services, external content, and consent tools;
+* 2026 CNIL guidance on session replay, tracking pixels in email, and cross-device consent, without changing essential checkout behavior;
 * distinction between observed technical evidence, an available integration, and something that still needs human verification;
 * progressive scans where one failing page does not stop the remaining analysis;
 * a guided privacy assistant that reuses information WordPress can already provide before asking questions;

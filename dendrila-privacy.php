@@ -2910,7 +2910,6 @@ final class Pixel_Trackers_Manager_Plugin {
             'minors'=>array('label'=>'Information adaptée aux mineurs — si concernés','terms'=>array('mineur','mineurs','enfant','enfants'),'weight'=>0,'scored'=>false),
             'cookies'=>array('label'=>'Cookies / traceurs et gestion du consentement','terms'=>array('cookie','traceur','mesure d’audience','politique de cookies','tout refuser','retirer votre consentement'),'weight'=>0,'scored'=>false),
             'email_pixels'=>array('label'=>'Suivi dans les courriels — pixels ou clics individualisés si utilisés','terms'=>array('pixel de suivi','pixels de suivi','suivi des ouvertures','mesure des ouvertures','tracking des ouvertures','suivi des clics','liens suivis','clics individualisés'),'weight'=>0,'scored'=>false),
-            'session_replay'=>array('label'=>'Rejeu de session — information, consentement et masquage si utilisé','terms'=>array('rejeu de session','enregistrement des sessions','enregistrement du parcours','session replay','masquage des saisies'),'weight'=>0,'scored'=>false),
         );
     }
 
@@ -6040,7 +6039,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'organisation'=>array('label'=>'Votre organisation','ids'=>array('identity','contact','representative')),
             'uses'=>array('label'=>'Utilisation des données','ids'=>array('purposes','legal_basis','data_categories','retention','recipients','mandatory')),
             'flows'=>array('label'=>'Circulation des données','ids'=>array('source','transfers','automated')),
-            'cookies'=>array('label'=>'Cookies et traceurs','ids'=>array('cookies','email_pixels','session_replay')),
+            'cookies'=>array('label'=>'Cookies et traceurs','ids'=>array('cookies','email_pixels')),
             'rights'=>array('label'=>'Droits des personnes','ids'=>array('rights','withdrawal','complaint','special_categories','criminal_data','minors')),
         );
         $by_id=array(); foreach((array)$audit['topics'] as $item){$by_id[$item['id']]=$item;}

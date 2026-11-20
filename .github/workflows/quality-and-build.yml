@@ -146,6 +146,8 @@ jobs:
         run: php tests/admin-assets.php
       - name: Age assurance companion tests
         run: php tests/age-assurance-companion.php
+      - name: CNIL 2026 session replay regression
+        run: php tests/cnil-2026-replay.php
 
   javascript-syntax:
     name: JavaScript syntax
