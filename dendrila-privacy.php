@@ -986,6 +986,9 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function finding_evidence_status( $finding ) {
         $state = isset($finding['tracking_state']) ? (string)$finding['tracking_state'] : 'potential';
+        if ( 'google-fonts' === ( $finding['id'] ?? '' ) && ! empty( $finding['observed_html'] ) ) {
+            return array( 'label' => 'Déclaration à vérifier dans Réseau', 'tone' => 'warn' );
+        }
         if ( isset( $finding['is_tracking'] ) && ! $finding['is_tracking'] && ! empty( $finding['observed_html'] ) ) { return array( 'label'=>'Ressource externe active', 'tone'=>'warn' ); }
         if ( 'disabled' === $state ) { return array( 'label'=>'Désactivé', 'tone'=>'good' ); }
         if ( 'blocked' === $state ) { return array( 'label'=>'Bloqué avant choix', 'tone'=>'good' ); }
@@ -2023,11 +2026,11 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function technical_surface( $html ) {
         $chunks = array();
+        $html = preg_replace( '/<!--.*?(?:-->|$)/s', '', $html );
         foreach ( array(
             '/<script\\b[^>]*>.*?<\\/script>/is',
             '/<(?:iframe|img|link|source)\\b[^>]*>/is',
             '/<noscript\\b[^>]*>.*?<\\/noscript>/is',
-            '/<!--.*?-->/s',
         ) as $regex ) {
             if ( preg_match_all( $regex, $html, $matches ) ) {
                 $chunks = array_merge( $chunks, $matches[0] );
@@ -2036,53 +2039,80 @@ final class Pixel_Trackers_Manager_Plugin {
         return implode( "\n", $chunks );
     }
 
+    private function is_google_fonts_url( $url ) {
+        $url = trim( html_entity_decode( $url, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+        if ( ! preg_match( '~^(?:https?:)?//~i', $url ) ) {
+            return false;
+        }
+        $host = wp_parse_url( $url, PHP_URL_HOST );
+        return in_array( strtolower( (string) $host ), array( 'fonts.googleapis.com', 'fonts.gstatic.com' ), true );
+    }
+
     /**
-     * Google Fonts: a textual reference is not proof of a remote font request.
-     * Only an actual external stylesheet, font preload or CSS import is
-     * considered loadable markup. Preconnects, comments and JS strings are hints.
-     * Even loadable markup is not a verified browser network request.
+     * Classify declarations in the static HTML. Browser requests require a separate check.
      */
     private function google_fonts_html_evidence( $html ) {
-        // Commented-out links must not count as executable references.
-        $visible = preg_replace( '/<!--.*?-->/s', '', (string) $html );
+        $visible = preg_replace( '/<!--.*?(?:-->|$)/s', '', (string) $html );
+        $visible = preg_replace_callback( '~(<style\b[^>]*>)(.*?)(</style\s*>)~is', static function ( $match ) {
+            return $match[1] . preg_replace( '~/\*.*?(?:\*/|$)~s', '', $match[2] ) . $match[3];
+        }, $visible );
+        // Script data and inactive markup can mention a URL without declaring a load.
+        $markup = preg_replace( '~<(script|textarea|title|xmp)\b[^>]*>.*?(?:</\1\s*>|$)~is', '', $visible );
+        do {
+            $previous = $markup;
+            $markup = preg_replace( '~<(template|noscript)\b[^>]*>(?:(?!<(?:template|noscript)\b).)*?</\1\s*>~is', '', $markup );
+        } while ( $previous !== $markup );
+
         $loads = array();
         $hints = array();
-        if ( preg_match_all( '/<link\b[^>]*>/is', $visible, $links ) ) {
-            foreach ( $links[0] as $tag ) {
-                if ( ! preg_match( '/\bhref\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $tag, $href_parts ) ) { continue; }
-                $href = '';
-                foreach ( array_slice( $href_parts, 1 ) as $candidate ) {
-                    if ( '' !== $candidate ) { $href = html_entity_decode( $candidate, ENT_QUOTES, 'UTF-8' ); break; }
+        // Consume each complete tag, including quoted attributes. A fake tag inside an
+        // attribute cannot become a resource declaration.
+        preg_match_all( '~<[a-z][\w:-]*(?:[^<>"\']|"[^"]*"|\'[^\']*\')*>~i', $markup, $tags, PREG_OFFSET_CAPTURE );
+        $style_end = 0;
+        foreach ( $tags[0] as list( $tag, $offset ) ) {
+            if ( $offset < $style_end ) {
+                continue;
+            }
+            if ( preg_match( '/^<style(?=[\s>])/i', $tag ) ) {
+                $start = $offset + strlen( $tag );
+                if ( preg_match( '~</style\s*>~i', $markup, $close, PREG_OFFSET_CAPTURE, $start ) ) {
+                    $style_end = $close[0][1];
+                    $css = substr( $markup, $start, $style_end - $start );
+                } else {
+                    $style_end = strlen( $markup );
+                    $css = substr( $markup, $start );
                 }
-                if ( ! preg_match( '~^(?:https?:)?//fonts\.(?:googleapis|gstatic)\.com(?:/|$)~i', trim( $href ) ) ) { continue; }
-                $rel = '';
-                if ( preg_match( '/\brel\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $tag, $rel_parts ) ) {
-                    foreach ( array_slice( $rel_parts, 1 ) as $candidate ) {
-                        if ( '' !== $candidate ) { $rel = strtolower( $candidate ); break; }
+                // Match actual CSS URL tokens or quoted imports, skipping standalone strings.
+                preg_match_all( '~@import\s+(["\'])(.*?)\1|url\(\s*(?:(["\'])(.*?)\3|([^)\s"\']+))\s*\)|"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'~is', $css, $urls, PREG_SET_ORDER );
+                foreach ( $urls as $url ) {
+                    $value = $url[2] ?? '';
+                    $value = '' !== $value ? $value : ( ( $url[4] ?? '' ) ?: ( $url[5] ?? '' ) );
+                    if ( $this->is_google_fonts_url( $value ) ) {
+                        $loads[] = 'Ressource Google Fonts déclarée dans un bloc CSS : ' . substr( $value, 0, 150 );
                     }
                 }
-                if ( preg_match( '/\b(?:stylesheet|preload|prefetch)\b/', $rel ) ) {
-                    $loads[] = 'Ressource Google Fonts déclarée dans le HTML : ' . substr( $href, 0, 150 );
-                } else {
-                    $hints[] = 'Référence Google Fonts dans un lien non chargé comme une police (' . ( $rel ? $rel : 'sans rel' ) . ')';
-                }
+                continue;
+            }
+            if ( ! preg_match( '/^<link(?=[\s\/>])/i', $tag ) ) {
+                continue;
+            }
+            preg_match_all( '~([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+)))?~', substr( $tag, 5 ), $pairs, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL );
+            $attrs = array();
+            foreach ( $pairs as $pair ) {
+                $attrs += array( strtolower( $pair[1] ) => ( $pair[2] ?? $pair[3] ?? $pair[4] ?? '' ) );
+            }
+            $href = $attrs['href'] ?? '';
+            if ( ! $this->is_google_fonts_url( $href ) ) {
+                continue;
+            }
+            $rel = preg_split( '/\s+/', strtolower( trim( $attrs['rel'] ?? '' ) ) );
+            if ( in_array( 'stylesheet', $rel, true ) || ( in_array( 'preload', $rel, true ) && in_array( strtolower( $attrs['as'] ?? '' ), array( 'font', 'style' ), true ) ) ) {
+                $loads[] = 'Ressource Google Fonts déclarée dans le HTML : ' . substr( $href, 0, 150 );
+            } else {
+                $hints[] = 'Référence Google Fonts dans un lien sans déclaration de feuille de style ni préchargement de police';
             }
         }
-        if ( preg_match_all( '/<style\b[^>]*>(.*?)<\/style>/is', $visible, $styles ) ) {
-            foreach ( $styles[1] as $css ) {
-                $css = preg_replace( '~/\*.*?\*/~s', '', $css );
-                if ( preg_match( '~@import\b[^;]*fonts\.googleapis\.com~is', $css ) ) {
-                    $loads[] = 'Import CSS de la feuille Google Fonts dans un bloc <style>';
-                }
-                if ( preg_match( '~url\([^)]*fonts\.gstatic\.com~is', $css ) ) {
-                    $loads[] = 'URL de police distante Google Fonts dans un bloc <style>';
-                }
-            }
-        }
-        // Do not turn commented CSS URLs into a potential remote load.
-        $without_css_comments = preg_replace( '~/\*.*?\*/~s', '', $visible );
-        if ( ! $loads && ! $hints &&
-            ( false !== stripos( $without_css_comments, 'fonts.googleapis.com' ) || false !== stripos( $without_css_comments, 'fonts.gstatic.com' ) ) ) {
+        if ( ! $loads && ! $hints && preg_match( '/fonts\.(?:googleapis|gstatic)\.com/i', $visible ) ) {
             $hints[] = 'Mention de Google Fonts dans le HTML, sans chargement externe déclaré';
         }
         return array( 'load' => array_values( array_unique( $loads ) ), 'hint' => array_values( array_unique( $hints ) ) );
@@ -2106,7 +2136,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 if ( ! $evidence && $fonts['hint'] ) {
                     if ( ! isset( $findings[ $id ] ) ) { $findings[ $id ] = $this->empty_finding( $id, $signature ); }
                     $findings[ $id ]['font_hint'] = true;
-                    $findings[ $id ]['urls'][] = $url;
+                    $findings[ $id ]['font_hint_urls'][] = $url;
                     $findings[ $id ]['evidence'] = array_merge( $findings[ $id ]['evidence'], $fonts['hint'] );
                     // A hint is neither an observed external load nor active tracking.
                 }
@@ -2189,6 +2219,9 @@ final class Pixel_Trackers_Manager_Plugin {
                     $findings[ $id ]['source'] = 'Référence potentielle dans le thème';
                     $findings[ $id ]['tracking_state'] = 'potential';
                     $findings[ $id ]['active_tracking'] = false;
+                }
+                if ( ! empty( $findings[ $id ]['font_hint_urls'] ) ) {
+                    $findings[ $id ]['font_hint_urls'] = array_slice( array_values( array_unique( $findings[ $id ]['font_hint_urls'] ) ), 0, 12 );
                 }
                 $findings[ $id ]['urls'] = array_slice( array_values( array_unique( $findings[ $id ]['urls'] ) ), 0, 12 );
                 $findings[ $id ]['evidence'] = array_slice( array_values( array_unique( array_filter( $findings[ $id ]['evidence'] ) ) ), 0, 5 );
@@ -6119,6 +6152,10 @@ final class Pixel_Trackers_Manager_Plugin {
             if(!empty($finding['urls'])){
                 $labels=array();foreach(array_slice($finding['urls'],0,3) as $url){$labels[]=$this->scan_page_label($url);}
                 echo '<p><strong>Repéré sur :</strong> '.esc_html(implode(', ',$labels)).'</p>';
+            }
+            if ( ! empty( $finding['font_hint_urls'] ) ) {
+                $labels = array_map( array( $this, 'scan_page_label' ), array_slice( $finding['font_hint_urls'], 0, 3 ) );
+                echo '<p><strong>Références sans chargement déclaré :</strong> ' . esc_html( implode( ', ', $labels ) ) . '</p>';
             }
             if(!empty($finding['plugin_sources'])){$names=array();foreach($finding['plugin_sources'] as $src){$names[]=$src['name'];}echo '<p><strong>Source probable :</strong> '.esc_html(implode(', ',$names)).'</p>';}
             $hint=$this->analytics_integration_hint($finding);
