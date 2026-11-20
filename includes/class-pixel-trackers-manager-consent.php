@@ -14,6 +14,11 @@ final class Pixel_Trackers_Manager_Consent {
     private function __construct( $plugin ) {
         $this->plugin = $plugin;
         add_filter( 'wp_template_enhancement_output_buffer', array( $this, 'filter_full_html' ), 10, 2 );
+        add_filter( 'wp_get_consent_type', array( $this, 'filter_wp_consent_type' ), 20 );
+        add_filter( 'wp_has_consent', array( $this, 'filter_wp_has_consent' ), 20, 3 );
+        add_filter( 'wp_has_service_consent', array( $this, 'filter_wp_has_service_consent' ), 20, 3 );
+        add_filter( 'wp_consent_api_registered_dendrila-privacy/dendrila-privacy.php', array( $this, 'register_wp_consent_manager' ) );
+        add_filter( 'wp_consent_api_cookie_expiration', array( $this, 'wp_consent_cookie_expiration' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ), 1 );
         add_action( 'wp_body_open', array( $this, 'render_banner' ), 1 );
         add_action( 'wp_footer', array( $this, 'footer' ), 1 );
@@ -21,6 +26,95 @@ final class Pixel_Trackers_Manager_Consent {
         add_filter( 'the_content', array( $this, 'filter_content' ), 999 );
         add_filter( 'elementor/frontend/the_content', array( $this, 'filter_content' ), 999 );
         add_action( 'elementor/widgets/register', array( $this, 'register_elementor_widget' ) );
+    }
+
+    private function supports_wp_consent_api() {
+        return defined( 'WP_CONSENT_API_VERSION' ) &&
+            version_compare( WP_CONSENT_API_VERSION, '2.1.0', '>=' ) &&
+            function_exists( 'wp_get_consent_type' );
+    }
+
+    /**
+     * Keep the opt-in policy on admin-ajax.php, REST and admin requests, where
+     * WordPress plugins may call wp_has_consent() without rendering our banner.
+     */
+    private function manages_wp_consent() {
+        $settings = $this->plugin->public_settings();
+        return ! empty( $settings['consent_enabled'] ) && $this->supports_wp_consent_api();
+    }
+
+    public function filter_wp_consent_type( $type ) {
+        return $this->manages_wp_consent() ? 'optin' : $type;
+    }
+
+    public function register_wp_consent_manager( $registered ) {
+        return $this->manages_wp_consent() ? true : $registered;
+    }
+
+    public function wp_consent_cookie_expiration( $days ) {
+        if ( ! $this->manages_wp_consent() ) { return $days; }
+        $settings = $this->plugin->public_settings();
+        return max( 1, (int) $settings['consent_retention_days'] );
+    }
+
+    /**
+     * WP Consent API trusts its category cookies independently from Dendrila's
+     * localStorage. Check a first-party choice marker to reject obsolete grants
+     * from another CMP or after the current consent fingerprint has changed.
+     */
+    private function choice_cookie_bits() {
+        if ( ! isset( $_COOKIE['dendrila_privacy_consent_v1'] ) || ! is_string( $_COOKIE['dendrila_privacy_consent_v1'] ) ) {
+            return null;
+        }
+        // Validate the exact cookie format below without altering the stored choice marker.
+        $raw = wp_unslash( $_COOKIE['dendrila_privacy_consent_v1'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        if ( strlen( $raw ) > 150 || ! preg_match( '/^1\.([0-9]{10,16})\.([01]{3})\.([a-f0-9]{64})$/D', $raw, $matches ) ) {
+            return null;
+        }
+        if ( ! hash_equals( $this->consent_fingerprint(), $matches[3] ) ) {
+            return null;
+        }
+        $settings = $this->plugin->public_settings();
+        // Date.now() includes milliseconds; time() truncates to whole seconds.
+        // Allow a short client clock skew while rejecting expired grants.
+        $age_ms = floor( microtime( true ) * 1000 ) - (float) $matches[1];
+        $retention_ms = max( 1, (int) $settings['consent_retention_days'] ) * 86400000;
+        if ( $age_ms < -300000 || $age_ms > $retention_ms ) {
+            return null;
+        }
+        return $matches[2]; // Order: statistics, external, marketing.
+    }
+
+    public function filter_wp_has_consent( $has_consent, $category, $requested_by = null ) {
+        if ( ! $this->manages_wp_consent() ) { return $has_consent; }
+        if ( 'functional' === $category ) { return true; }
+        if ( 'preferences' === $category ) { return false; }
+        $bits = $this->choice_cookie_bits();
+        if ( null === $bits ) { return false; }
+        if ( 'statistics' === $category || 'statistics-anonymous' === $category ) {
+            return (bool) $has_consent && '1' === $bits[0];
+        }
+        if ( 'marketing' === $category ) {
+            return (bool) $has_consent && '1' === $bits[2];
+        }
+        return false;
+    }
+
+    /**
+     * In WP Consent API >= 2.0 an explicit grant for a service takes priority
+     * over its category cookie. Do not allow it to bypass a later category denial.
+     */
+    public function filter_wp_has_service_consent( $has_consent, $service, $requested_by = null ) {
+        if ( ! $has_consent || ! $this->manages_wp_consent() ) { return $has_consent; }
+        if ( ! class_exists( 'WP_Consent_API' ) ||
+            ! isset( WP_Consent_API::$cookie_info ) ||
+            ! is_object( WP_Consent_API::$cookie_info ) ||
+            ! method_exists( WP_Consent_API::$cookie_info, 'get_service_category' ) ||
+            ! function_exists( 'wp_has_consent' ) ) {
+            return false;
+        }
+        $category = WP_Consent_API::$cookie_info->get_service_category( $service );
+        return wp_has_consent( $category, $requested_by );
     }
 
     /**
@@ -55,11 +149,16 @@ final class Pixel_Trackers_Manager_Consent {
             'statistics' => array(
                 'google-analytics.com', 'googletagmanager.com/gtag/js', 'analytics.google.com',
                 'clarity.ms', 'hotjar.com', 'static.hotjar.com', 'plausible.io', 'matomo.js', 'piwik.js',
+                'edge.fullstory.com/s/fs.js', 'edge.eu1.fullstory.com/s/fs.js', 'fullstory.com/s/fs.js',
+                'cdn.mouseflow.com/projects/', 'web-sdk.smartlook.com/recorder.js',
+                'cdn.logrocket.io', 'cdn.logr-in.com',
             ),
             'marketing' => array(
                 'googletagmanager.com/gtm.js', 'connect.facebook.net', 'facebook.com/tr',
                 'analytics.tiktok.com', 'snap.licdn.com', 'linkedin.com/insight',
                 's.pinimg.com/ct', 'bat.bing.com', 'ads-twitter.com',
+                'chimpstatic.com/mcjs-connected/js/users/', 'mcjs-connected/js/users/',
+                'cdn.brevo.com/js/sdk-loader.js', 'cdn.brevo.com/js/sdk-staging-loader.js',
             ),
             'external' => array(
                 'youtube.com/embed', 'youtube-nocookie.com/embed', 'player.vimeo.com',
@@ -98,12 +197,31 @@ final class Pixel_Trackers_Manager_Consent {
         return array_values( array_unique( $ids ) );
     }
 
+    /**
+     * The scanner reports observed scripts, not whether a vendor's optional
+     * recording features are switched on. Warn conservatively for replay-capable
+     * services whose scripts are observed or blocked.
+     */
+    private function session_replay_detected() {
+        $replay_capable = array( 'clarity', 'hotjar', 'fullstory', 'mouseflow', 'smartlook', 'logrocket' );
+        $scan = $this->plugin->public_scan();
+        foreach ( (array) ( isset( $scan['findings'] ) ? $scan['findings'] : array() ) as $finding ) {
+            $id = isset( $finding['id'] ) ? (string) $finding['id'] : '';
+            if ( in_array( $id, $replay_capable, true ) && ( ! empty( $finding['active_tracking'] ) || ! empty( $finding['blocked_by_consent'] ) ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function consent_fingerprint() {
         $payload = array(
             'schema' => 2,
             'services' => $this->active_service_ids(),
             'categories' => $this->active_categories(),
-            'copy_version' => 1,
+            // Re-consent for updated first-level information only when a replay-
+            // capable service is actually observed, not for every plugin install.
+            'copy_version' => $this->session_replay_detected() ? 2 : 1,
         );
         return hash( 'sha256', wp_json_encode( $payload ) );
     }
@@ -111,10 +229,9 @@ final class Pixel_Trackers_Manager_Consent {
     public function enqueue() {
         if ( ! $this->enabled() ) { return; }
         $settings = $this->plugin->public_settings();
-        // Consent assets have their own cache suffix during the test cycle so fixes reach
-        // builder test sites even before the plugin version changes.
-        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-portal2';
+        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION;
         $bootstrap_handle = 'pixel-trackers-manager-consent-bootstrap';
+        $wp_consent_available = $this->supports_wp_consent_api();
         $test_mode = '';
         if ( current_user_can( 'manage_options' ) ) {
             $candidate = sanitize_key( $this->query_value( 'pixel_trackers_manager_consent_test' ) );
@@ -128,12 +245,17 @@ final class Pixel_Trackers_Manager_Consent {
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
+            'wpConsentApi' => $wp_consent_available,
         );
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
         wp_localize_script( $bootstrap_handle, 'PixelTrackersManagerConsentEarlyConfig', $early_config );
         wp_enqueue_style( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.css', array(), $asset_version );
-        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.js', array( $bootstrap_handle ), $asset_version, false );
+        // WP Consent API 2.1.0 registers its footer script at a very late
+        // wp_enqueue_scripts priority. WordPress resolves dependencies by output time.
+        // Only the UI waits for it; the independent early blocker stays in the head.
+        $deps = $wp_consent_available ? array( $bootstrap_handle, 'wp-consent-api' ) : array( $bootstrap_handle );
+        wp_enqueue_script( 'pixel-trackers-manager-consent', plugin_dir_url( dirname( __DIR__ ) . '/dendrila-privacy.php' ) . 'assets/consent.js', $deps, $asset_version, $wp_consent_available );
         $consent_config = array(
             'storageKey' => 'pixel_trackers_manager_consent_v2',
             'retentionDays' => (int) $settings['consent_retention_days'],
@@ -144,6 +266,7 @@ final class Pixel_Trackers_Manager_Consent {
             'domains' => $this->domain_map(),
             'preview' => '' !== $this->query_value( 'pixel_trackers_manager_consent_preview' ) && current_user_can( 'manage_options' ),
             'testMode' => $test_mode,
+            'wpConsentApi' => $wp_consent_available,
         );
         wp_localize_script( 'pixel-trackers-manager-consent', 'DendrilaPrivacyConsent', $consent_config );
         // Backward-compatible alias for pre-publication integrations.
@@ -152,8 +275,8 @@ final class Pixel_Trackers_Manager_Consent {
 
     private function active_categories() {
         $ids = array(
-            'google-analytics'=>'statistics','clarity'=>'statistics','hotjar'=>'statistics','matomo'=>'statistics','plausible'=>'statistics',
-            'google-tag-manager'=>'marketing','meta-pixel'=>'marketing','tiktok-pixel'=>'marketing','linkedin-insight'=>'marketing','pinterest-tag'=>'marketing','brevo'=>'marketing',
+            'google-analytics'=>'statistics','clarity'=>'statistics','hotjar'=>'statistics','fullstory'=>'statistics','mouseflow'=>'statistics','smartlook'=>'statistics','logrocket'=>'statistics','matomo'=>'statistics','plausible'=>'statistics',
+            'google-tag-manager'=>'marketing','meta-pixel'=>'marketing','tiktok-pixel'=>'marketing','linkedin-insight'=>'marketing','pinterest-tag'=>'marketing','brevo'=>'marketing','mc4wp-site-pixel'=>'marketing',
             'youtube'=>'external','vimeo'=>'external','google-maps'=>'external',
         );
         $active = array();
@@ -170,7 +293,9 @@ final class Pixel_Trackers_Manager_Consent {
 
     public function filter_script_tag( $tag, $handle, $src ) {
         if ( ! $this->enabled() ) { return $tag; }
-        $category = $this->classify_url( $src );
+        // MC4WP can use a vendor-provided script URL; the documented WordPress
+        // enqueue handle identifies its optional site pixel independently of URL.
+        $category = 'mc4wp-mailchimp-site-tracking-pixel' === $handle ? 'marketing' : $this->classify_url( $src );
         if ( ! $category ) { return $tag; }
         if ( false !== strpos( $tag, 'data-ptm-category=' ) ) { return $tag; }
         $original_type = '';
@@ -224,7 +349,7 @@ final class Pixel_Trackers_Manager_Consent {
                 <button type="button" class="ptm-consent-close" data-ptm-action="close" aria-label="Fermer sans accepter">×</button>
                 <div class="ptm-consent-main">
                     <h2 id="ptm-consent-title">Votre choix compte</h2>
-                    <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.</p>
+                    <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.<?php if ( $this->session_replay_detected() ) : ?> Des outils présents sur ce site peuvent reconstituer vos interactions (clics, défilements et éventuellement saisies) sous forme de rejeu de session, selon leur configuration. Cette fonctionnalité, lorsqu’elle est activée, nécessite votre accord préalable.<?php endif; ?></p>
                     <div class="ptm-consent-actions" role="group" aria-label="Choix de consentement">
                         <button type="button" class="ptm-consent-choice" data-ptm-action="reject">Tout refuser</button>
                         <button type="button" class="ptm-consent-choice" data-ptm-action="accept">Tout accepter</button>
@@ -232,7 +357,7 @@ final class Pixel_Trackers_Manager_Consent {
                     </div>
                     <div class="ptm-consent-preferences" hidden>
                         <label class="ptm-consent-row"><span><strong>Nécessaires</strong><small>Fonctionnement et sécurité essentiels.</small></span><input type="checkbox" checked disabled></label>
-                        <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Mesure d’audience</strong><small>Comprendre l’usage du site.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
+                        <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Mesure d’audience</strong><small>Comprendre l’usage du site<?php if ( $this->session_replay_detected() ) : ?> ; cela peut inclure le rejeu d’un parcours de navigation selon les fonctions activées<?php endif; ?>.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
                         <?php if ( in_array('external',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Contenus externes</strong><small>Vidéos, cartes ou contenus venant d’un autre service.</small></span><input type="checkbox" data-ptm-category-toggle="external"></label><?php endif; ?>
                         <?php if ( in_array('marketing',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Marketing et suivi</strong><small>Mesure individualisée ou publicité.</small></span><input type="checkbox" data-ptm-category-toggle="marketing"></label><?php endif; ?>
                         <button type="button" class="ptm-consent-save" data-ptm-action="save">Enregistrer mes choix</button>

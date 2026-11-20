@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Dendrila Privacy
  * Description: Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management.
- * Version: 0.0.6
+ * Version: 0.0.7
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/includes/class-dendrila-privacy-age-assurance.php';
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.6';
+    const VERSION = '0.0.7';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';
@@ -1489,14 +1489,34 @@ final class Pixel_Trackers_Manager_Plugin {
                 'plugin_slugs' => array( 'facebook-for-woocommerce', 'pixelyoursite' ),
             ),
             'clarity' => array(
-                'label' => 'Microsoft Clarity', 'category' => 'Analyse comportementale',
+                'label' => 'Microsoft Clarity', 'category' => 'Analyse comportementale / rejeu possible',
                 'patterns' => array( 'clarity.ms/tag', 'clarity(' ),
                 'aliases' => array( 'microsoft clarity', 'clarity' ), 'plugin_slugs' => array( 'microsoft-clarity' ),
             ),
             'hotjar' => array(
-                'label' => 'Hotjar', 'category' => 'Analyse comportementale',
+                'label' => 'Hotjar', 'category' => 'Analyse comportementale / rejeu possible',
                 'patterns' => array( 'static.hotjar.com', 'hotjar.com/c/hotjar-', 'hj(' ),
                 'aliases' => array( 'hotjar' ), 'plugin_slugs' => array( 'hotjar' ),
+            ),
+            'fullstory' => array(
+                'label' => 'Fullstory (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'edge.fullstory.com/s/fs.js', 'edge.eu1.fullstory.com/s/fs.js', 'fullstory.com/s/fs.js', '_fs_script' ),
+                'aliases' => array( 'fullstory', 'fullstory session replay' ), 'plugin_slugs' => array(),
+            ),
+            'mouseflow' => array(
+                'label' => 'Mouseflow (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'cdn.mouseflow.com/projects/', 'mouseflowHtmlDelay' ),
+                'aliases' => array( 'mouseflow' ), 'plugin_slugs' => array(),
+            ),
+            'smartlook' => array(
+                'label' => 'Smartlook (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'web-sdk.smartlook.com/recorder.js', 'rec.smartlook.com', 'smartlook(' ),
+                'aliases' => array( 'smartlook' ), 'plugin_slugs' => array(),
+            ),
+            'logrocket' => array(
+                'label' => 'LogRocket (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'cdn.logrocket.io', 'cdn.logr-in.com', 'logrocket.init(' ),
+                'aliases' => array( 'logrocket' ), 'plugin_slugs' => array(),
             ),
             'tiktok-pixel' => array(
                 'label' => 'TikTok Pixel', 'category' => 'Marketing / suivi',
@@ -1560,9 +1580,16 @@ final class Pixel_Trackers_Manager_Plugin {
             ),
             'brevo' => array(
                 'label' => 'Brevo Tracker', 'category' => 'Marketing automation / suivi du site',
-                'patterns' => array( 'sibautomation.com', 'sendinblue.com', 'sibautomation' ),
+                'patterns' => array( 'sibautomation.com', 'sendinblue.com', 'sibautomation', 'cdn.brevo.com/js/sdk-loader.js', 'cdn.brevo.com/js/sdk-staging-loader.js' ),
                 'aliases' => array( 'brevo', 'sendinblue', 'tracker brevo' ),
                 'plugin_slugs' => array( 'mailin' ),
+            ),
+            'mc4wp-site-pixel' => array(
+                'label' => 'Mailchimp for WordPress — pixel de suivi du site',
+                'category' => 'Marketing / suivi du site',
+                'patterns' => array( 'chimpstatic.com/mcjs-connected/js/users/', 'mcjs-connected/js/users/' ),
+                'aliases' => array( 'mc4wp-mailchimp-site-tracking-pixel', 'mailchimp site tracking pixel' ),
+                'plugin_slugs' => array( 'mailchimp-for-wp' ),
             ),
             'helloasso' => array(
                 'label' => 'HelloAsso', 'category' => 'Adhésions / dons / billetterie',
@@ -1835,6 +1862,43 @@ final class Pixel_Trackers_Manager_Plugin {
         );
     }
 
+    /**
+     * MC4WP 4.15.0 has an optional on-site marketing pixel in addition to forms.
+     * Read only its public WordPress option; never use or disclose the API key.
+     * Mailchimp campaign-open tracking remains an external Mailchimp setting.
+     */
+    private function mc4wp_site_tracking_state() {
+        // MC4WP merges its defaults and exposes a documented settings filter;
+        // honour that view when available without exposing its API credentials.
+        $opts = function_exists( 'mc4wp_get_options' ) ? mc4wp_get_options() : get_option( 'mc4wp', array() );
+        if ( ! is_array( $opts ) ) {
+            return array( 'state' => 'unknown', 'label' => 'Réglages du pixel Mailchimp impossibles à lire' );
+        }
+        if ( empty( $opts['tracking_pixel_enabled'] ) ) {
+            return array( 'state' => 'disabled', 'label' => 'Pixel de suivi du site MC4WP désactivé' );
+        }
+        if ( empty( $opts['tracking_pixel_site_id'] ) || empty( $opts['tracking_pixel_script_url'] ) ) {
+            return array( 'state' => 'unknown', 'label' => 'Pixel MC4WP demandé, mais connexion/script à vérifier' );
+        }
+        return array( 'state' => 'active', 'label' => 'Pixel de suivi du site MC4WP activé (distinct du suivi des campagnes)' );
+    }
+
+    /**
+     * Brevo 3.3.6: is_ma_active() checks the main ma_key and home activate_ma.
+     * Sending SMTP or a transactional email does NOT imply site automation.
+     */
+    private function brevo_site_tracking_state() {
+        $general = get_option( 'sib_main_option', array() );
+        $home = get_option( 'sib_home_option', array() );
+        if ( ! is_array( $general ) || ! is_array( $home ) ) {
+            return array( 'state' => 'unknown', 'label' => 'Réglages Brevo impossibles à lire' );
+        }
+        $active = ! empty( $general['ma_key'] ) && ( ! isset( $home['activate_ma'] ) || 'no' !== $home['activate_ma'] );
+        return $active
+            ? array( 'state' => 'active', 'label' => 'SDK de marketing automation Brevo activé sur le site' )
+            : array( 'state' => 'disabled', 'label' => 'SDK de marketing automation Brevo non activé sur le site' );
+    }
+
     private function email_tracking_tools( $plugins ) {
         $by_slug = array();
         foreach ( $plugins as $plugin ) {
@@ -1865,11 +1929,14 @@ final class Pixel_Trackers_Manager_Plugin {
             }
         }
         if ( isset( $by_slug['mailin'] ) ) {
+            $site_state = $this->brevo_site_tracking_state();
             $tools[] = array(
                 'id' => 'brevo', 'name' => 'Brevo', 'plugin' => $by_slug['mailin'],
-                'tracking_state' => 'unknown', 'status' => array( 'state' => 'unknown' ),
+                // Do not equate Brevo's website SDK with email open/click pixels.
+                'tracking_state' => 'unknown', 'site_tracking_state' => $site_state['state'],
+                'status' => array( 'state' => 'unknown', 'label' => $site_state['label'] . ' ; suivi des e-mails à vérifier dans Brevo' ),
                 'action_mode' => 'guided', 'settings_url' => admin_url( 'admin.php?page=mailin' ),
-                'help' => 'Le tracker de site Brevo est distinct du suivi d’ouverture/clic des campagnes. Dans Brevo > Accueil, désactivez « Marketing Automation via Brevo » si vous ne souhaitez pas utiliser le tracker du site.',
+                'help' => $site_state['label'] . '. Le suivi d’ouverture/clic des campagnes est un autre réglage dans Brevo. Dans Brevo > Accueil, désactivez « Marketing Automation via Brevo » pour couper le SDK du site sans couper les e-mails transactionnels.',
             );
         }
         if ( isset( $by_slug['newsletter'] ) ) {
@@ -1881,11 +1948,14 @@ final class Pixel_Trackers_Manager_Plugin {
             );
         }
         if ( isset( $by_slug['mailchimp-for-wp'] ) ) {
+            $site_state = $this->mc4wp_site_tracking_state();
             $tools[] = array(
                 'id' => 'mailchimp', 'name' => 'Mailchimp for WordPress', 'plugin' => $by_slug['mailchimp-for-wp'],
-                'tracking_state' => 'external', 'status' => array( 'state' => 'external' ),
-                'action_mode' => 'external', 'settings_url' => admin_url( 'admin.php?page=mailchimp-for-wp' ),
-                'help' => 'MC4WP gère surtout les formulaires. Le suivi d’ouverture/clic se règle dans Mailchimp, dans « Settings & Tracking » de chaque campagne ; Dendrila Privacy ne prétend pas le couper localement.',
+                // MC4WP's site pixel does not prove newsletter email pixels are on.
+                'tracking_state' => 'external', 'site_tracking_state' => $site_state['state'],
+                'status' => array( 'state' => 'external', 'label' => $site_state['label'] . ' ; suivi e-mail géré dans Mailchimp' ),
+                'action_mode' => 'guided', 'settings_url' => admin_url( 'admin.php?page=mailchimp-for-wp-other' ),
+                'help' => $site_state['label'] . '. MC4WP > Other Settings > Site Tracking Pixel permet de le désactiver sans supprimer les formulaires. Le suivi des ouvertures/clics des campagnes Mailchimp se règle séparément dans Mailchimp.',
             );
         }
         foreach ( $by_slug as $slug => $plugin ) {
@@ -2073,6 +2143,27 @@ final class Pixel_Trackers_Manager_Plugin {
             }
         }
 
+        // Check directly readable website-tracking settings without confusing
+        // those settings with email-open pixels or proof of a network request.
+        foreach ( array( 'brevo' => 'brevo_site_tracking_state', 'mc4wp-site-pixel' => 'mc4wp_site_tracking_state' ) as $site_id => $reader ) {
+            if ( ! isset( $findings[ $site_id ] ) || empty( $findings[ $site_id ]['plugin_sources'] ) ) { continue; }
+            $status = $this->$reader();
+            $findings[ $site_id ]['adapter_status'] = $status;
+            if ( 'active' === $status['state'] && empty( $findings[ $site_id ]['blocked_by_consent'] ) ) {
+                $findings[ $site_id ]['tracking_state'] = 'active';
+                $findings[ $site_id ]['active_tracking'] = true;
+                $findings[ $site_id ]['tracking_basis'] = 'plugin_setting';
+                $findings[ $site_id ]['confidence'] = 'élevée';
+                $findings[ $site_id ]['source'] = $status['label'] . ' — vérifier les requêtes réseau et le consentement effectif';
+            } elseif ( 'disabled' === $status['state'] && empty( $findings[ $site_id ]['observed_html'] ) ) {
+                $findings[ $site_id ]['tracking_state'] = 'disabled';
+                $findings[ $site_id ]['active_tracking'] = false;
+                $findings[ $site_id ]['tracking_basis'] = 'plugin_setting';
+                $findings[ $site_id ]['confidence'] = 'élevée';
+                $findings[ $site_id ]['source'] = $status['label'];
+            }
+        }
+
         foreach ( $findings as $id => $finding ) {
             $findings[ $id ]['tracking_control'] = $this->tracking_control_for_finding( $findings[ $id ] );
         }
@@ -2100,6 +2191,15 @@ final class Pixel_Trackers_Manager_Plugin {
                 'restore_label' => 'Rétablir le réglage précédent',
                 'url' => admin_url( 'admin.php?page=mailpoet-settings#/advanced' ),
                 'instructions' => 'Dendrila Privacy vérifie le réglage « Engagement analytics tracking ». Il peut le passer à basic et vérifie immédiatement le résultat. Les newsletters continuent de partir.',
+            );
+        }
+        if ( 'mc4wp-site-pixel' === $id && in_array( 'mailchimp-for-wp', $slugs, true ) ) {
+            return array(
+                'kind' => 'guided',
+                'state' => isset( $finding['tracking_state'] ) ? $finding['tracking_state'] : 'unknown',
+                'label' => 'Configurer le pixel Mailchimp du site',
+                'url' => admin_url( 'admin.php?page=mailchimp-for-wp-other' ),
+                'instructions' => 'Dans Mailchimp for WordPress > Other Settings > Site Tracking Pixel, désactivez le suivi du site si inutile. Les formulaires d’inscription et les campagnes Mailchimp restent indépendants.',
             );
         }
         if ( 'brevo' === $id && in_array( 'mailin', $slugs, true ) ) {
@@ -4381,7 +4481,7 @@ final class Pixel_Trackers_Manager_Plugin {
             if ( 'yes' === $profile['email_pixels'] ) {
                 $html .= '<p>Certains courriels peuvent contenir des pixels de suivi. <strong>Finalité(s) :</strong> ' . esc_html( $profile['email_pixel_purposes'] ) . '.</p>';
                 if ( 'consent' === $profile['email_pixel_status'] ) { $html .= '<p>L’utilisation de ces pixels est déclarée comme soumise au consentement lorsque celui-ci est requis.</p>'; }
-                if ( 'exempt_delivery' === $profile['email_pixel_status'] ) { $html .= '<p>L’éditeur indique utiliser uniquement des pixels dont l’exemption a été évaluée pour une finalité strictement liée à la délivrabilité. Toute utilisation au-delà de cette finalité doit faire l’objet d’une nouvelle analyse.</p>'; }
+                if ( 'exempt_delivery' === $profile['email_pixel_status'] ) { $html .= '<p>L’éditeur indique utiliser uniquement des pixels dont l’exemption a été évaluée pour une finalité strictement liée à la délivrabilité, sous les conditions encadrées par la recommandation CNIL de 2026. Cette exemption n’est ni automatique ni applicable au simple suivi marketing des ouvertures ; toute autre finalité impose une nouvelle analyse.</p>'; }
                 if ( $profile['email_pixel_preferences'] ) { $html .= '<p><strong>Gérer ce choix :</strong> ' . esc_html( $profile['email_pixel_preferences'] ) . '</p>'; }
             }
             if ( 'yes' === $profile['tracked_links'] ) {
@@ -4511,7 +4611,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function apply_detected_profile_suggestions( $profile, $scan ) {
         $p = wp_parse_args( is_array( $profile ) ? $profile : array(), $this->legal_profile_defaults() );
-        $optional_ids = array( 'google-analytics','meta-pixel','clarity','hotjar','tiktok-pixel','linkedin-insight','pinterest-tag','youtube','vimeo','google-maps','matomo','plausible','brevo' );
+        $optional_ids = array( 'google-analytics','meta-pixel','clarity','hotjar','mc4wp-site-pixel','fullstory','mouseflow','smartlook','logrocket','tiktok-pixel','linkedin-insight','pinterest-tag','youtube','vimeo','google-maps','matomo','plausible','brevo' );
         $active_optional = false;
         foreach ( isset( $scan['findings'] ) && is_array( $scan['findings'] ) ? $scan['findings'] : array() as $finding ) {
             $id = isset( $finding['id'] ) ? (string) $finding['id'] : '';
@@ -4912,6 +5012,16 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_section_form_start( 'external' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 4</div><h3>Quels outils utilisez-vous en dehors de WordPress ?</h3><p class="ptm-question-intro">Un site peut être correctement configuré tout en laissant des données circuler ailleurs. Dendrila Privacy vous donne des exemples concrets et préremplit ce qu’il a repéré sur le site.</p>';
         if ( $external_detected ) { echo '<div class="ptm-callout good"><strong>Repéré sur le site :</strong> ' . esc_html( implode( ', ', array_values( $external_detected ) ) ) . '. Confirmez seulement les usages qui existent encore.</div>'; }
+        $booking_privacy = $this->fluent_booking_privacy_state( $scan );
+        if ( $booking_privacy['active'] ) {
+            echo '<div class="ptm-callout ' . ( $booking_privacy['mcp_enabled'] ? 'warn' : 'neutral' ) . '"><strong>Fluent Booking — données de rendez-vous</strong><p>Les réservations peuvent conserver nom, e-mail, téléphone, réponses au formulaire, date du rendez-vous, adresse IP et paramètres UTM. Vérifiez la durée réelle de conservation, les accès internes et les destinataires de synchronisation (calendriers, CRM, visioconférence) si ces intégrations sont activées.</p>';
+            if ( $booking_privacy['mcp_enabled'] ) {
+                echo '<p><strong>Connexion MCP activée dans les réglages :</strong> un client authentifié et autorisé peut lire des informations de participants et effectuer certaines opérations sur les rendez-vous. Si des assistants externes sont connectés, identifiez leurs fournisseurs dans la politique de confidentialité, vérifiez les habilitations et les transferts potentiels.</p>';
+            } else {
+                echo '<p>Connexion MCP pour assistants externes : non activée d’après les réglages locaux disponibles. Si vous l’activez, réexaminez les destinataires des données et la politique de confidentialité.</p>';
+            }
+            echo '<p>Le partage de statistiques d’utilisation de Fluent Booking et les flux vers FluentCRM sont des choix distincts à vérifier dans leurs réglages. Le formulaire de réservation ne doit pas être désactivé au seul motif qu’il collecte des données nécessaires au rendez-vous.</p></div>';
+        }
         echo '<div class="ptm-form-grid">';
         $this->legal_select( 'external_email_use', 'Utilisez-vous une messagerie ou un outil e-mail en dehors de WordPress ?', $profile['external_email_use'], array( 'unknown'=>'À vérifier','no'=>'Non','yes'=>'Oui' ) );
         $this->legal_input( 'external_email_tools', 'Exemples / outils e-mail utilisés', $profile['external_email_tools'], false, 'Exemples : Gmail, Outlook, Brevo, Mailchimp…' );
@@ -4948,8 +5058,10 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_select( 'cookie_consent_status', 'Comment leur activation est-elle gérée ?', $profile['cookie_consent_status'], array( 'unknown'=>'À vérifier','yes'=>'Ils attendent le consentement','no'=>'Ils peuvent se lancer avant le choix','exempt_only'=>'Les traceurs utilisés sont déclarés exemptés de consentement' ) );
         $this->legal_page_url_select( 'cookie_preferences', 'Sur quelle page peut-on retirer ou modifier son choix ?', $profile['cookie_preferences'], 'Dendrila Privacy essaie de repérer la bonne page à partir du gestionnaire de consentement détecté. Corrigez la sélection si nécessaire.' );
         $this->legal_cookie_retention_select( $profile['cookie_choice_retention'] );
+        echo '<p class="description">CNIL 2026 : si un outil de rejeu de session est activé (Clarity, Hotjar, Fullstory, Mouseflow, Smartlook, LogRocket…), informez-en les visiteurs dès le premier niveau du bandeau et recueillez leur consentement avant tout enregistrement. Masquez les champs, conversations et zones sensibles. La présence du plugin seule ne prouve pas que le rejeu est actif.</p>';
         $this->legal_select( 'cookie_cross_device', 'Le choix de cookies est-il conservé sur les autres appareils ?', $profile['cookie_cross_device'], array( 'unknown'=>'Impossible à déterminer automatiquement','yes'=>'Oui, le choix peut être retrouvé sur les autres appareils','no'=>'Non, le choix doit généralement être refait' ) );
         $this->legal_textarea( 'cookie_cross_device_explanation', 'Comment le vérifier / précision utile', $profile['cookie_cross_device_explanation'], 'Test simple : faites un choix ici, puis ouvrez le site sur un autre navigateur ou téléphone. Si la bannière redemande un choix, il n’est pas synchronisé.' );
+        echo '<p class="description">CNIL janvier 2026 : si les choix sont synchronisés entre appareils reliés à un compte, leur portée doit être expliquée dès le premier niveau de la bannière. Refus et retrait doivent avoir la même portée que l’acceptation. Prévoir une règle claire lorsque le choix local diffère de celui du compte. Dendrila ne synchronise pas les choix entre appareils.</p>';
         echo '</div><div class="ptm-callout neutral"><strong>Vous ne savez pas pour les appareils ?</strong> C’est normal. Dendrila Privacy essaie de le déduire du gestionnaire de consentement. Sinon, faites le test sur un autre navigateur/appareil ou laissez « ne peut pas encore le déterminer » : cela restera seulement une action à vérifier.</div></div>'; $this->legal_section_form_end();
 
         $this->legal_section_form_start( 'email' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 7</div><h3>Vos e-mails mesurent-ils les ouvertures ou les clics ?</h3><p class="ptm-question-intro">Dendrila Privacy vérifie automatiquement les réglages accessibles. Pour les outils dont le réglage est externe ou privé, il indique simplement « À vérifier ».</p>';
@@ -4962,6 +5074,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<button type="button" class="button ptm-email-purpose" data-target="email_pixel_purposes" data-value="Gérer les préférences de communication et conserver la preuve des choix exprimés">Gérer les préférences</button></div></div>';
         echo '<div class="ptm-form-grid">';
         $this->legal_select( 'email_pixels', 'Le suivi des ouvertures est-il activé ?', $profile['email_pixels'], array( 'unknown'=>'À vérifier','no'=>'Non / désactivés','yes'=>'Oui / actifs' ) ); $this->legal_textarea( 'email_pixel_purposes', 'Pourquoi ce suivi des ouvertures est-il utilisé ?', $profile['email_pixel_purposes'] ); $this->legal_select( 'email_pixel_status', 'Dans quel cadre ce suivi est-il utilisé ?', $profile['email_pixel_status'], array( 'unknown'=>'À vérifier','consent'=>'Consentement lorsque requis','exempt_delivery'=>'Uniquement pour assurer la bonne réception des e-mails' ) ); $this->legal_input( 'email_pixel_preferences', 'Où la personne peut-elle gérer ce choix ?', $profile['email_pixel_preferences'] );
+        echo '<p class="description">CNIL avril 2026 : l’abonnement à une newsletter ne vaut pas automatiquement consentement aux pixels de suivi. L’exemption pour délivrabilité ne concerne que des situations précises, sous conditions et sans réutilisation à des fins de mesure marketing. Une personne doit pouvoir retirer son consentement aux pixels indépendamment de son inscription lorsque le pixel n’est pas nécessaire. Les liens de désabonnement ne doivent pas être confondus avec les liens de suivi publicitaire.</p>';
         $this->legal_select( 'tracked_links', 'Le suivi individuel des clics est-il activé ?', $profile['tracked_links'], array( 'unknown'=>'À vérifier','no'=>'Non / désactivé','yes'=>'Oui / actif' ) ); $this->legal_textarea( 'tracked_links_details', 'Pourquoi et comment les clics sont-ils suivis ?', $profile['tracked_links_details'] ); echo '</div></div>'; $this->legal_section_form_end();
 
         $this->legal_section_form_start( 'authority' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 8</div><h3>Où une personne peut-elle déposer une réclamation ?</h3><p class="ptm-question-intro">Pour une structure française, l’autorité de contrôle est généralement la CNIL. Vérifiez le cas de votre organisation si elle relève d’un autre pays.</p><div class="ptm-form-grid">'; $this->legal_input( 'supervisory_authority', 'Autorité compétente', $profile['supervisory_authority'] ); $this->legal_url_input( 'supervisory_url', 'Lien de réclamation', $profile['supervisory_url'] ); echo '</div></div>'; $this->legal_section_form_end();
@@ -5034,12 +5147,28 @@ final class Pixel_Trackers_Manager_Plugin {
                 'source' => 'Données générées lors de la navigation sur le site et collectées via Meta Pixel.',
             ),
             'clarity' => array(
-                'categories' => 'Données de navigation et d’interaction : pages consultées, clics, défilements et informations techniques selon la configuration du service.',
-                'source' => 'Données générées lors de l’utilisation du site et collectées via Microsoft Clarity.',
+                'categories' => 'Navigation et interactions, avec possibilité de rejeu de session selon les fonctions effectivement activées.',
+                'source' => 'Données collectées via Microsoft Clarity ; vérifier si le rejeu est activé et si les champs sensibles sont masqués.',
             ),
             'hotjar' => array(
-                'categories' => 'Données de navigation et d’interaction : pages consultées, clics, défilements et informations techniques selon la configuration du service.',
-                'source' => 'Données générées lors de l’utilisation du site et collectées via Hotjar.',
+                'categories' => 'Navigation et interactions, avec possibilité de rejeu de session selon les fonctions effectivement activées.',
+                'source' => 'Données collectées via Hotjar ; vérifier si le rejeu est activé et si les champs sensibles sont masqués.',
+            ),
+            'fullstory' => array(
+                'categories' => 'Interactions et parcours reconstituables en sessions ; vérifier le masquage des données saisies et des zones sensibles.',
+                'source' => 'Données enregistrées via Fullstory lorsque son SDK est activé après consentement.',
+            ),
+            'mouseflow' => array(
+                'categories' => 'Défilements, clics et autres interactions pouvant être enregistrés ; vérifier le masquage des champs sensibles.',
+                'source' => 'Données issues de Mouseflow lorsque son code de suivi est réellement actif.',
+            ),
+            'smartlook' => array(
+                'categories' => 'Événements de navigation et interactions enregistrables pour le rejeu, selon la configuration.',
+                'source' => 'Données traitées par Smartlook lorsque son enregistreur est activé.',
+            ),
+            'logrocket' => array(
+                'categories' => 'Interactions de navigation, événements techniques, journaux et erreurs selon la configuration.',
+                'source' => 'Données enregistrées par LogRocket lorsque son SDK est activé.',
             ),
             'tiktok-pixel' => array(
                 'categories' => 'Données de navigation et d’interaction, événements et identifiants en ligne selon la configuration du pixel.',
@@ -5082,8 +5211,12 @@ final class Pixel_Trackers_Manager_Plugin {
                 'source' => 'Données générées lors de l’interaction avec les newsletters ou le site et collectées via MailPoet lorsque son suivi est actif.',
             ),
             'brevo' => array(
-                'categories' => 'Données de navigation, événements et identifiants en ligne selon les fonctions de suivi Brevo réellement activées.',
-                'source' => 'Données générées lors de la navigation sur le site et collectées via Brevo Tracker.',
+                'categories' => 'Données de navigation, événements et identifiants en ligne selon les fonctions de suivi du SDK Brevo réellement activées.',
+                'source' => 'Données de navigation captées par le SDK d’automatisation Brevo si activé ; les e-mails transactionnels sont une fonction distincte.',
+            ),
+            'mc4wp-site-pixel' => array(
+                'categories' => 'Informations de navigation et événements éventuellement associés à un contact, selon le pixel de suivi de site Mailchimp.',
+                'source' => 'Pixel facultatif de suivi du site injecté par Mailchimp for WordPress lorsqu’il est activé ; distinct du suivi des campagnes e-mail.',
             ),
         );
         $options = array();
@@ -5133,6 +5266,28 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '</div><div class="ptm-indirect-service-actions"><button type="button" class="button button-primary ptm-save-indirect-service">Enregistrer ce service</button><button type="button" class="button-link-delete ptm-remove-indirect-service">Supprimer cette fiche</button></div></details>';
     }
 
+    /**
+     * Fluent Booking 2.6.0 keeps booking contact data, IP and source UTM fields.
+     * Its optional MCP server can expose attendee details to authenticated
+     * clients. Merely having the booking form is not a marketing tracker.
+     */
+    private function fluent_booking_privacy_state( $scan ) {
+        $active = false;
+        foreach ( isset( $scan['plugins'] ) && is_array( $scan['plugins'] ) ? $scan['plugins'] : array() as $item ) {
+            $slug = isset( $item['slug'] ) ? sanitize_key( (string) $item['slug'] ) : '';
+            if ( ! empty( $item['active'] ) && 'fluent-booking' === $slug ) {
+                $active = true;
+                break;
+            }
+        }
+        if ( ! $active ) { return array( 'active' => false, 'mcp_enabled' => false ); }
+        $mcp = get_option( '_fluent_booking_mcp_settings', array() );
+        return array(
+            'active' => true,
+            'mcp_enabled' => is_array( $mcp ) && isset( $mcp['enabled'] ) && 'yes' === $mcp['enabled'],
+        );
+    }
+
     private function treatment_template_recommendations( $scan ) {
         $plugins = isset( $scan['plugins'] ) && is_array( $scan['plugins'] ) ? $scan['plugins'] : array();
         $plugin_haystack = '';
@@ -5147,7 +5302,8 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         $contact_detected = (bool) preg_match( '/contact-form|wpforms|gravity|ninja-forms|formidable|fluentform|elementor/', $plugin_haystack );
         $shop_detected = (bool) preg_match( '/woocommerce|easy-digital-downloads|surecart/', $plugin_haystack );
-        $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar' ) );
+        $booking_detected = (bool) $this->fluent_booking_privacy_state( $scan )['active'];
+        $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar','fullstory','mouseflow','smartlook','logrocket' ) );
         $mailing_active = false;
         foreach ( isset( $scan['mailing'] ) && is_array( $scan['mailing'] ) ? $scan['mailing'] : array() as $tool ) {
             if ( ! empty( $tool['plugin']['active'] ) || ! empty( $tool['name'] ) ) { $mailing_active = true; break; }
@@ -5159,6 +5315,7 @@ final class Pixel_Trackers_Manager_Plugin {
             array( 'id'=>'newsletter', 'label'=>'Newsletter / e-mailing', 'detected'=>$mailing_active, 'badge'=>$mailing_active ? 'outil e-mail actif' : '' ),
             array( 'id'=>'accounts', 'label'=>'Comptes utilisateurs', 'detected'=>$accounts_detected, 'badge'=>$accounts_detected ? 'fonction active' : '' ),
             array( 'id'=>'orders', 'label'=>'Commandes / facturation', 'detected'=>$shop_detected, 'badge'=>$shop_detected ? 'fonction active' : '' ),
+            array( 'id'=>'bookings', 'label'=>'Réservations / rendez-vous', 'detected'=>$booking_detected, 'badge'=>$booking_detected ? 'Fluent Booking actif' : '' ),
             array( 'id'=>'analytics', 'label'=>'Mesure d’audience', 'detected'=>$analytics_detected, 'badge'=>$analytics_detected ? 'suivi actif détecté' : '' ),
         );
     }

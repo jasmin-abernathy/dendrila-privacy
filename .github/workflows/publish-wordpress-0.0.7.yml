@@ -1,0 +1,53 @@
+name: Publier la 0.0.7 sur WordPress.org
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: wordpress-org-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Récupérer le tag de publication
+        uses: actions/checkout@v7
+        with:
+          ref: v0.0.7
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Vérifier le tag et les contrôles de cette version
+        env:
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SVN_PASSWORD"
+          git merge-base --is-ancestor HEAD "${GITHUB_SHA}"
+          sha=$(git rev-parse HEAD)
+          gh api "repos/$GH_REPO/actions/workflows/quality-and-build.yml/runs?event=push&head_sha=$sha&status=success" \
+            --jq '.workflow_runs[] | select(.head_branch == "v0.0.7") | .id' | grep -E '^[0-9]+$'
+          gh api "repos/$GH_REPO/actions/workflows/consent-browser.yml/runs?event=push&head_sha=$sha&status=success" \
+            --jq '.workflow_runs[] | select(.head_branch == "v0.0.7") | .id' | grep -E '^[0-9]+$'
+          grep -Fx ' * Version: 0.0.7' dendrila-privacy.php
+          grep -Fx 'Stable tag: 0.0.7' readme.txt
+
+      - name: Publier dans le répertoire WordPress.org
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
+        env:
+          SVN_USERNAME: juliane16
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: dendrila-privacy
+          # The separate icon workflow keeps the WordPress.org PNG and SVG assets in sync.
+          ASSETS_DIR: .wordpress-org-svn-assets-disabled
+          VERSION: 0.0.7

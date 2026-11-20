@@ -275,6 +275,16 @@
                 mandatory: 'contract',
                 consequences: 'Les données nécessaires au compte doivent être fournies pour créer ou utiliser l’espace concerné.'
             },
+            bookings: {
+                purpose: 'Gérer les demandes de réservation, confirmations, reports et annulations de rendez-vous',
+                data_categories: 'Nom, adresse e-mail, téléphone et coordonnées demandées, réponses aux questions du formulaire, créneau et fuseau horaire, adresse IP et paramètres UTM enregistrés par Fluent Booking lorsque renseignés',
+                legal_basis: 'unknown',
+                basis_detail: 'À préciser : mesures précontractuelles ou exécution d’un contrat lorsque le rendez-vous est demandé pour un service ; autre base selon le contexte. Le consentement aux traceurs marketing est une question distincte.',
+                recipients: 'Personnes habilitées à gérer les rendez-vous ; hébergeur ; outils de calendrier, CRM ou visioconférence réellement connectés ; prestataire de paiement le cas échéant',
+                retention: 'Pendant la gestion du rendez-vous puis selon la durée de conservation effectivement configurée et les obligations applicables ; documenter les purges ou archives',
+                mandatory: 'contract',
+                consequences: 'Sans les coordonnées ou autres informations indispensables, la réservation ou sa confirmation peut ne pas être possible.'
+            },
             orders: {
                 purpose: 'Traiter les commandes, paiements, livraisons et obligations de facturation',
                 data_categories: 'Identité et coordonnées, adresse de facturation/livraison, contenu de la commande, montant, statut du paiement et références de transaction ; les données bancaires complètes restent chez le prestataire de paiement',
