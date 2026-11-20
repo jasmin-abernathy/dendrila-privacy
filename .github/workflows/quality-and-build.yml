@@ -146,6 +146,8 @@ jobs:
         run: php tests/admin-assets.php
       - name: Age assurance companion tests
         run: php tests/age-assurance-companion.php
+      - name: Mail and ecommerce integrations
+        run: php tests/mail-ecommerce-integrations.php
 
   javascript-syntax:
     name: JavaScript syntax
