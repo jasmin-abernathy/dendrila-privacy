@@ -48,4 +48,6 @@ jobs:
           SVN_USERNAME: juliane16
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
           SLUG: dendrila-privacy
+          # The separate icon workflow keeps the WordPress.org PNG and SVG assets in sync.
+          ASSETS_DIR: .wordpress-org-svn-assets-disabled
           VERSION: 0.0.7

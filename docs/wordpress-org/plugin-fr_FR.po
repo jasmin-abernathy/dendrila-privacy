@@ -1,0 +1,17 @@
+msgid ""
+msgstr "Project-Id-Version: Dendrila Privacy\nLanguage: fr_FR\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nPlural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Gérer mes choix"
+msgstr "Gérer mes choix"
+
+msgid "https://www.lepotager.org/"
+msgstr "https://www.lepotager.org/"
+
+msgid "Le Potager du Web"
+msgstr "Le Potager du Web"
+
+msgid "Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management."
+msgstr "Audits de confidentialité effectués localement, aide à la documentation juridique, détection des traceurs et gestion facultative du consentement."
+
+msgid "Dendrila Privacy"
+msgstr "Dendrila Privacy"
