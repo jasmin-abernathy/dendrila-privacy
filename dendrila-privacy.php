@@ -1560,7 +1560,7 @@ final class Pixel_Trackers_Manager_Plugin {
             ),
             'brevo' => array(
                 'label' => 'Brevo Tracker', 'category' => 'Marketing automation / suivi du site',
-                'patterns' => array( 'sibautomation.com', 'sendinblue.com', 'sibautomation', 'cdn.brevo.com/js/sdk-loader.js' ),
+                'patterns' => array( 'sibautomation.com', 'sendinblue.com', 'sibautomation', 'cdn.brevo.com/js/sdk-loader.js', 'cdn.brevo.com/js/sdk-staging-loader.js' ),
                 'aliases' => array( 'brevo', 'sendinblue', 'tracker brevo' ),
                 'plugin_slugs' => array( 'mailin' ),
             ),
@@ -1848,7 +1848,9 @@ final class Pixel_Trackers_Manager_Plugin {
      * Mailchimp campaign-open tracking remains an external Mailchimp setting.
      */
     private function mc4wp_site_tracking_state() {
-        $opts = get_option( 'mc4wp', array() );
+        // MC4WP merges its defaults and exposes a documented settings filter;
+        // honour that view when available without exposing its API credentials.
+        $opts = function_exists( 'mc4wp_get_options' ) ? mc4wp_get_options() : get_option( 'mc4wp', array() );
         if ( ! is_array( $opts ) ) {
             return array( 'state' => 'unknown', 'label' => 'Réglages du pixel Mailchimp impossibles à lire' );
         }

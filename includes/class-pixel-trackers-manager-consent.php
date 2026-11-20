@@ -61,7 +61,7 @@ final class Pixel_Trackers_Manager_Consent {
                 'analytics.tiktok.com', 'snap.licdn.com', 'linkedin.com/insight',
                 's.pinimg.com/ct', 'bat.bing.com', 'ads-twitter.com',
                 'chimpstatic.com/mcjs-connected/js/users/', 'mcjs-connected/js/users/',
-                'cdn.brevo.com/js/sdk-loader.js',
+                'cdn.brevo.com/js/sdk-loader.js', 'cdn.brevo.com/js/sdk-staging-loader.js',
             ),
             'external' => array(
                 'youtube.com/embed', 'youtube-nocookie.com/embed', 'player.vimeo.com',
