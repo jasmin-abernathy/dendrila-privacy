@@ -470,6 +470,38 @@ final class Pixel_Trackers_Manager_Plugin {
         return isset( $patterns[ $kind ] ) ? $patterns[ $kind ] : array();
     }
 
+    private function has_complianz_document( $content, $kind ) {
+        $types = array( 'privacy' => 'privacy-statement', 'cookies' => 'cookie-statement', 'legal_notice' => 'impressum' );
+        if ( ! isset( $types[ $kind ] ) ) {
+            return false;
+        }
+        $type = $types[ $kind ];
+        if ( preg_match_all( '/' . get_shortcode_regex( array( 'cmplz-document' ) ) . '/s', $content, $matches, PREG_SET_ORDER ) ) {
+            foreach ( $matches as $match ) {
+                $attributes = shortcode_parse_atts( $match[3] );
+                if ( ! ( '[' === $match[1] && ']' === $match[6] ) && $type === ( $attributes['type'] ?? '' ) ) {
+                    return true;
+                }
+            }
+        }
+        if ( ! has_block( 'complianz/document', $content ) ) {
+            return false;
+        }
+        $blocks = parse_blocks( $content );
+        while ( $blocks ) {
+            $block = array_pop( $blocks );
+            $selected = $block['attrs']['selectedDocument'] ?? '';
+            if ( 'complianz/document' === $block['blockName'] &&
+                is_string( $selected ) && preg_match( '/^' . $type . '(?:-[a-z]{2})?$/D', $selected ) ) {
+                return true;
+            }
+            foreach ( $block['innerBlocks'] as $inner ) {
+                $blocks[] = $inner;
+            }
+        }
+        return false;
+    }
+
     private function legal_page_candidates( $kind ) {
         $kind = sanitize_key( $kind );
         if ( isset( $this->legal_page_candidate_cache[ $kind ] ) ) {
@@ -537,6 +569,13 @@ final class Pixel_Trackers_Manager_Plugin {
                 $divi_parts = $this->extract_divi_text_fragments( (string) $post->post_content );
                 if ( $divi_parts ) {
                     $content_parts[] = implode( "\n", $divi_parts );
+                }
+            }
+            foreach ( $content_parts as $part ) {
+                if ( $this->has_complianz_document( $part, $kind ) ) {
+                    $score += 110;
+                    $reasons[] = 'document Complianz';
+                    break;
                 }
             }
             $content = $this->normalize_text( implode( "\n", $content_parts ) );

@@ -10,13 +10,13 @@ const root = path.join(__dirname, '..');
 const apiSource = process.env.WP_CONSENT_API_JS;
 assert.ok(apiSource && fs.existsSync(apiSource), 'Provide the WP Consent API 2.1.0 JS source');
 const fingerprint = 'a'.repeat(64);
-const capture = /(?:youtube\.com|player\.vimeo\.com|google-analytics\.com|connect\.facebook\.net)$/i;
+const capture = /(?:youtube\.com|maps\.google\.com|player\.vimeo\.com|google-analytics\.com|connect\.facebook\.net)$/i;
 const html = [
     '<!doctype html><html><head><meta charset="utf-8"><script>',
     'window.DendrilaPrivacyConsentEarlyConfig={fingerprint:"' + fingerprint + '",wpConsentApi:true};',
     'window.DendrilaPrivacyConsent={storageKey:"pixel_trackers_manager_consent_v2",fingerprint:"' + fingerprint + '",',
     'wpConsentApi:true,retentionDays:180,style:"default",domains:{',
-    'external:["youtube.com/embed","player.vimeo.com","google.com/maps/embed"],',
+    'external:["youtube.com/embed","player.vimeo.com","google.com/maps/embed","maps.google.com/maps/embed"],',
     'statistics:["google-analytics.com"],marketing:["connect.facebook.net"]}};',
     'window.consent_api={consent_type:"optin",waitfor_consent_hook:false,',
     'cookie_expiration:180,cookie_prefix:"wp_consent",',
@@ -75,6 +75,8 @@ const server = http.createServer((req, res) => {
             const host = document.getElementById('host');
             const youtube = document.createElement('iframe');
             youtube.src = 'https://www.youtube.com/embed/test'; host.appendChild(youtube);
+            const map = document.createElement('iframe');
+            map.src = 'https://maps.google.com/maps/embed?pb=fixture'; host.appendChild(map);
             const marketing = document.createElement('script');
             marketing.src = 'https://connect.facebook.net/en_US/fbevents.js'; host.appendChild(marketing);
             const analytics = document.createElement('img');
@@ -98,7 +100,7 @@ const server = http.createServer((req, res) => {
         }));
         await page.waitForTimeout(350);
         assert.ok(requests.some(url=>url.includes('google-analytics.com')), 'allowed analytics request');
-        assert.equal(requests.some(url=>/youtube\.com|vimeo\.com|facebook\.net/.test(url)),false);
+        assert.equal(requests.some(url=>/youtube\.com|vimeo\.com|facebook\.net|maps\.google\.com/.test(url)),false);
         const narrow = await page.evaluate(() => ({
             stats:window.wp_has_consent('statistics'),
             service:window.wp_has_service_consent('facebook-pixel')
@@ -111,6 +113,7 @@ const server = http.createServer((req, res) => {
         }));
         await page.waitForTimeout(450);
         assert.ok(requests.some(url=>url.includes('youtube.com/embed/')),'YouTube allowed after consent');
+        assert.ok(requests.some(url=>url.includes('maps.google.com/maps/embed')), 'Google Maps request allowed after external consent');
         assert.ok(requests.some(url=>url.includes('player.vimeo.com')),'Vimeo allowed after consent');
         assert.ok(requests.some(url=>url.includes('connect.facebook.net')),'marketing allowed after consent');
         const granted = await page.evaluate(() => ({
