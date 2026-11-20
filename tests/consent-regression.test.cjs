@@ -9,7 +9,7 @@ const vm = require('node:vm');
 const bootstrap = fs.readFileSync(path.join(__dirname, '../assets/consent-bootstrap.js'), 'utf8');
 const consent = fs.readFileSync(path.join(__dirname, '../assets/consent.js'), 'utf8');
 
-function environment(testMode = '') {
+function environment(testMode = '', wpApiInstalled = true) {
     const events = {};
     const storage = new Map();
     const apiCalls = [];
@@ -81,10 +81,10 @@ function environment(testMode = '') {
     };
     const window = {
         Element, HTMLScriptElement, HTMLIFrameElement, HTMLImageElement, HTMLLinkElement,
-        DendrilaPrivacyConsentEarlyConfig: { fingerprint:'test-fingerprint', wpConsentApi:true, testMode },
+        DendrilaPrivacyConsentEarlyConfig: { fingerprint:'test-fingerprint', wpConsentApi:wpApiInstalled, testMode },
         DendrilaPrivacyConsent: {
             storageKey:'pixel_trackers_manager_consent_v2',fingerprint:'test-fingerprint',
-            wpConsentApi:true,testMode,
+            wpConsentApi:wpApiInstalled,testMode,
             domains: {
                 external:['youtube.com/embed','player.vimeo.com','google.com/maps/embed'],
                 statistics:['google-analytics.com'],
@@ -167,5 +167,14 @@ test('preview mode never writes WP Consent API cookies', () => {
     const env = environment('accept');
     vm.runInContext(consent, env.ctx, {filename:'consent.js'});
     env.events.DOMContentLoaded();
+    assert.equal(env.apiCalls.length, 0);
+});
+
+test('without WP Consent API native consent runs independently and writes no API cookies', () => {
+    const env = environment('', false);
+    vm.runInContext(consent, env.ctx, {filename:'consent.js'});
+    env.events.DOMContentLoaded();
+    env.window.DendrilaPrivacyConsentAPI.saveChoice({statistics:true, external:false, marketing:false});
+    assert.equal(env.window.wp_consent_type, undefined);
     assert.equal(env.apiCalls.length, 0);
 });

@@ -23,11 +23,17 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
-      - name: Use runner Chrome and minimal Playwright driver
+      - name: Install minimal browser driver
         run: |
           command -v google-chrome
           npm install --no-save --ignore-scripts playwright-core@1.57.0
-      - name: Assert network denial before consent
+      - name: Obtain official WP Consent API 2.1.0 JS (test only)
+        run: |
+          curl --fail --location --retry 2 --silent --show-error https://downloads.wordpress.org/plugin/wp-consent-api.2.1.0.zip -o /tmp/wp-consent-api.2.1.0.zip
+          unzip -oq /tmp/wp-consent-api.2.1.0.zip -d /tmp/wp-consent-test
+          grep -q '^Stable tag: 2.1.0$' /tmp/wp-consent-test/wp-consent-api/readme.txt
+      - name: Assert real WP API + network behaviour
         env:
           CHROME_PATH: /usr/bin/google-chrome
+          WP_CONSENT_API_JS: /tmp/wp-consent-test/wp-consent-api/assets/js/wp-consent-api.js
         run: node tests/consent-browser.cjs
