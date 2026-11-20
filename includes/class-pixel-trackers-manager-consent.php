@@ -68,9 +68,11 @@ final class Pixel_Trackers_Manager_Consent {
             return null;
         }
         $settings = $this->plugin->public_settings();
-        $age_ms = (int) ( time() * 1000 ) - (int) $matches[1];
+        // Date.now() includes milliseconds; time() truncates to whole seconds.
+        // Allow a short client clock skew while rejecting expired grants.
+        $age_ms = (int) ( microtime( true ) * 1000 ) - (int) $matches[1];
         $retention_ms = max( 1, (int) $settings['consent_retention_days'] ) * 86400000;
-        if ( $age_ms < 0 || $age_ms > $retention_ms ) {
+        if ( $age_ms < -300000 || $age_ms > $retention_ms ) {
             return null;
         }
         return $matches[2]; // Order: statistics, external, marketing.
