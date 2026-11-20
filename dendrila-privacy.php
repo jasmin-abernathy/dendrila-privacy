@@ -5138,6 +5138,30 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_section_form_start( 'external' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 4</div><h3>Quels outils utilisez-vous en dehors de WordPress ?</h3><p class="ptm-question-intro">Un site peut être correctement configuré tout en laissant des données circuler ailleurs. Dendrila Privacy vous donne des exemples concrets et préremplit ce qu’il a repéré sur le site.</p>';
         if ( $external_detected ) { echo '<div class="ptm-callout good"><strong>Repéré sur le site :</strong> ' . esc_html( implode( ', ', array_values( $external_detected ) ) ) . '. Confirmez seulement les usages qui existent encore.</div>'; }
+        $acf_review = $this->acf_privacy_configuration( $scan );
+        if ( $acf_review['active'] ) {
+            echo '<div class="ptm-callout neutral"><strong>Advanced Custom Fields — configuration et données</strong>';
+            if ( ! $acf_review['readable'] ) {
+                echo '<p>ACF est détecté, mais ses réglages ne peuvent pas encore être lus : vérifiez-les manuellement dans ACF.</p>';
+            } else {
+                echo '<p>' . esc_html( $acf_review['groups_checked'] ) . ' groupe(s) actif(s) examinés ; ' . esc_html( $acf_review['rest_groups'] ) . ' groupe(s) sont configurés pour apparaître dans les réponses REST. <strong>Cela ne signifie pas que des données privées sont accessibles sans connexion.</strong> En outre, ' . esc_html( $acf_review['rest_post_types'] ) . ' type(s) de contenu et ' . esc_html( $acf_review['rest_taxonomies'] ) . ' taxonomie(s) créés par ACF sont configurés pour REST. Vérifiez les permissions de chaque type de contenu et les réponses de l’API en navigation déconnectée.</p>';
+                if ( $acf_review['abilities_enabled'] ) {
+                    echo '<p><strong>Abilities API configurée comme activée</strong>' . ( $acf_review['abilities_available'] ? ' et disponible sur ce WordPress.' : ', mais l’API WordPress nécessaire n’est pas disponible actuellement.' ) . ' ' . esc_html( $acf_review['abilities_groups'] ) . ' groupe(s), ' . esc_html( $acf_review['abilities_post_types'] ) . ' type(s) de contenu et ' . esc_html( $acf_review['abilities_taxonomies'] ) . ' taxonomie(s) sont configurés pour les Abilities. Cette configuration ne prouve pas qu’un service d’IA ou un client MCP est connecté : vérifiez les extensions d’accès à l’API et leurs autorisations.</p>';
+                } else {
+                    echo '<p>Abilities API : désactivée dans les réglages ACF actuels.</p>';
+                }
+                if ( $acf_review['google_map_fields'] ) {
+                    echo '<p>' . esc_html( $acf_review['google_map_fields'] ) . ' champ(s) Google Map configuré(s). Leur existence ne prouve pas un appel à Google Maps côté visiteur : le champ peut être réservé au back-office. Vérifiez les requêtes réseau sur les pages publiques avant de conclure.</p>';
+                }
+                if ( $acf_review['data_input_fields'] ) {
+                    echo '<p>' . esc_html( $acf_review['data_input_fields'] ) . ' champ(s) de type e-mail, mot de passe ou utilisateur : examinez les finalités et les droits d’accès si leurs valeurs concernent des personnes. Aucun contenu de ces champs n’est lu par Dendrila.</p>';
+                }
+                if ( $acf_review['truncated'] ) {
+                    echo '<p>Inventaire limité pour éviter de ralentir WordPress : tous les groupes ou champs n’ont pas été examinés.</p>';
+                }
+            }
+            echo '<p>ACF peut aussi alimenter des formulaires publics (<code>acf_form()</code>) : l’installation seule ne permet pas d’affirmer qu’un formulaire collecte des données. Les polices de l’interface ACF sont fournies localement ; le champ carte peut utiliser Google Maps dans le back-office sans chargement chez les visiteurs.</p></div>';
+        }
         $booking_privacy = $this->fluent_booking_privacy_state( $scan );
         if ( $booking_privacy['active'] ) {
             echo '<div class="ptm-callout ' . ( $booking_privacy['mcp_enabled'] ? 'warn' : 'neutral' ) . '"><strong>Fluent Booking — données de rendez-vous</strong><p>Les réservations peuvent conserver nom, e-mail, téléphone, réponses au formulaire, date du rendez-vous, adresse IP et paramètres UTM. Vérifiez la durée réelle de conservation, les accès internes et les destinataires de synchronisation (calendriers, CRM, visioconférence) si ces intégrations sont activées.</p>';
@@ -5412,6 +5436,121 @@ final class Pixel_Trackers_Manager_Plugin {
             'active' => true,
             'mcp_enabled' => is_array( $mcp ) && isset( $mcp['enabled'] ) && 'yes' === $mcp['enabled'],
         );
+    }
+
+    /**
+     * Report ACF configuration only. Field values and API credentials are never
+     * inspected, exported, stored or sent. A REST-enabled group does not itself
+     * prove that data is publicly accessible, and an Abilities toggle does not
+     * prove an external AI/MCP client is connected.
+     *
+     * ACF 6.8.12 enables Abilities globally by default, while individual field
+     * groups still default to show_in_rest=false. Audit effective settings.
+     */
+    private function acf_privacy_configuration( $scan ) {
+        $result = array(
+            'active' => false,
+            'readable' => false,
+            'rest_enabled' => false,
+            'abilities_enabled' => false,
+            'abilities_available' => false,
+            'groups_checked' => 0,
+            'rest_groups' => 0,
+            'abilities_groups' => 0,
+            'google_map_fields' => 0,
+            'data_input_fields' => 0,
+            'rest_post_types' => 0,
+            'rest_taxonomies' => 0,
+            'abilities_post_types' => 0,
+            'abilities_taxonomies' => 0,
+            'truncated' => false,
+        );
+        foreach ( (array) ( isset( $scan['plugins'] ) ? $scan['plugins'] : array() ) as $item ) {
+            $slug = isset( $item['slug'] ) ? sanitize_key( (string) $item['slug'] ) : '';
+            if ( ! empty( $item['active'] ) && in_array( $slug, array( 'advanced-custom-fields', 'advanced-custom-fields-pro' ), true ) ) {
+                $result['active'] = true;
+                break;
+            }
+        }
+        if ( ! $result['active'] || ! function_exists( 'acf_get_setting' ) ) {
+            return $result;
+        }
+        $result['readable'] = true;
+        $result['rest_enabled'] = (bool) acf_get_setting( 'rest_api_enabled' );
+        $result['abilities_enabled'] = (bool) acf_get_setting( 'enable_abilities' );
+        $result['abilities_available'] = function_exists( 'wp_register_ability' );
+        if ( ! function_exists( 'acf_get_field_groups' ) ) {
+            return $result;
+        }
+        $groups = acf_get_field_groups();
+        if ( ! is_array( $groups ) ) {
+            return $result;
+        }
+        // Bound the admin-only read to keep large installations responsive.
+        $group_count = 0;
+        $field_count = 0;
+        foreach ( $groups as $group ) {
+            if ( ++$group_count > 200 ) {
+                $result['truncated'] = true;
+                break;
+            }
+            if ( ! is_array( $group ) || ( isset( $group['active'] ) && ! $group['active'] ) ) {
+                continue;
+            }
+            ++$result['groups_checked'];
+            $group_rest = ! empty( $group['show_in_rest'] );
+            if ( $group_rest && $result['rest_enabled'] ) {
+                ++$result['rest_groups'];
+            }
+            if ( $result['abilities_enabled'] && $result['abilities_available'] &&
+                ! empty( $group['enable_acf_abilities'] ) ) {
+                ++$result['abilities_groups'];
+            }
+            if ( ! function_exists( 'acf_get_fields' ) ) {
+                continue;
+            }
+            $fields = acf_get_fields( $group );
+            if ( ! is_array( $fields ) ) {
+                continue;
+            }
+            foreach ( $fields as $field ) {
+                if ( ++$field_count > 1500 ) {
+                    $result['truncated'] = true;
+                    break 2;
+                }
+                if ( ! is_array( $field ) ) { continue; }
+                $type = isset( $field['type'] ) ? (string) $field['type'] : '';
+                if ( 'google_map' === $type ) {
+                    ++$result['google_map_fields'];
+                }
+                if ( in_array( $type, array( 'email', 'password', 'user' ), true ) ) {
+                    ++$result['data_input_fields'];
+                }
+            }
+        }
+        // Registered ACF content types and taxonomies are separate from field
+        // groups: their REST visibility defaults to true in ACF 6.8.12.
+        // This is a configuration review, never a claim of anonymous access.
+        foreach ( array(
+            'acf_get_acf_post_types' => array( 'show_in_rest' => 'rest_post_types', 'ability' => 'abilities_post_types' ),
+            'acf_get_acf_taxonomies' => array( 'show_in_rest' => 'rest_taxonomies', 'ability' => 'abilities_taxonomies' ),
+        ) as $reader => $keys ) {
+            if ( ! function_exists( $reader ) ) { continue; }
+            $items = $reader();
+            if ( ! is_array( $items ) ) { continue; }
+            $index = 0;
+            foreach ( $items as $item ) {
+                if ( ++$index > 200 ) { $result['truncated'] = true; break; }
+                if ( ! is_array( $item ) || ( isset( $item['active'] ) && ! $item['active'] ) ) { continue; }
+                if ( empty( $item['show_in_rest'] ) ) { continue; }
+                ++$result[ $keys['show_in_rest'] ];
+                if ( $result['abilities_enabled'] && $result['abilities_available'] &&
+                    ! empty( $item['enable_acf_abilities'] ) ) {
+                    ++$result[ $keys['ability'] ];
+                }
+            }
+        }
+        return $result;
     }
 
     private function treatment_template_recommendations( $scan ) {
