@@ -55,6 +55,9 @@ final class Pixel_Trackers_Manager_Consent {
             'statistics' => array(
                 'google-analytics.com', 'googletagmanager.com/gtag/js', 'analytics.google.com',
                 'clarity.ms', 'hotjar.com', 'static.hotjar.com', 'plausible.io', 'matomo.js', 'piwik.js',
+                'edge.fullstory.com/s/fs.js', 'edge.eu1.fullstory.com/s/fs.js', 'fullstory.com/s/fs.js',
+                'cdn.mouseflow.com/projects/', 'web-sdk.smartlook.com/recorder.js',
+                'cdn.logrocket.io', 'cdn.logr-in.com',
             ),
             'marketing' => array(
                 'googletagmanager.com/gtm.js', 'connect.facebook.net', 'facebook.com/tr',
@@ -98,12 +101,31 @@ final class Pixel_Trackers_Manager_Consent {
         return array_values( array_unique( $ids ) );
     }
 
+    /**
+     * The scanner reports observed scripts, not whether a vendor's optional
+     * recording features are switched on. Warn conservatively for replay-capable
+     * services whose scripts are observed or blocked.
+     */
+    private function session_replay_detected() {
+        $replay_capable = array( 'clarity', 'hotjar', 'fullstory', 'mouseflow', 'smartlook', 'logrocket' );
+        $scan = $this->plugin->public_scan();
+        foreach ( (array) ( isset( $scan['findings'] ) ? $scan['findings'] : array() ) as $finding ) {
+            $id = isset( $finding['id'] ) ? (string) $finding['id'] : '';
+            if ( in_array( $id, $replay_capable, true ) && ( ! empty( $finding['active_tracking'] ) || ! empty( $finding['blocked_by_consent'] ) ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function consent_fingerprint() {
         $payload = array(
             'schema' => 2,
             'services' => $this->active_service_ids(),
             'categories' => $this->active_categories(),
-            'copy_version' => 1,
+            // Re-consent for updated first-level information only when a replay-
+            // capable service is actually observed, not for every plugin install.
+            'copy_version' => $this->session_replay_detected() ? 2 : 1,
         );
         return hash( 'sha256', wp_json_encode( $payload ) );
     }
@@ -152,7 +174,7 @@ final class Pixel_Trackers_Manager_Consent {
 
     private function active_categories() {
         $ids = array(
-            'google-analytics'=>'statistics','clarity'=>'statistics','hotjar'=>'statistics','matomo'=>'statistics','plausible'=>'statistics',
+            'google-analytics'=>'statistics','clarity'=>'statistics','hotjar'=>'statistics','fullstory'=>'statistics','mouseflow'=>'statistics','smartlook'=>'statistics','logrocket'=>'statistics','matomo'=>'statistics','plausible'=>'statistics',
             'google-tag-manager'=>'marketing','meta-pixel'=>'marketing','tiktok-pixel'=>'marketing','linkedin-insight'=>'marketing','pinterest-tag'=>'marketing','brevo'=>'marketing',
             'youtube'=>'external','vimeo'=>'external','google-maps'=>'external',
         );
@@ -224,7 +246,7 @@ final class Pixel_Trackers_Manager_Consent {
                 <button type="button" class="ptm-consent-close" data-ptm-action="close" aria-label="Fermer sans accepter">×</button>
                 <div class="ptm-consent-main">
                     <h2 id="ptm-consent-title">Votre choix compte</h2>
-                    <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.</p>
+                    <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.<?php if ( $this->session_replay_detected() ) : ?> Des outils présents sur ce site peuvent reconstituer vos interactions (clics, défilements et éventuellement saisies) sous forme de rejeu de session, selon leur configuration. Cette fonctionnalité, lorsqu’elle est activée, nécessite votre accord préalable.<?php endif; ?></p>
                     <div class="ptm-consent-actions" role="group" aria-label="Choix de consentement">
                         <button type="button" class="ptm-consent-choice" data-ptm-action="reject">Tout refuser</button>
                         <button type="button" class="ptm-consent-choice" data-ptm-action="accept">Tout accepter</button>
@@ -232,7 +254,7 @@ final class Pixel_Trackers_Manager_Consent {
                     </div>
                     <div class="ptm-consent-preferences" hidden>
                         <label class="ptm-consent-row"><span><strong>Nécessaires</strong><small>Fonctionnement et sécurité essentiels.</small></span><input type="checkbox" checked disabled></label>
-                        <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Mesure d’audience</strong><small>Comprendre l’usage du site.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
+                        <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Mesure d’audience</strong><small>Comprendre l’usage du site<?php if ( $this->session_replay_detected() ) : ?> ; cela peut inclure le rejeu d’un parcours de navigation selon les fonctions activées<?php endif; ?>.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
                         <?php if ( in_array('external',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Contenus externes</strong><small>Vidéos, cartes ou contenus venant d’un autre service.</small></span><input type="checkbox" data-ptm-category-toggle="external"></label><?php endif; ?>
                         <?php if ( in_array('marketing',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Marketing et suivi</strong><small>Mesure individualisée ou publicité.</small></span><input type="checkbox" data-ptm-category-toggle="marketing"></label><?php endif; ?>
                         <button type="button" class="ptm-consent-save" data-ptm-action="save">Enregistrer mes choix</button>
