@@ -1,10 +1,12 @@
 name: Publier la 0.0.7 sur WordPress.org
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [release/wordpress-org-0.0.7]
+    paths: ['.github/workflows/publish-wordpress-0.0.7.yml']
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -13,18 +15,17 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Récupérer le tag de publication
+      - name: Récupérer le commit fusionné
         uses: actions/checkout@v7
         with:
-          ref: v0.0.7
+          ref: 039496cc91ee8f7ae7b6a389f704c91b50b66914
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Vérifier le tag et les contrôles de cette version
+      - name: Vérifier le commit et les contrôles de cette version
         env:
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
@@ -33,14 +34,33 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$SVN_PASSWORD"
-          git merge-base --is-ancestor HEAD "${GITHUB_SHA}"
-          sha=$(git rev-parse HEAD)
-          gh api "repos/$GH_REPO/actions/workflows/quality-and-build.yml/runs?event=push&head_sha=$sha&status=success" \
-            --jq '.workflow_runs[] | select(.head_branch == "v0.0.7") | .id' | grep -E '^[0-9]+$'
-          gh api "repos/$GH_REPO/actions/workflows/consent-browser.yml/runs?event=push&head_sha=$sha&status=success" \
-            --jq '.workflow_runs[] | select(.head_branch == "v0.0.7") | .id' | grep -E '^[0-9]+$'
+          tested=98186d6e65241318d3ac72de5dcce5c0bedf1aa1
+          release=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$tested" "$release"
+          git diff --exit-code "$tested" "$release"
+          git merge-base --is-ancestor "$release" origin/master
+          sha="$tested"
+          for run_id in 44738681370 44738681374; do
+            result=$(gh api "repos/$GH_REPO/actions/runs/$run_id" --jq '[.head_sha, .event, .conclusion] | join(" ")')
+            test "$result" = "$sha pull_request success"
+          done
           grep -Fx ' * Version: 0.0.7' dendrila-privacy.php
           grep -Fx 'Stable tag: 0.0.7' readme.txt
+
+      - name: Créer le tag Git v0.0.7 sur le commit fusionné
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          current=$(git ls-remote origin refs/tags/v0.0.7 | cut -f1)
+          if [ -z "$current" ]; then
+            gh api "repos/$GH_REPO/git/refs" -f ref=refs/tags/v0.0.7 -f sha="$sha" --jq .ref
+          else
+            test "$current" = "$sha"
+          fi
 
       - name: Publier dans le répertoire WordPress.org
         uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
