@@ -1,0 +1,104 @@
+name: Dendrila Privacy – WordPress.org official icon
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'assets/logo-mark.svg'
+      - '.wordpress-org/**'
+      - 'tools/build_wporg_icons.py'
+      - '.github/workflows/publish-wordpress-icon.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'assets/logo-mark.svg'
+      - '.wordpress-org/**'
+      - 'tools/build_wporg_icons.py'
+      - '.github/workflows/publish-wordpress-icon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordpress-org-branding
+  cancel-in-progress: false
+
+jobs:
+  validate-icon:
+    name: Prepare SVG and transparent PNG fallbacks
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install SVG renderer
+        run: python3 -m pip install --disable-pip-version-check 'CairoSVG==2.8.2'
+      - name: Generate exact 128px and 256px icons
+        run: python3 tools/build_wporg_icons.py
+      - name: Verify canonical SVG and both PNG sizes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          p = Path('.wordpress-org')
+          assert p.joinpath('icon.svg').read_bytes() == Path('assets/logo-mark.svg').read_bytes()
+          for size in (128, 256):
+              data = p.joinpath(f'icon-{size}x{size}.png').read_bytes()
+              assert data[:8] == bytes.fromhex('89504e470d0a1a0a')
+              assert struct.unpack('>II', data[16:24]) == (size, size)
+              assert data[25] == 6, 'PNG must have an alpha channel'
+          print('Existing Dendrila logo reused without modifications; PNG alpha verified.')
+          PY
+      - name: Save assets for deployment
+        uses: actions/upload-artifact@v7
+        with:
+          name: dendrila-privacy-wordpress-org-icon
+          path: |
+            .wordpress-org/icon.svg
+            .wordpress-org/icon-128x128.png
+            .wordpress-org/icon-256x256.png
+          include-hidden-files: true
+          retention-days: 7
+
+  publish-icon-only:
+    name: Publish only WordPress.org /assets (never PHP or trunk)
+    needs: validate-icon
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SVN_USERNAME: juliane16
+      SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+    steps:
+      - name: Verify publication credential
+        run: |
+          if [ -z "$SVN_PASSWORD" ]; then
+            echo "::error::SVN_PASSWORD is absent. Add it to repository Actions secrets."
+            exit 1
+          fi
+      - name: Install Subversion
+        run: |
+          if ! command -v svn >/dev/null 2>&1; then sudo apt-get update -qq && sudo apt-get install -y -qq subversion; fi
+      - name: Retrieve validated icon assets
+        uses: actions/download-artifact@v7
+        with:
+          name: dendrila-privacy-wordpress-org-icon
+          path: public-icon
+      - name: Publish icons without plugin version bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          svn checkout --non-interactive --quiet https://plugins.svn.wordpress.org/dendrila-privacy/assets/ wordpress-assets
+          test -f public-icon/.wordpress-org/icon.svg
+          cp public-icon/.wordpress-org/icon.svg wordpress-assets/icon.svg
+          cp public-icon/.wordpress-org/icon-128x128.png wordpress-assets/icon-128x128.png
+          cp public-icon/.wordpress-org/icon-256x256.png wordpress-assets/icon-256x256.png
+          svn add --quiet --force wordpress-assets/icon.svg wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png
+          svn propset --quiet svn:mime-type image/svg+xml wordpress-assets/icon.svg
+          svn propset --quiet svn:mime-type image/png wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png
+          if [ -n "$(svn status wordpress-assets)" ]; then
+            svn commit wordpress-assets/icon.svg wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png               -m "Publish existing Dendrila Privacy leaf-and-scales logo"               --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
+          else
+            echo "WordPress.org already has identical icon assets."
+          fi
+          echo "The WordPress.org plugin listing may take time to refresh its image CDN cache."

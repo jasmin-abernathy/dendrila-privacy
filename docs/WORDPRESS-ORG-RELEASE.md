@@ -158,3 +158,15 @@ Pour publier :
 6. vérifier la fiche et le téléchargement sur WordPress.org.
 
 Ne pas envoyer tous les petits commits GitHub vers le SVN : le SVN WordPress.org est un dépôt de publication.
+
+## Identité visuelle sur WordPress.org
+
+- Le logo officiel utilisé dans le tableau de bord Dendrila Privacy est `assets/logo-mark.svg` (balance de justice et feuille).
+- La même source, **strictement identique**, est conservée sous `.wordpress-org/icon.svg` pour WordPress.org.
+- `tools/build_wporg_icons.py` produit les deux PNG de repli `icon-128x128.png` et `icon-256x256.png`, fond transparent, à partir du SVG original.
+- Le workflow `.github/workflows/publish-wordpress-icon.yml` vérifie les images en PR, puis, sur `master`, ne publie **que** `icon.svg` et ces deux PNG dans le dossier **SVN /assets**. Il n'envoie ni code PHP, ni trunk, ni tag de version.
+- Il utilise le secret Actions `SVN_PASSWORD` et l'identifiant WordPress.org de publication déjà configuré dans le workflow de la version 0.0.6. En l'absence du secret, il échoue sans modifier SVN.
+- La publication d'une **nouvelle version du plugin** par `10up/action-wordpress-plugin-deploy` récupère également les sources placées dans `.wordpress-org` lorsque l'action est utilisée ; veiller à générer les deux PNG avant de lancer cette action.
+- Le dossier `.wordpress-org` et les outils de génération sont exclus du ZIP du plugin par `.distignore`.
+
+Les images WordPress.org sont mises en cache et peuvent mettre du temps à apparaître après le commit SVN.
