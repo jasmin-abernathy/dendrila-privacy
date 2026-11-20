@@ -66,7 +66,8 @@ final class Pixel_Trackers_Manager_Consent {
         if ( ! isset( $_COOKIE['dendrila_privacy_consent_v1'] ) || ! is_string( $_COOKIE['dendrila_privacy_consent_v1'] ) ) {
             return null;
         }
-        $raw = wp_unslash( $_COOKIE['dendrila_privacy_consent_v1'] );
+        // Validate the exact cookie format below without altering the stored choice marker.
+        $raw = wp_unslash( $_COOKIE['dendrila_privacy_consent_v1'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         if ( strlen( $raw ) > 150 || ! preg_match( '/^1\.([0-9]{10,16})\.([01]{3})\.([a-f0-9]{64})$/D', $raw, $matches ) ) {
             return null;
         }
