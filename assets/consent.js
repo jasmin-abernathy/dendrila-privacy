@@ -302,12 +302,76 @@
         };
     }
 
-    // WP Consent API is a separate optional plugin. Its JavaScript is normally
-    // loaded in the footer, so synchronise at DOM ready AND when choices change.
-    // Never turn an 'external content' choice into general preferences consent.
+    // WP Consent API 2.1.0 supports per-service overrides. Its native
+    // wp_has_service_consent() can return true for an old explicit grant even
+    // when the user has rejected the matching category in Dendrila.
+    function wpCategoryAllowed(category) {
+        if (category === 'functional') { return true; }
+        if (category === 'statistics' || category === 'statistics-anonymous') {
+            return allowed('statistics');
+        }
+        if (category === 'marketing') { return allowed('marketing'); }
+        // Dendrila does not conflate external videos with general preferences.
+        return false;
+    }
+
+    function guardWPConsentReaders() {
+        if (typeof window.wp_has_consent === 'function' && !window.wp_has_consent.dendrilaGuarded) {
+            var previousCategoryCheck = window.wp_has_consent;
+            var categoryGuard = function (category) {
+                if (!wpCategoryAllowed(category)) { return false; }
+                if (category === 'functional') { return true; }
+                return previousCategoryCheck.apply(this, arguments);
+            };
+            categoryGuard.dendrilaGuarded = true;
+            window.wp_has_consent = categoryGuard;
+        }
+        if (typeof window.wp_has_service_consent === 'function' && !window.wp_has_service_consent.dendrilaGuarded) {
+            var previousServiceCheck = window.wp_has_service_consent;
+            var serviceGuard = function (service) {
+                var category = typeof window.wp_get_service_category === 'function'
+                    ? window.wp_get_service_category(service) : 'marketing';
+                return wpCategoryAllowed(category) && previousServiceCheck.apply(this, arguments);
+            };
+            serviceGuard.dendrilaGuarded = true;
+            window.wp_has_service_consent = serviceGuard;
+        }
+    }
+
+    // WP Consent API reads its own cookies on PHP requests; Dendrila's canonical
+    // choice lives in localStorage. A first-party, non-identifying marker lets
+    // PHP reject stale WP API cookies and explicit service grants. The marker
+    // expires at exactly the same time as the localStorage choice.
+    function syncChoiceMarkerCookie() {
+        if (!cfg.wpConsentApi || cfg.preview || cfg.testMode) { return; }
+        var name = 'dendrila_privacy_consent_v1';
+        var ageLimit = Math.max(1, Number(cfg.retentionDays || 180)) * 86400000;
+        var valid = current && current.savedAt && cfg.fingerprint &&
+            /^[a-f0-9]{64}$/.test(String(cfg.fingerprint)) &&
+            current.fingerprint === cfg.fingerprint;
+        var expiresIn = valid ? Math.floor((Number(current.savedAt) + ageLimit - Date.now()) / 1000) : 0;
+        var value = valid && expiresIn > 0 ? (
+            '1.' + Number(current.savedAt) + '.' +
+            (allowed('statistics') ? '1' : '0') +
+            (allowed('external') ? '1' : '0') +
+            (allowed('marketing') ? '1' : '0') +
+            '.' + cfg.fingerprint
+        ) : '';
+        try {
+            document.cookie = name + '=' + value + '; Path=/; Max-Age=' +
+                Math.max(0, expiresIn) + '; SameSite=Lax' +
+                (window.location && window.location.protocol === 'https:' ? '; Secure' : '');
+        } catch (e) {
+            // If cookies are disabled, PHP-side optional consent stays denied.
+        }
+    }
+
+    // The Dendrila UI depends on the wp-consent-api script when installed; its
+    // early tracker blocker remains standalone in the head.
     function syncWPConsentAPI() {
         if (!cfg.wpConsentApi) { return; }
         window.wp_consent_type = 'optin';
+        guardWPConsentReaders();
         try { document.dispatchEvent(new CustomEvent('wp_consent_type_defined')); } catch (e) {}
         if (cfg.preview || cfg.testMode || typeof window.wp_set_consent !== 'function') { return; }
         var values = {
@@ -335,6 +399,7 @@
         }
         current = choice;
         syncEarlyGuard(choice);
+        syncChoiceMarkerCookie();
         syncWPConsentAPI();
         activateAllowedResources();
         reinitialiseDiviIntegrations();
@@ -599,6 +664,7 @@
     function initialise() {
         current = cfg.preview ? null : (testChoice() || readChoice());
         syncEarlyGuard(current);
+        syncChoiceMarkerCookie();
         syncWPConsentAPI();
         mountConsentRoot();
         activateAllowedResources();
