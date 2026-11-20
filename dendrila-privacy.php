@@ -5160,7 +5160,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     echo '<p>Inventaire limité pour éviter de ralentir WordPress : tous les groupes ou champs n’ont pas été examinés.</p>';
                 }
             }
-            echo '<p>ACF peut aussi alimenter des formulaires publics (`acf_form()`) : l’installation seule ne permet pas d’affirmer qu’un formulaire collecte des données. Les polices de l’interface ACF sont fournies localement ; le code de son champ carte utilise Google Maps, pas Google Fonts.</p></div>';
+            echo '<p>ACF peut aussi alimenter des formulaires publics (<code>acf_form()</code>) : l’installation seule ne permet pas d’affirmer qu’un formulaire collecte des données. Les polices de l’interface ACF sont fournies localement ; le champ carte peut utiliser Google Maps dans le back-office sans chargement chez les visiteurs.</p></div>';
         }
         $booking_privacy = $this->fluent_booking_privacy_state( $scan );
         if ( $booking_privacy['active'] ) {
