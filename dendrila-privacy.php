@@ -1560,9 +1560,16 @@ final class Pixel_Trackers_Manager_Plugin {
             ),
             'brevo' => array(
                 'label' => 'Brevo Tracker', 'category' => 'Marketing automation / suivi du site',
-                'patterns' => array( 'sibautomation.com', 'sendinblue.com', 'sibautomation' ),
+                'patterns' => array( 'sibautomation.com', 'sendinblue.com', 'sibautomation', 'cdn.brevo.com/js/sdk-loader.js' ),
                 'aliases' => array( 'brevo', 'sendinblue', 'tracker brevo' ),
                 'plugin_slugs' => array( 'mailin' ),
+            ),
+            'mc4wp-site-pixel' => array(
+                'label' => 'Mailchimp for WordPress — pixel de suivi du site',
+                'category' => 'Marketing / suivi du site',
+                'patterns' => array( 'chimpstatic.com/mcjs-connected/js/users/', 'mcjs-connected/js/users/' ),
+                'aliases' => array( 'mc4wp-mailchimp-site-tracking-pixel', 'mailchimp site tracking pixel' ),
+                'plugin_slugs' => array( 'mailchimp-for-wp' ),
             ),
             'helloasso' => array(
                 'label' => 'HelloAsso', 'category' => 'Adhésions / dons / billetterie',
@@ -1835,6 +1842,41 @@ final class Pixel_Trackers_Manager_Plugin {
         );
     }
 
+    /**
+     * MC4WP 4.15.0 has an optional on-site marketing pixel in addition to forms.
+     * Read only its public WordPress option; never use or disclose the API key.
+     * Mailchimp campaign-open tracking remains an external Mailchimp setting.
+     */
+    private function mc4wp_site_tracking_state() {
+        $opts = get_option( 'mc4wp', array() );
+        if ( ! is_array( $opts ) ) {
+            return array( 'state' => 'unknown', 'label' => 'Réglages du pixel Mailchimp impossibles à lire' );
+        }
+        if ( empty( $opts['tracking_pixel_enabled'] ) ) {
+            return array( 'state' => 'disabled', 'label' => 'Pixel de suivi du site MC4WP désactivé' );
+        }
+        if ( empty( $opts['tracking_pixel_site_id'] ) || empty( $opts['tracking_pixel_script_url'] ) ) {
+            return array( 'state' => 'unknown', 'label' => 'Pixel MC4WP demandé, mais connexion/script à vérifier' );
+        }
+        return array( 'state' => 'active', 'label' => 'Pixel de suivi du site MC4WP activé (distinct du suivi des campagnes)' );
+    }
+
+    /**
+     * Brevo 3.3.6: is_ma_active() checks the main ma_key and home activate_ma.
+     * Sending SMTP or a transactional email does NOT imply site automation.
+     */
+    private function brevo_site_tracking_state() {
+        $general = get_option( 'sib_main_option', array() );
+        $home = get_option( 'sib_home_option', array() );
+        if ( ! is_array( $general ) || ! is_array( $home ) ) {
+            return array( 'state' => 'unknown', 'label' => 'Réglages Brevo impossibles à lire' );
+        }
+        $active = ! empty( $general['ma_key'] ) && ( ! isset( $home['activate_ma'] ) || 'no' !== $home['activate_ma'] );
+        return $active
+            ? array( 'state' => 'active', 'label' => 'SDK de marketing automation Brevo activé sur le site' )
+            : array( 'state' => 'disabled', 'label' => 'SDK de marketing automation Brevo non activé sur le site' );
+    }
+
     private function email_tracking_tools( $plugins ) {
         $by_slug = array();
         foreach ( $plugins as $plugin ) {
@@ -1865,11 +1907,14 @@ final class Pixel_Trackers_Manager_Plugin {
             }
         }
         if ( isset( $by_slug['mailin'] ) ) {
+            $site_state = $this->brevo_site_tracking_state();
             $tools[] = array(
                 'id' => 'brevo', 'name' => 'Brevo', 'plugin' => $by_slug['mailin'],
-                'tracking_state' => 'unknown', 'status' => array( 'state' => 'unknown' ),
+                // Do not equate Brevo's website SDK with email open/click pixels.
+                'tracking_state' => 'unknown', 'site_tracking_state' => $site_state['state'],
+                'status' => array( 'state' => 'unknown', 'label' => $site_state['label'] . ' ; suivi des e-mails à vérifier dans Brevo' ),
                 'action_mode' => 'guided', 'settings_url' => admin_url( 'admin.php?page=mailin' ),
-                'help' => 'Le tracker de site Brevo est distinct du suivi d’ouverture/clic des campagnes. Dans Brevo > Accueil, désactivez « Marketing Automation via Brevo » si vous ne souhaitez pas utiliser le tracker du site.',
+                'help' => $site_state['label'] . '. Le suivi d’ouverture/clic des campagnes est un autre réglage dans Brevo. Dans Brevo > Accueil, désactivez « Marketing Automation via Brevo » pour couper le SDK du site sans couper les e-mails transactionnels.',
             );
         }
         if ( isset( $by_slug['newsletter'] ) ) {
@@ -1881,11 +1926,14 @@ final class Pixel_Trackers_Manager_Plugin {
             );
         }
         if ( isset( $by_slug['mailchimp-for-wp'] ) ) {
+            $site_state = $this->mc4wp_site_tracking_state();
             $tools[] = array(
                 'id' => 'mailchimp', 'name' => 'Mailchimp for WordPress', 'plugin' => $by_slug['mailchimp-for-wp'],
-                'tracking_state' => 'external', 'status' => array( 'state' => 'external' ),
-                'action_mode' => 'external', 'settings_url' => admin_url( 'admin.php?page=mailchimp-for-wp' ),
-                'help' => 'MC4WP gère surtout les formulaires. Le suivi d’ouverture/clic se règle dans Mailchimp, dans « Settings & Tracking » de chaque campagne ; Dendrila Privacy ne prétend pas le couper localement.',
+                // MC4WP's site pixel does not prove newsletter email pixels are on.
+                'tracking_state' => 'external', 'site_tracking_state' => $site_state['state'],
+                'status' => array( 'state' => 'external', 'label' => $site_state['label'] . ' ; suivi e-mail géré dans Mailchimp' ),
+                'action_mode' => 'guided', 'settings_url' => admin_url( 'admin.php?page=mailchimp-for-wp-other' ),
+                'help' => $site_state['label'] . '. MC4WP > Other Settings > Site Tracking Pixel permet de le désactiver sans supprimer les formulaires. Le suivi des ouvertures/clics des campagnes Mailchimp se règle séparément dans Mailchimp.',
             );
         }
         foreach ( $by_slug as $slug => $plugin ) {
@@ -2073,6 +2121,27 @@ final class Pixel_Trackers_Manager_Plugin {
             }
         }
 
+        // Check directly readable website-tracking settings without confusing
+        // those settings with email-open pixels or proof of a network request.
+        foreach ( array( 'brevo' => 'brevo_site_tracking_state', 'mc4wp-site-pixel' => 'mc4wp_site_tracking_state' ) as $site_id => $reader ) {
+            if ( ! isset( $findings[ $site_id ] ) || empty( $findings[ $site_id ]['plugin_sources'] ) ) { continue; }
+            $status = $this->$reader();
+            $findings[ $site_id ]['adapter_status'] = $status;
+            if ( 'active' === $status['state'] && empty( $findings[ $site_id ]['blocked_by_consent'] ) ) {
+                $findings[ $site_id ]['tracking_state'] = 'active';
+                $findings[ $site_id ]['active_tracking'] = true;
+                $findings[ $site_id ]['tracking_basis'] = 'plugin_setting';
+                $findings[ $site_id ]['confidence'] = 'élevée';
+                $findings[ $site_id ]['source'] = $status['label'] . ' — vérifier les requêtes réseau et le consentement effectif';
+            } elseif ( 'disabled' === $status['state'] && empty( $findings[ $site_id ]['observed_html'] ) ) {
+                $findings[ $site_id ]['tracking_state'] = 'disabled';
+                $findings[ $site_id ]['active_tracking'] = false;
+                $findings[ $site_id ]['tracking_basis'] = 'plugin_setting';
+                $findings[ $site_id ]['confidence'] = 'élevée';
+                $findings[ $site_id ]['source'] = $status['label'];
+            }
+        }
+
         foreach ( $findings as $id => $finding ) {
             $findings[ $id ]['tracking_control'] = $this->tracking_control_for_finding( $findings[ $id ] );
         }
@@ -2100,6 +2169,15 @@ final class Pixel_Trackers_Manager_Plugin {
                 'restore_label' => 'Rétablir le réglage précédent',
                 'url' => admin_url( 'admin.php?page=mailpoet-settings#/advanced' ),
                 'instructions' => 'Dendrila Privacy vérifie le réglage « Engagement analytics tracking ». Il peut le passer à basic et vérifie immédiatement le résultat. Les newsletters continuent de partir.',
+            );
+        }
+        if ( 'mc4wp-site-pixel' === $id && in_array( 'mailchimp-for-wp', $slugs, true ) ) {
+            return array(
+                'kind' => 'guided',
+                'state' => isset( $finding['tracking_state'] ) ? $finding['tracking_state'] : 'unknown',
+                'label' => 'Configurer le pixel Mailchimp du site',
+                'url' => admin_url( 'admin.php?page=mailchimp-for-wp-other' ),
+                'instructions' => 'Dans Mailchimp for WordPress > Other Settings > Site Tracking Pixel, désactivez le suivi du site si inutile. Les formulaires d’inscription et les campagnes Mailchimp restent indépendants.',
             );
         }
         if ( 'brevo' === $id && in_array( 'mailin', $slugs, true ) ) {
@@ -4511,7 +4589,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function apply_detected_profile_suggestions( $profile, $scan ) {
         $p = wp_parse_args( is_array( $profile ) ? $profile : array(), $this->legal_profile_defaults() );
-        $optional_ids = array( 'google-analytics','meta-pixel','clarity','hotjar','tiktok-pixel','linkedin-insight','pinterest-tag','youtube','vimeo','google-maps','matomo','plausible','brevo' );
+        $optional_ids = array( 'google-analytics','meta-pixel','clarity','hotjar','mc4wp-site-pixel','tiktok-pixel','linkedin-insight','pinterest-tag','youtube','vimeo','google-maps','matomo','plausible','brevo' );
         $active_optional = false;
         foreach ( isset( $scan['findings'] ) && is_array( $scan['findings'] ) ? $scan['findings'] : array() as $finding ) {
             $id = isset( $finding['id'] ) ? (string) $finding['id'] : '';
@@ -5082,8 +5160,12 @@ final class Pixel_Trackers_Manager_Plugin {
                 'source' => 'Données générées lors de l’interaction avec les newsletters ou le site et collectées via MailPoet lorsque son suivi est actif.',
             ),
             'brevo' => array(
-                'categories' => 'Données de navigation, événements et identifiants en ligne selon les fonctions de suivi Brevo réellement activées.',
-                'source' => 'Données générées lors de la navigation sur le site et collectées via Brevo Tracker.',
+                'categories' => 'Données de navigation, événements et identifiants en ligne selon les fonctions de suivi du SDK Brevo réellement activées.',
+                'source' => 'Données de navigation captées par le SDK d’automatisation Brevo si activé ; les e-mails transactionnels sont une fonction distincte.',
+            ),
+            'mc4wp-site-pixel' => array(
+                'categories' => 'Informations de navigation et événements éventuellement associés à un contact, selon le pixel de suivi de site Mailchimp.',
+                'source' => 'Pixel facultatif de suivi du site injecté par Mailchimp for WordPress lorsqu’il est activé ; distinct du suivi des campagnes e-mail.',
             ),
         );
         $options = array();

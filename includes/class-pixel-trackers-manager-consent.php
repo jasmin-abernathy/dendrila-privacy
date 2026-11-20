@@ -60,6 +60,8 @@ final class Pixel_Trackers_Manager_Consent {
                 'googletagmanager.com/gtm.js', 'connect.facebook.net', 'facebook.com/tr',
                 'analytics.tiktok.com', 'snap.licdn.com', 'linkedin.com/insight',
                 's.pinimg.com/ct', 'bat.bing.com', 'ads-twitter.com',
+                'chimpstatic.com/mcjs-connected/js/users/', 'mcjs-connected/js/users/',
+                'cdn.brevo.com/js/sdk-loader.js',
             ),
             'external' => array(
                 'youtube.com/embed', 'youtube-nocookie.com/embed', 'player.vimeo.com',
@@ -153,7 +155,7 @@ final class Pixel_Trackers_Manager_Consent {
     private function active_categories() {
         $ids = array(
             'google-analytics'=>'statistics','clarity'=>'statistics','hotjar'=>'statistics','matomo'=>'statistics','plausible'=>'statistics',
-            'google-tag-manager'=>'marketing','meta-pixel'=>'marketing','tiktok-pixel'=>'marketing','linkedin-insight'=>'marketing','pinterest-tag'=>'marketing','brevo'=>'marketing',
+            'google-tag-manager'=>'marketing','meta-pixel'=>'marketing','tiktok-pixel'=>'marketing','linkedin-insight'=>'marketing','pinterest-tag'=>'marketing','brevo'=>'marketing','mc4wp-site-pixel'=>'marketing',
             'youtube'=>'external','vimeo'=>'external','google-maps'=>'external',
         );
         $active = array();
@@ -170,7 +172,9 @@ final class Pixel_Trackers_Manager_Consent {
 
     public function filter_script_tag( $tag, $handle, $src ) {
         if ( ! $this->enabled() ) { return $tag; }
-        $category = $this->classify_url( $src );
+        // MC4WP can use a vendor-provided script URL; the documented WordPress
+        // enqueue handle identifies its optional site pixel independently of URL.
+        $category = 'mc4wp-mailchimp-site-tracking-pixel' === $handle ? 'marketing' : $this->classify_url( $src );
         if ( ! $category ) { return $tag; }
         if ( false !== strpos( $tag, 'data-ptm-category=' ) ) { return $tag; }
         $original_type = '';
