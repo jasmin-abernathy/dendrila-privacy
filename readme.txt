@@ -31,6 +31,7 @@ Main features:
 * protective blocking of recognised optional services before the visitor's choice when Dendrila Privacy consent is enabled;
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
+* optional WP Consent API 2.1+ compatibility, with category and service consent safeguards;
 * initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists;
 * local age-gating plugin detection, with a manual review when a different age-assurance tool is installed.
 

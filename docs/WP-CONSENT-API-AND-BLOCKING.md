@@ -27,3 +27,11 @@ La neutralisation PHP existante et le bootstrap chargé tôt sont conservés. Le
 7. Vérifier les pages légales, la bannière, le clavier, les menus et les modules de formulaire après neutralisation.
 
 Les tests Node (sans dépendances externes) couvrent les propriétés élémentaires du blocage et la synchronisation des catégories ; ils ne remplacent pas ce protocole réseau.
+
+## Retour d'analyse du ZIP WP Consent API 2.1.0
+
+WP Consent API 2.1.0 possède des accords par service qui peuvent prévaloir sur le refus de leur catégorie. Dendrila impose la catégorie comme limite supérieure dans son adaptateur PHP et JavaScript. L'opt-in côté PHP reste actif même dans les requêtes AJAX et REST lorsque le gestionnaire natif est activé.
+
+Pour éviter de réutiliser un ancien cookie WP Consent API d'un précédent gestionnaire, Dendrila conserve un marqueur de choix technique non identifiant `dendrila_privacy_consent_v1` lorsque l'API est disponible. Il contient la version, l'heure du choix, trois bits de catégories et l'empreinte des paramètres (pas d'identifiant visiteur). Il est limité à la durée du choix et aux pages du site ; les catégories optionnelles restent refusées côté PHP si le marqueur est absent ou expiré. Les préférences générales restent refusées même si les vidéos externes sont autorisées.
+
+Le JavaScript principal dépend du script `wp-consent-api` uniquement si celui-ci est installé. Le bootstrap de blocage reste autonome et se charge en en-tête. Tests PHP complémentaires dans `tests/wp-consent-api-2.1.php` ; validation intégrée du JS réel via Chromium. Ces tests ne remplacent pas l'essai sur un vrai site WordPress, notamment avec Divi/Elementor et plusieurs CMP.

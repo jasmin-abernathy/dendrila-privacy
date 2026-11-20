@@ -146,6 +146,8 @@ jobs:
         run: php tests/admin-assets.php
       - name: Age assurance companion tests
         run: php tests/age-assurance-companion.php
+      - name: WP Consent API 2.1 PHP regression
+        run: php tests/wp-consent-api-2.1.php
 
   javascript-syntax:
     name: JavaScript syntax
