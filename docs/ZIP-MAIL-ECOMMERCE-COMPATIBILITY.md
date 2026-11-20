@@ -33,3 +33,16 @@ Cette revue repose sur les archives de versions transmises par l'utilisateur. Le
 `php tests/mail-ecommerce-integrations.php` valide les options MC4WP/Brevo, la classification des SDK facultatifs et la non-interférence avec des URL courantes de paiement/panier. Il ne constitue **pas** un test complet du réseau d'un véritable WordPress.
 
 Avant fusion : vérifier les environnements Divi + WooCommerce, les hooks `wp_head` utilisés par Brevo et les scripts d'identification MC4WP, plus les chemins de paiement, refus puis acceptation, retour en arrière et retrait du consentement. Fusionner avec #19 et #21 seulement après résolution des éventuels conflits et tests croisés.
+
+
+## Fluent Booking 2.6.0 — source Google Drive fournie le 20 novembre 2026
+
+Archive : `fluent-booking.2.6.0.zip`, dont les classes `app/Hooks/Handlers/FrontEndHandler.php`, `app/Models/Booking.php`, `app/Modules/MCP/Support/PermissionGate.php`, `app/Modules/MCP/MCPInit.php`, `app/Hooks/Scheduler/DailyScheduler.php` et `app/Services/Integrations/FluentCRM/Bootstrap.php` ont été inspectées.
+
+- La création d'une réservation conserve notamment identité, e-mail, téléphone, commentaire, date/heure, fuseau horaire, IP et paramètres UTM, selon les données effectivement fournies. Cela relève **de la gestion des rendez-vous**, pas automatiquement d'un traceur marketing facultatif. Dendrila ne bloque ni le shortcode ni l'endpoint de réservation.
+- La connexion `MCP for AI Agents` est **désactivée par défaut**. Son statut est déterminé dans les options WordPress `_fluent_booking_mcp_settings.enabled` (`yes` ou non). Lorsque cette connexion est activée, un client authentifié disposant des droits requis peut récupérer des renseignements de participants et, selon ses permissions, modifier des réservations. La politique doit nommer les éventuels destinataires externes et les transferts réellement utilisés. L'option `yes` n'est pas, à elle seule, preuve d'un appel réseau ou d'un agent connecté.
+- Fluent Booking peut également envoyer des **statistiques hebdomadaires d'utilisation** à WPManageNinja après opt-in de l'administrateur, à distinguer des cookies de suivi des visiteurs. L'option est enregistrée dans les métadonnées internes de Fluent Booking et n'est pas évaluée automatiquement par Dendrila.
+- L'intégration avec **FluentCRM** peut transférer les informations du rendez-vous vers une liste ou un contact. L'extension offre notamment un double opt-in et une option de « force subscribe » : les flux et bases juridiques doivent être vérifiés dans leurs réglages.
+- La prise de rendez-vous peut utiliser une **protection anti-spam externe** (reCAPTCHA / Turnstile), à vérifier sur le formulaire et selon la configuration. Il ne faut pas déclarer un fournisseur actif sans preuve d'activation.
+- Dendrila ajoute un exemple de **traitement Réservations / rendez-vous** dans l'assistant RGPD lorsque Fluent Booking est actif et un encart de vigilance à l'étape « Outils externes ». Les textes sont des bases de travail : le responsable du site reste chargé de les valider et de renseigner les durées/destinataires.
+- Aucun code externe Fluent Booking ni aucune donnée de réservation n'est intégrée au dépôt Dendrila. Tests hors WordPress et essais réels encore nécessaires avant fusion.

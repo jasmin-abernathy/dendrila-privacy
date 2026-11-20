@@ -148,6 +148,8 @@ jobs:
         run: php tests/age-assurance-companion.php
       - name: Mail and ecommerce integrations
         run: php tests/mail-ecommerce-integrations.php
+      - name: Fluent Booking privacy and MCP checks
+        run: php tests/fluent-booking-integration.php
 
   javascript-syntax:
     name: JavaScript syntax

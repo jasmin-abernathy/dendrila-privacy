@@ -4992,6 +4992,16 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_section_form_start( 'external' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 4</div><h3>Quels outils utilisez-vous en dehors de WordPress ?</h3><p class="ptm-question-intro">Un site peut être correctement configuré tout en laissant des données circuler ailleurs. Dendrila Privacy vous donne des exemples concrets et préremplit ce qu’il a repéré sur le site.</p>';
         if ( $external_detected ) { echo '<div class="ptm-callout good"><strong>Repéré sur le site :</strong> ' . esc_html( implode( ', ', array_values( $external_detected ) ) ) . '. Confirmez seulement les usages qui existent encore.</div>'; }
+        $booking_privacy = $this->fluent_booking_privacy_state( $scan );
+        if ( $booking_privacy['active'] ) {
+            echo '<div class="ptm-callout ' . ( $booking_privacy['mcp_enabled'] ? 'warn' : 'neutral' ) . '"><strong>Fluent Booking — données de rendez-vous</strong><p>Les réservations peuvent conserver nom, e-mail, téléphone, réponses au formulaire, date du rendez-vous, adresse IP et paramètres UTM. Vérifiez la durée réelle de conservation, les accès internes et les destinataires de synchronisation (calendriers, CRM, visioconférence) si ces intégrations sont activées.</p>';
+            if ( $booking_privacy['mcp_enabled'] ) {
+                echo '<p><strong>Connexion MCP activée dans les réglages :</strong> un client authentifié et autorisé peut lire des informations de participants et effectuer certaines opérations sur les rendez-vous. Si des assistants externes sont connectés, identifiez leurs fournisseurs dans la politique de confidentialité, vérifiez les habilitations et les transferts potentiels.</p>';
+            } else {
+                echo '<p>Connexion MCP pour assistants externes : non activée d’après les réglages locaux disponibles. Si vous l’activez, réexaminez les destinataires des données et la politique de confidentialité.</p>';
+            }
+            echo '<p>Le partage de statistiques d’utilisation de Fluent Booking et les flux vers FluentCRM sont des choix distincts à vérifier dans leurs réglages. Le formulaire de réservation ne doit pas être désactivé au seul motif qu’il collecte des données nécessaires au rendez-vous.</p></div>';
+        }
         echo '<div class="ptm-form-grid">';
         $this->legal_select( 'external_email_use', 'Utilisez-vous une messagerie ou un outil e-mail en dehors de WordPress ?', $profile['external_email_use'], array( 'unknown'=>'À vérifier','no'=>'Non','yes'=>'Oui' ) );
         $this->legal_input( 'external_email_tools', 'Exemples / outils e-mail utilisés', $profile['external_email_tools'], false, 'Exemples : Gmail, Outlook, Brevo, Mailchimp…' );
@@ -5217,6 +5227,28 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '</div><div class="ptm-indirect-service-actions"><button type="button" class="button button-primary ptm-save-indirect-service">Enregistrer ce service</button><button type="button" class="button-link-delete ptm-remove-indirect-service">Supprimer cette fiche</button></div></details>';
     }
 
+    /**
+     * Fluent Booking 2.6.0 keeps booking contact data, IP and source UTM fields.
+     * Its optional MCP server can expose attendee details to authenticated
+     * clients. Merely having the booking form is not a marketing tracker.
+     */
+    private function fluent_booking_privacy_state( $scan ) {
+        $active = false;
+        foreach ( isset( $scan['plugins'] ) && is_array( $scan['plugins'] ) ? $scan['plugins'] : array() as $item ) {
+            $slug = isset( $item['slug'] ) ? sanitize_key( (string) $item['slug'] ) : '';
+            if ( ! empty( $item['active'] ) && 'fluent-booking' === $slug ) {
+                $active = true;
+                break;
+            }
+        }
+        if ( ! $active ) { return array( 'active' => false, 'mcp_enabled' => false ); }
+        $mcp = get_option( '_fluent_booking_mcp_settings', array() );
+        return array(
+            'active' => true,
+            'mcp_enabled' => is_array( $mcp ) && isset( $mcp['enabled'] ) && 'yes' === $mcp['enabled'],
+        );
+    }
+
     private function treatment_template_recommendations( $scan ) {
         $plugins = isset( $scan['plugins'] ) && is_array( $scan['plugins'] ) ? $scan['plugins'] : array();
         $plugin_haystack = '';
@@ -5231,6 +5263,7 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         $contact_detected = (bool) preg_match( '/contact-form|wpforms|gravity|ninja-forms|formidable|fluentform|elementor/', $plugin_haystack );
         $shop_detected = (bool) preg_match( '/woocommerce|easy-digital-downloads|surecart/', $plugin_haystack );
+        $booking_detected = (bool) $this->fluent_booking_privacy_state( $scan )['active'];
         $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar' ) );
         $mailing_active = false;
         foreach ( isset( $scan['mailing'] ) && is_array( $scan['mailing'] ) ? $scan['mailing'] : array() as $tool ) {
@@ -5243,6 +5276,7 @@ final class Pixel_Trackers_Manager_Plugin {
             array( 'id'=>'newsletter', 'label'=>'Newsletter / e-mailing', 'detected'=>$mailing_active, 'badge'=>$mailing_active ? 'outil e-mail actif' : '' ),
             array( 'id'=>'accounts', 'label'=>'Comptes utilisateurs', 'detected'=>$accounts_detected, 'badge'=>$accounts_detected ? 'fonction active' : '' ),
             array( 'id'=>'orders', 'label'=>'Commandes / facturation', 'detected'=>$shop_detected, 'badge'=>$shop_detected ? 'fonction active' : '' ),
+            array( 'id'=>'bookings', 'label'=>'Réservations / rendez-vous', 'detected'=>$booking_detected, 'badge'=>$booking_detected ? 'Fluent Booking actif' : '' ),
             array( 'id'=>'analytics', 'label'=>'Mesure d’audience', 'detected'=>$analytics_detected, 'badge'=>$analytics_detected ? 'suivi actif détecté' : '' ),
         );
     }
