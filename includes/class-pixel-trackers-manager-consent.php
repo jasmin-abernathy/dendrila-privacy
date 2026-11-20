@@ -29,10 +29,6 @@ final class Pixel_Trackers_Manager_Consent {
     }
 
     /**
-     * WP Consent API integration is opt-in only while our native CMP is active.
-     * The API itself remains optional: none of these filters require its plugin.
-     */
-    /**
      * Keep the opt-in policy on admin-ajax.php, REST and admin requests, where
      * WordPress plugins may call wp_has_consent() without rendering our banner.
      */
@@ -65,7 +61,7 @@ final class Pixel_Trackers_Manager_Consent {
             return null;
         }
         $raw = wp_unslash( $_COOKIE['dendrila_privacy_consent_v1'] );
-        if ( strlen( $raw ) > 150 || ! preg_match( '/^1\\.([0-9]{10,16})\\.([01]{3})\\.([a-f0-9]{64})$/D', $raw, $matches ) ) {
+        if ( strlen( $raw ) > 150 || ! preg_match( '/^1\.([0-9]{10,16})\.([01]{3})\.([a-f0-9]{64})$/D', $raw, $matches ) ) {
             return null;
         }
         if ( ! hash_equals( $this->consent_fingerprint(), $matches[3] ) ) {
