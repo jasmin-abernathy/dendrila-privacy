@@ -470,6 +470,38 @@ final class Pixel_Trackers_Manager_Plugin {
         return isset( $patterns[ $kind ] ) ? $patterns[ $kind ] : array();
     }
 
+    private function has_complianz_document( $content, $kind ) {
+        $types = array( 'privacy' => 'privacy-statement', 'cookies' => 'cookie-statement', 'legal_notice' => 'impressum' );
+        if ( ! isset( $types[ $kind ] ) ) {
+            return false;
+        }
+        $type = $types[ $kind ];
+        if ( preg_match_all( '/' . get_shortcode_regex( array( 'cmplz-document' ) ) . '/s', $content, $matches, PREG_SET_ORDER ) ) {
+            foreach ( $matches as $match ) {
+                $attributes = shortcode_parse_atts( $match[3] );
+                if ( ! ( '[' === $match[1] && ']' === $match[6] ) && $type === ( $attributes['type'] ?? '' ) ) {
+                    return true;
+                }
+            }
+        }
+        if ( ! has_block( 'complianz/document', $content ) ) {
+            return false;
+        }
+        $blocks = parse_blocks( $content );
+        while ( $blocks ) {
+            $block = array_pop( $blocks );
+            $selected = $block['attrs']['selectedDocument'] ?? '';
+            if ( 'complianz/document' === $block['blockName'] &&
+                is_string( $selected ) && preg_match( '/^' . $type . '(?:-[a-z]{2})?$/D', $selected ) ) {
+                return true;
+            }
+            foreach ( $block['innerBlocks'] as $inner ) {
+                $blocks[] = $inner;
+            }
+        }
+        return false;
+    }
+
     private function legal_page_candidates( $kind ) {
         $kind = sanitize_key( $kind );
         if ( isset( $this->legal_page_candidate_cache[ $kind ] ) ) {
@@ -537,6 +569,13 @@ final class Pixel_Trackers_Manager_Plugin {
                 $divi_parts = $this->extract_divi_text_fragments( (string) $post->post_content );
                 if ( $divi_parts ) {
                     $content_parts[] = implode( "\n", $divi_parts );
+                }
+            }
+            foreach ( $content_parts as $part ) {
+                if ( $this->has_complianz_document( $part, $kind ) ) {
+                    $score += 110;
+                    $reasons[] = 'document Complianz';
+                    break;
                 }
             }
             $content = $this->normalize_text( implode( "\n", $content_parts ) );
@@ -1572,7 +1611,7 @@ final class Pixel_Trackers_Manager_Plugin {
             ),
             'google-maps' => array(
                 'label' => 'Google Maps', 'category' => 'Contenu / cartographie',
-                'patterns' => array( 'maps.googleapis.com', 'google.com/maps/embed', 'maps.google.com/maps/embed' ),
+                'patterns' => array( 'maps.googleapis.com', 'google.com/maps/embed', 'maps.google.com/maps/embed', 'maps.google.com/maps/api/js' ),
                 'aliases' => array( 'google maps', 'google map' ), 'plugin_slugs' => array( 'wp-google-maps', 'google-maps-widget' ),
             ),
             'recaptcha' => array(
@@ -5138,6 +5177,52 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_section_form_start( 'external' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 4</div><h3>Quels outils utilisez-vous en dehors de WordPress ?</h3><p class="ptm-question-intro">Un site peut être correctement configuré tout en laissant des données circuler ailleurs. Dendrila Privacy vous donne des exemples concrets et préremplit ce qu’il a repéré sur le site.</p>';
         if ( $external_detected ) { echo '<div class="ptm-callout good"><strong>Repéré sur le site :</strong> ' . esc_html( implode( ', ', array_values( $external_detected ) ) ) . '. Confirmez seulement les usages qui existent encore.</div>'; }
+        $acf_review = $this->acf_privacy_configuration( $scan );
+        if ( $acf_review['active'] ) {
+            echo '<div class="ptm-callout neutral"><strong>Advanced Custom Fields — configuration et données</strong>';
+            if ( ! $acf_review['readable'] ) {
+                echo '<p>ACF est détecté, mais ses réglages ne peuvent pas encore être lus : vérifiez-les manuellement dans ACF.</p>';
+            } else {
+                echo '<p>' . esc_html( $acf_review['groups_checked'] ) . ' groupe(s) actif(s) examinés ; ' . esc_html( $acf_review['rest_groups'] ) . ' groupe(s) sont configurés pour apparaître dans les réponses REST. <strong>Cela ne signifie pas que des données privées sont accessibles sans connexion.</strong> En outre, ' . esc_html( $acf_review['rest_post_types'] ) . ' type(s) de contenu et ' . esc_html( $acf_review['rest_taxonomies'] ) . ' taxonomie(s) créés par ACF sont configurés pour REST. Vérifiez les permissions de chaque type de contenu et les réponses de l’API en navigation déconnectée.</p>';
+                if ( $acf_review['abilities_enabled'] ) {
+                    echo '<p><strong>Abilities API configurée comme activée</strong>' . ( $acf_review['abilities_available'] ? ' et disponible sur ce WordPress.' : ', mais l’API WordPress nécessaire n’est pas disponible actuellement.' ) . ' ' . esc_html( $acf_review['abilities_groups'] ) . ' groupe(s), ' . esc_html( $acf_review['abilities_post_types'] ) . ' type(s) de contenu et ' . esc_html( $acf_review['abilities_taxonomies'] ) . ' taxonomie(s) sont configurés pour les Abilities. Cette configuration ne prouve pas qu’un service d’IA ou un client MCP est connecté : vérifiez les extensions d’accès à l’API et leurs autorisations.</p>';
+                } else {
+                    echo '<p>Abilities API : désactivée dans les réglages ACF actuels.</p>';
+                }
+                if ( $acf_review['google_map_fields'] ) {
+                    echo '<p>' . esc_html( $acf_review['google_map_fields'] ) . ' champ(s) Google Map configuré(s). Leur existence ne prouve pas un appel à Google Maps côté visiteur : le champ peut être réservé au back-office. Vérifiez les requêtes réseau sur les pages publiques avant de conclure.</p>';
+                }
+                if ( $acf_review['data_input_fields'] ) {
+                    echo '<p>' . esc_html( $acf_review['data_input_fields'] ) . ' champ(s) de type e-mail, mot de passe ou utilisateur : examinez les finalités et les droits d’accès si leurs valeurs concernent des personnes. Aucun contenu de ces champs n’est lu par Dendrila.</p>';
+                }
+                if ( $acf_review['truncated'] ) {
+                    echo '<p>Inventaire limité pour éviter de ralentir WordPress : tous les groupes ou champs n’ont pas été examinés.</p>';
+                }
+            }
+            echo '<p>ACF peut aussi alimenter des formulaires publics (<code>acf_form()</code>) : l’installation seule ne permet pas d’affirmer qu’un formulaire collecte des données. Les polices de l’interface ACF sont fournies localement ; le champ carte peut utiliser Google Maps dans le back-office sans chargement chez les visiteurs.</p></div>';
+        }
+        $events_review = $this->events_calendar_privacy_configuration( $scan );
+        if ( $events_review['active'] ) {
+            echo '<div class="ptm-callout neutral"><strong>The Events Calendar — événements, lieux et organisateurs</strong>';
+            echo '<p>Cette extension peut enregistrer des coordonnées de lieux et d’organisateurs (notamment téléphone et e-mail) et les publier dans les fiches ou l’API événementielle. Vérifiez les données volontairement rendues publiques. Les billets, inscriptions et paiements dépendent d’extensions distinctes : leur présence n’est pas déduite de The Events Calendar.</p>';
+            if ( ! $events_review['settings_readable'] ) {
+                echo '<p>Les réglages de The Events Calendar ne sont pas accessibles à cet instant : vérification manuelle nécessaire.</p>';
+            } else {
+                if ( 'enabled' === $events_review['maps_setting'] ) {
+                    echo '<p><strong>Cartes Google autorisées par le réglage général.</strong> Une carte peut être chargée sur les fiches événements ou lieux, mais ce n’est pas une preuve de requête externe chez les visiteurs. Vérifiez chaque page concernée dans Réseau / Network, et bloquez la carte avant consentement si nécessaire.</p>';
+                } else {
+                    echo '<p>Cartes Google désactivées dans le réglage général de l’extension ; cela ne permet pas d’exclure une carte intégrée par ailleurs dans le thème ou une autre extension.</p>';
+                }
+                if ( 'enabled' === $events_review['telemetry_setting'] ) {
+                    echo '<p><strong>Option locale de partage de données d’utilisation activée.</strong> Vérifiez le statut effectif dans The Events Calendar &gt; Réglages &gt; Général, car la bibliothèque StellarWP utilise également son propre stockage de consentement.</p>';
+                } elseif ( 'disabled' === $events_review['telemetry_setting'] ) {
+                    echo '<p>Option locale de partage d’utilisation désactivée ; vérifiez néanmoins le statut effectif de la bibliothèque StellarWP dans les réglages de l’extension.</p>';
+                } else {
+                    echo '<p>Statut du consentement à la télémétrie non déterminé depuis le seul réglage local : vérifiez-le dans The Events Calendar &gt; Réglages &gt; Général.</p>';
+                }
+            }
+            echo '<p>The Events Calendar fournit déjà un modèle de texte pour la politique de confidentialité dans les outils de WordPress. Réutilisez-le et adaptez-le aux usages réels plutôt que de créer une nouvelle page doublon. Les imports externes et les liens de billetterie exigent une vérification séparée lorsqu’ils sont utilisés.</p></div>';
+        }
         $booking_privacy = $this->fluent_booking_privacy_state( $scan );
         if ( $booking_privacy['active'] ) {
             echo '<div class="ptm-callout ' . ( $booking_privacy['mcp_enabled'] ? 'warn' : 'neutral' ) . '"><strong>Fluent Booking — données de rendez-vous</strong><p>Les réservations peuvent conserver nom, e-mail, téléphone, réponses au formulaire, date du rendez-vous, adresse IP et paramètres UTM. Vérifiez la durée réelle de conservation, les accès internes et les destinataires de synchronisation (calendriers, CRM, visioconférence) si ces intégrations sont activées.</p>';
@@ -5414,6 +5499,159 @@ final class Pixel_Trackers_Manager_Plugin {
         );
     }
 
+    /**
+     * Report ACF configuration only. Field values and API credentials are never
+     * inspected, exported, stored or sent. A REST-enabled group does not itself
+     * prove that data is publicly accessible, and an Abilities toggle does not
+     * prove an external AI/MCP client is connected.
+     *
+     * ACF 6.8.12 enables Abilities globally by default, while individual field
+     * groups still default to show_in_rest=false. Audit effective settings.
+     */
+    private function acf_privacy_configuration( $scan ) {
+        $result = array(
+            'active' => false,
+            'readable' => false,
+            'rest_enabled' => false,
+            'abilities_enabled' => false,
+            'abilities_available' => false,
+            'groups_checked' => 0,
+            'rest_groups' => 0,
+            'abilities_groups' => 0,
+            'google_map_fields' => 0,
+            'data_input_fields' => 0,
+            'rest_post_types' => 0,
+            'rest_taxonomies' => 0,
+            'abilities_post_types' => 0,
+            'abilities_taxonomies' => 0,
+            'truncated' => false,
+        );
+        foreach ( (array) ( isset( $scan['plugins'] ) ? $scan['plugins'] : array() ) as $item ) {
+            $slug = isset( $item['slug'] ) ? sanitize_key( (string) $item['slug'] ) : '';
+            if ( ! empty( $item['active'] ) && in_array( $slug, array( 'advanced-custom-fields', 'advanced-custom-fields-pro' ), true ) ) {
+                $result['active'] = true;
+                break;
+            }
+        }
+        if ( ! $result['active'] || ! function_exists( 'acf_get_setting' ) ) {
+            return $result;
+        }
+        $result['readable'] = true;
+        $result['rest_enabled'] = (bool) acf_get_setting( 'rest_api_enabled' );
+        $result['abilities_enabled'] = (bool) acf_get_setting( 'enable_abilities' );
+        $result['abilities_available'] = function_exists( 'wp_register_ability' );
+        if ( ! function_exists( 'acf_get_field_groups' ) ) {
+            return $result;
+        }
+        $groups = acf_get_field_groups();
+        if ( ! is_array( $groups ) ) {
+            return $result;
+        }
+        // Bound the admin-only read to keep large installations responsive.
+        $group_count = 0;
+        $field_count = 0;
+        foreach ( $groups as $group ) {
+            if ( ++$group_count > 200 ) {
+                $result['truncated'] = true;
+                break;
+            }
+            if ( ! is_array( $group ) || ( isset( $group['active'] ) && ! $group['active'] ) ) {
+                continue;
+            }
+            ++$result['groups_checked'];
+            $group_rest = ! empty( $group['show_in_rest'] );
+            if ( $group_rest && $result['rest_enabled'] ) {
+                ++$result['rest_groups'];
+            }
+            if ( $group_rest && $result['abilities_enabled'] && $result['abilities_available'] &&
+                ! empty( $group['enable_acf_abilities'] ) ) {
+                ++$result['abilities_groups'];
+            }
+            if ( ! function_exists( 'acf_get_fields' ) ) {
+                continue;
+            }
+            $fields = acf_get_fields( $group );
+            if ( ! is_array( $fields ) ) {
+                continue;
+            }
+            foreach ( $fields as $field ) {
+                if ( ++$field_count > 1500 ) {
+                    $result['truncated'] = true;
+                    break 2;
+                }
+                if ( ! is_array( $field ) ) { continue; }
+                $type = isset( $field['type'] ) ? (string) $field['type'] : '';
+                if ( 'google_map' === $type ) {
+                    ++$result['google_map_fields'];
+                }
+                if ( in_array( $type, array( 'email', 'password', 'user' ), true ) ) {
+                    ++$result['data_input_fields'];
+                }
+            }
+        }
+        // Registered ACF content types and taxonomies are separate from field
+        // groups: their REST visibility defaults to true in ACF 6.8.12.
+        // This is a configuration review, never a claim of anonymous access.
+        foreach ( array(
+            'acf_get_acf_post_types' => array( 'show_in_rest' => 'rest_post_types', 'ability' => 'abilities_post_types' ),
+            'acf_get_acf_taxonomies' => array( 'show_in_rest' => 'rest_taxonomies', 'ability' => 'abilities_taxonomies' ),
+        ) as $reader => $keys ) {
+            if ( ! function_exists( $reader ) ) { continue; }
+            $items = $reader();
+            if ( ! is_array( $items ) ) { continue; }
+            $index = 0;
+            foreach ( $items as $item ) {
+                if ( ++$index > 200 ) { $result['truncated'] = true; break; }
+                if ( ! is_array( $item ) || ( isset( $item['active'] ) && ! $item['active'] ) ) { continue; }
+                if ( empty( $item['show_in_rest'] ) ) { continue; }
+                ++$result[ $keys['show_in_rest'] ];
+                if ( $result['abilities_enabled'] && $result['abilities_available'] &&
+                    ! empty( $item['enable_acf_abilities'] ) ) {
+                    ++$result[ $keys['ability'] ];
+                }
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * The Events Calendar 6.18.4.1: inspect configuration, never event content.
+     * The plugin offers Google Maps embeds, organizer contact fields, a privacy
+     * policy suggestion and opt-in administrative telemetry.
+     *
+     * Google Maps being enabled in settings does not mean a front-end request
+     * occurs: each event/venue can disable it and some maps are admin-only.
+     */
+    private function events_calendar_privacy_configuration( $scan ) {
+        $status = array(
+            'active' => false,
+            'settings_readable' => false,
+            'maps_setting' => 'unknown',
+            'telemetry_setting' => 'unknown',
+        );
+        foreach ( (array) ( isset( $scan['plugins'] ) ? $scan['plugins'] : array() ) as $plugin ) {
+            if ( empty( $plugin['active'] ) ) { continue; }
+            $slug = isset( $plugin['slug'] ) ? sanitize_key( (string) $plugin['slug'] ) : '';
+            if ( 'the-events-calendar' === $slug ) {
+                $status['active'] = true;
+                break;
+            }
+        }
+        if ( ! $status['active'] || ! function_exists( 'tribe_get_option' ) ) {
+            return $status;
+        }
+        $status['settings_readable'] = true;
+        $maps = tribe_get_option( 'embedGoogleMaps', true );
+        $status['maps_setting'] = ! empty( $maps ) ? 'enabled' : 'disabled';
+        // TEC also uses the StellarWP telemetry opt-in store. Its state may be
+        // different from this local setting; do not claim the final state is known.
+        $optin = tribe_get_option( 'opt_in_status', null );
+        if ( null !== $optin ) {
+            $status['telemetry_setting'] = $optin ? 'enabled' : 'disabled';
+        }
+        return $status;
+    }
+
     private function treatment_template_recommendations( $scan ) {
         $plugins = isset( $scan['plugins'] ) && is_array( $scan['plugins'] ) ? $scan['plugins'] : array();
         $plugin_haystack = '';
@@ -5429,6 +5667,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $contact_detected = (bool) preg_match( '/contact-form|wpforms|gravity|ninja-forms|formidable|fluentform|elementor/', $plugin_haystack );
         $shop_detected = (bool) preg_match( '/woocommerce|easy-digital-downloads|surecart/', $plugin_haystack );
         $booking_detected = (bool) $this->fluent_booking_privacy_state( $scan )['active'];
+        $events_detected = (bool) $this->events_calendar_privacy_configuration( $scan )['active'];
         $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar','fullstory','mouseflow','smartlook','logrocket' ) );
         $mailing_active = false;
         foreach ( isset( $scan['mailing'] ) && is_array( $scan['mailing'] ) ? $scan['mailing'] : array() as $tool ) {
@@ -5442,6 +5681,7 @@ final class Pixel_Trackers_Manager_Plugin {
             array( 'id'=>'accounts', 'label'=>'Comptes utilisateurs', 'detected'=>$accounts_detected, 'badge'=>$accounts_detected ? 'fonction active' : '' ),
             array( 'id'=>'orders', 'label'=>'Commandes / facturation', 'detected'=>$shop_detected, 'badge'=>$shop_detected ? 'fonction active' : '' ),
             array( 'id'=>'bookings', 'label'=>'Réservations / rendez-vous', 'detected'=>$booking_detected, 'badge'=>$booking_detected ? 'Fluent Booking actif' : '' ),
+            array( 'id'=>'events', 'label'=>'Événements / organisateurs / lieux', 'detected'=>$events_detected, 'badge'=>$events_detected ? 'The Events Calendar actif' : '' ),
             array( 'id'=>'analytics', 'label'=>'Mesure d’audience', 'detected'=>$analytics_detected, 'badge'=>$analytics_detected ? 'suivi actif détecté' : '' ),
         );
     }
