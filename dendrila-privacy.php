@@ -1544,7 +1544,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 'aliases' => array( 'vimeo' ), 'plugin_slugs' => array(),
             ),
             'google-fonts' => array(
-                'label' => 'Google Fonts chargé à distance', 'category' => 'Police externe / confidentialité',
+                'label' => 'Google Fonts — chargement externe à vérifier', 'category' => 'Police externe / confidentialité',
                 'patterns' => array( 'fonts.googleapis.com', 'fonts.gstatic.com' ),
                 'aliases' => array( 'google fonts', 'fonts.googleapis.com', 'fonts.gstatic.com' ), 'plugin_slugs' => array(),
                 'is_tracking' => false,
@@ -2036,6 +2036,56 @@ final class Pixel_Trackers_Manager_Plugin {
         return implode( "\n", $chunks );
     }
 
+    /**
+     * Google Fonts: a textual reference is not proof of a remote font request.
+     * Only an actual external stylesheet, font preload or CSS import is
+     * considered loadable markup. Preconnects, comments and JS strings are hints.
+     * Even loadable markup is not a verified browser network request.
+     */
+    private function google_fonts_html_evidence( $html ) {
+        // Commented-out links must not count as executable references.
+        $visible = preg_replace( '/<!--.*?-->/s', '', (string) $html );
+        $loads = array();
+        $hints = array();
+        if ( preg_match_all( '/<link\b[^>]*>/is', $visible, $links ) ) {
+            foreach ( $links[0] as $tag ) {
+                if ( ! preg_match( '/\bhref\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $tag, $href_parts ) ) { continue; }
+                $href = '';
+                foreach ( array_slice( $href_parts, 1 ) as $candidate ) {
+                    if ( '' !== $candidate ) { $href = html_entity_decode( $candidate, ENT_QUOTES, 'UTF-8' ); break; }
+                }
+                if ( ! preg_match( '~^(?:https?:)?//fonts\.(?:googleapis|gstatic)\.com(?:/|$)~i', trim( $href ) ) ) { continue; }
+                $rel = '';
+                if ( preg_match( '/\brel\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $tag, $rel_parts ) ) {
+                    foreach ( array_slice( $rel_parts, 1 ) as $candidate ) {
+                        if ( '' !== $candidate ) { $rel = strtolower( $candidate ); break; }
+                    }
+                }
+                if ( preg_match( '/\b(?:stylesheet|preload|prefetch)\b/', $rel ) ) {
+                    $loads[] = 'Ressource Google Fonts déclarée dans le HTML : ' . substr( $href, 0, 150 );
+                } else {
+                    $hints[] = 'Référence Google Fonts dans un lien non chargé comme une police (' . ( $rel ? $rel : 'sans rel' ) . ')';
+                }
+            }
+        }
+        if ( preg_match_all( '/<style\b[^>]*>(.*?)<\/style>/is', $visible, $styles ) ) {
+            foreach ( $styles[1] as $css ) {
+                $css = preg_replace( '~/\*.*?\*/~s', '', $css );
+                if ( preg_match( '~@import\b[^;]*fonts\.googleapis\.com~is', $css ) ) {
+                    $loads[] = 'Import CSS de la feuille Google Fonts dans un bloc <style>';
+                }
+                if ( preg_match( '~url\([^)]*fonts\.gstatic\.com~is', $css ) ) {
+                    $loads[] = 'URL de police distante Google Fonts dans un bloc <style>';
+                }
+            }
+        }
+        if ( ! $loads && ! $hints &&
+            ( false !== stripos( $visible, 'fonts.googleapis.com' ) || false !== stripos( $visible, 'fonts.gstatic.com' ) ) ) {
+            $hints[] = 'Mention de Google Fonts dans le HTML, sans chargement externe déclaré';
+        }
+        return array( 'load' => array_values( array_unique( $loads ) ), 'hint' => array_values( array_unique( $hints ) ) );
+    }
+
     private function scan_html_into_findings( $html, $url, $findings ) {
         $surface = $this->technical_surface( $html );
         $blocked_surface = '';
@@ -2048,20 +2098,32 @@ final class Pixel_Trackers_Manager_Plugin {
 
         foreach ( $this->signatures() as $id => $signature ) {
             $evidence = array(); $blocked_evidence = array();
-            foreach ( $signature['patterns'] as $pattern ) {
-                $needle = strtolower( $pattern );
-                $pos = strpos( $active_lower, $needle );
-                if ( false !== $pos ) {
-                    $start = max( 0, $pos - 70 );
-                    $snippet = substr( $active_surface, $start, 220 );
-                    $evidence[] = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $snippet ) ) );
-                    continue;
+            if ( 'google-fonts' === $id ) {
+                $fonts = $this->google_fonts_html_evidence( $html );
+                $evidence = $fonts['load'];
+                if ( ! $evidence && $fonts['hint'] ) {
+                    if ( ! isset( $findings[ $id ] ) ) { $findings[ $id ] = $this->empty_finding( $id, $signature ); }
+                    $findings[ $id ]['font_hint'] = true;
+                    $findings[ $id ]['urls'][] = $url;
+                    $findings[ $id ]['evidence'] = array_merge( $findings[ $id ]['evidence'], $fonts['hint'] );
+                    // A hint is neither an observed external load nor active tracking.
                 }
-                $pos = strpos( $blocked_lower, $needle );
-                if ( false !== $pos ) {
-                    $start = max( 0, $pos - 70 );
-                    $snippet = substr( $blocked_surface, $start, 220 );
-                    $blocked_evidence[] = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $snippet ) ) );
+            } else {
+                foreach ( $signature['patterns'] as $pattern ) {
+                    $needle = strtolower( $pattern );
+                    $pos = strpos( $active_lower, $needle );
+                    if ( false !== $pos ) {
+                        $start = max( 0, $pos - 70 );
+                        $snippet = substr( $active_surface, $start, 220 );
+                        $evidence[] = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $snippet ) ) );
+                        continue;
+                    }
+                    $pos = strpos( $blocked_lower, $needle );
+                    if ( false !== $pos ) {
+                        $start = max( 0, $pos - 70 );
+                        $snippet = substr( $blocked_surface, $start, 220 );
+                        $blocked_evidence[] = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $snippet ) ) );
+                    }
                 }
             }
             if ( $evidence || $blocked_evidence ) {
@@ -2102,8 +2164,19 @@ final class Pixel_Trackers_Manager_Plugin {
                     $findings[ $id ]['tracking_state'] = 'blocked';
                     $findings[ $id ]['source'] = 'Service présent, mais bloqué avant le choix par la bannière Dendrila Privacy';
                 } elseif ( ! empty( $findings[ $id ]['observed_html'] ) ) {
-                    $findings[ $id ]['confidence'] = 'élevée';
-                    $findings[ $id ]['source'] = $plugin_sources ? 'Trace technique observée + extension probable : ' . $plugin_sources[0]['name'] : 'Trace technique repérée dans le code affiché par une page';
+                    if ( 'google-fonts' === $id ) {
+                        $findings[ $id ]['confidence'] = 'moyenne';
+                        $findings[ $id ]['source'] = 'Lien vers une ressource Google Fonts dans le HTML : confirmer la requête dans Réseau / Network';
+                    } else {
+                        $findings[ $id ]['confidence'] = 'élevée';
+                        $findings[ $id ]['source'] = $plugin_sources ? 'Trace technique observée + extension probable : ' . $plugin_sources[0]['name'] : 'Trace technique repérée dans le code affiché par une page';
+                    }
+                } elseif ( 'google-fonts' === $id && ! empty( $findings[ $id ]['font_hint'] ) ) {
+                    $findings[ $id ]['confidence'] = 'faible';
+                    $findings[ $id ]['tracking_state'] = 'potential';
+                    $findings[ $id ]['active_tracking'] = false;
+                    $findings[ $id ]['tracking_basis'] = 'html_reference';
+                    $findings[ $id ]['source'] = 'Mention ou préconnexion Google Fonts dans le code, sans chargement de police externe confirmé';
                 } elseif ( $plugin_sources ) {
                     $findings[ $id ]['confidence'] = 'moyenne';
                     $findings[ $id ]['source'] = 'Extension présente : capacité de suivi, sans preuve d’activation';
@@ -2216,7 +2289,7 @@ final class Pixel_Trackers_Manager_Plugin {
             return array( 'kind'=>'source_setting','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'unknown','label'=>'Couper Tag Manager dans Site Kit','url'=>admin_url('admin.php?page=googlesitekit-settings'),'instructions'=>'Dans Site Kit → Réglages → Services connectés → Tag Manager → Modifier, déconnectez uniquement Tag Manager.' );
         }
         if ( 'google-fonts' === $id ) {
-            return array( 'kind'=>'guided','state'=>'active','label'=>'Identifier la source','url'=>'','instructions'=>'Une police Google est chargée directement depuis Google. Repérez le thème, le constructeur ou l’extension qui l’ajoute ; l’objectif recommandé est de l’héberger localement puis de relancer l’analyse pour vérifier que fonts.googleapis.com et fonts.gstatic.com ont disparu.' );
+            return array( 'kind'=>'guided','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'potential','label'=>'Vérifier la source Google Fonts','url'=>'','instructions'=>'Une référence dans le thème, un script ou une préconnexion ne prouve pas un téléchargement de Google Fonts. Contrôlez Réseau / Network sur chaque page signalée, sans cache, en filtrant fonts.googleapis.com et fonts.gstatic.com. Si une requête part réellement vers Google, identifiez son initiateur, puis privilégiez l’hébergement local des polices.' );
         }
         if ( 'google-maps' === $id && $sources ) {
             return array( 'kind'=>'source_setting','state'=>isset($finding['tracking_state'])?$finding['tracking_state']:'unknown','label'=>'Voir les réglages de la carte','url'=>admin_url('plugins.php?s='.rawurlencode($sources[0]['name']).'&plugin_status=all'),'instructions'=>'Privilégiez un chargement après consentement, une carte statique ou un fournisseur sans traceur plutôt que de désactiver toute l’extension.' );
