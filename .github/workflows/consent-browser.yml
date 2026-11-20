@@ -1,0 +1,33 @@
+name: Dendrila consent browser network test
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'assets/consent*.js'
+      - 'includes/class-pixel-trackers-manager-consent.php'
+      - 'tests/consent-browser.cjs'
+      - '.github/workflows/consent-browser.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: consent-browser-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use runner Chrome and minimal Playwright driver
+        run: |
+          command -v google-chrome
+          npm install --no-save --ignore-scripts playwright-core@1.57.0
+      - name: Assert network denial before consent
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tests/consent-browser.cjs
