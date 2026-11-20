@@ -110,7 +110,7 @@ Their presence in Dendrila Privacy's source code does not mean that Dendrila Pri
 
 1. Upload the Dendrila Privacy ZIP through Plugins > Add Plugin > Upload Plugin.
 2. Activate the plugin.
-3. Open Dendrila Privacy. The guided setup starts on first access, not during activation.
+3. After individual activation in the Plugins screen, the guided setup opens automatically. For other activation methods, open Dendrila Privacy to start setup.
 4. Review the proposed Legal Notice, Privacy Policy, and Cookies / Consent reference pages.
 5. Start an analysis when you choose. Installation does not automatically launch a full-site scan.
 6. Enable the native consent interface only if you want Dendrila Privacy to manage visitor choices and blocking as well.
