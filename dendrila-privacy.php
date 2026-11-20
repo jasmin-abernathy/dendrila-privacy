@@ -1489,14 +1489,34 @@ final class Pixel_Trackers_Manager_Plugin {
                 'plugin_slugs' => array( 'facebook-for-woocommerce', 'pixelyoursite' ),
             ),
             'clarity' => array(
-                'label' => 'Microsoft Clarity', 'category' => 'Analyse comportementale',
+                'label' => 'Microsoft Clarity', 'category' => 'Analyse comportementale / rejeu possible',
                 'patterns' => array( 'clarity.ms/tag', 'clarity(' ),
                 'aliases' => array( 'microsoft clarity', 'clarity' ), 'plugin_slugs' => array( 'microsoft-clarity' ),
             ),
             'hotjar' => array(
-                'label' => 'Hotjar', 'category' => 'Analyse comportementale',
+                'label' => 'Hotjar', 'category' => 'Analyse comportementale / rejeu possible',
                 'patterns' => array( 'static.hotjar.com', 'hotjar.com/c/hotjar-', 'hj(' ),
                 'aliases' => array( 'hotjar' ), 'plugin_slugs' => array( 'hotjar' ),
+            ),
+            'fullstory' => array(
+                'label' => 'Fullstory (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'edge.fullstory.com/s/fs.js', 'edge.eu1.fullstory.com/s/fs.js', 'fullstory.com/s/fs.js', '_fs_script' ),
+                'aliases' => array( 'fullstory', 'fullstory session replay' ), 'plugin_slugs' => array(),
+            ),
+            'mouseflow' => array(
+                'label' => 'Mouseflow (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'cdn.mouseflow.com/projects/', 'mouseflowHtmlDelay' ),
+                'aliases' => array( 'mouseflow' ), 'plugin_slugs' => array(),
+            ),
+            'smartlook' => array(
+                'label' => 'Smartlook (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'web-sdk.smartlook.com/recorder.js', 'rec.smartlook.com', 'smartlook(' ),
+                'aliases' => array( 'smartlook' ), 'plugin_slugs' => array(),
+            ),
+            'logrocket' => array(
+                'label' => 'LogRocket (rejeu de session)', 'category' => 'Rejeu de session',
+                'patterns' => array( 'cdn.logrocket.io', 'cdn.logr-in.com', 'logrocket.init(' ),
+                'aliases' => array( 'logrocket' ), 'plugin_slugs' => array(),
             ),
             'tiktok-pixel' => array(
                 'label' => 'TikTok Pixel', 'category' => 'Marketing / suivi',
@@ -2890,6 +2910,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'minors'=>array('label'=>'Information adaptée aux mineurs — si concernés','terms'=>array('mineur','mineurs','enfant','enfants'),'weight'=>0,'scored'=>false),
             'cookies'=>array('label'=>'Cookies / traceurs et gestion du consentement','terms'=>array('cookie','traceur','mesure d’audience','politique de cookies','tout refuser','retirer votre consentement'),'weight'=>0,'scored'=>false),
             'email_pixels'=>array('label'=>'Suivi dans les courriels — pixels ou clics individualisés si utilisés','terms'=>array('pixel de suivi','pixels de suivi','suivi des ouvertures','mesure des ouvertures','tracking des ouvertures','suivi des clics','liens suivis','clics individualisés'),'weight'=>0,'scored'=>false),
+            'session_replay'=>array('label'=>'Rejeu de session — information, consentement et masquage si utilisé','terms'=>array('rejeu de session','enregistrement des sessions','enregistrement du parcours','session replay','masquage des saisies'),'weight'=>0,'scored'=>false),
         );
     }
 
@@ -4381,7 +4402,7 @@ final class Pixel_Trackers_Manager_Plugin {
             if ( 'yes' === $profile['email_pixels'] ) {
                 $html .= '<p>Certains courriels peuvent contenir des pixels de suivi. <strong>Finalité(s) :</strong> ' . esc_html( $profile['email_pixel_purposes'] ) . '.</p>';
                 if ( 'consent' === $profile['email_pixel_status'] ) { $html .= '<p>L’utilisation de ces pixels est déclarée comme soumise au consentement lorsque celui-ci est requis.</p>'; }
-                if ( 'exempt_delivery' === $profile['email_pixel_status'] ) { $html .= '<p>L’éditeur indique utiliser uniquement des pixels dont l’exemption a été évaluée pour une finalité strictement liée à la délivrabilité. Toute utilisation au-delà de cette finalité doit faire l’objet d’une nouvelle analyse.</p>'; }
+                if ( 'exempt_delivery' === $profile['email_pixel_status'] ) { $html .= '<p>L’éditeur indique utiliser uniquement des pixels dont l’exemption a été évaluée pour une finalité strictement liée à la délivrabilité, sous les conditions encadrées par la recommandation CNIL de 2026. Cette exemption n’est ni automatique ni applicable au simple suivi marketing des ouvertures ; toute autre finalité impose une nouvelle analyse.</p>'; }
                 if ( $profile['email_pixel_preferences'] ) { $html .= '<p><strong>Gérer ce choix :</strong> ' . esc_html( $profile['email_pixel_preferences'] ) . '</p>'; }
             }
             if ( 'yes' === $profile['tracked_links'] ) {
@@ -4511,7 +4532,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function apply_detected_profile_suggestions( $profile, $scan ) {
         $p = wp_parse_args( is_array( $profile ) ? $profile : array(), $this->legal_profile_defaults() );
-        $optional_ids = array( 'google-analytics','meta-pixel','clarity','hotjar','tiktok-pixel','linkedin-insight','pinterest-tag','youtube','vimeo','google-maps','matomo','plausible','brevo' );
+        $optional_ids = array( 'google-analytics','meta-pixel','clarity','hotjar','fullstory','mouseflow','smartlook','logrocket','tiktok-pixel','linkedin-insight','pinterest-tag','youtube','vimeo','google-maps','matomo','plausible','brevo' );
         $active_optional = false;
         foreach ( isset( $scan['findings'] ) && is_array( $scan['findings'] ) ? $scan['findings'] : array() as $finding ) {
             $id = isset( $finding['id'] ) ? (string) $finding['id'] : '';
@@ -4948,8 +4969,10 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_select( 'cookie_consent_status', 'Comment leur activation est-elle gérée ?', $profile['cookie_consent_status'], array( 'unknown'=>'À vérifier','yes'=>'Ils attendent le consentement','no'=>'Ils peuvent se lancer avant le choix','exempt_only'=>'Les traceurs utilisés sont déclarés exemptés de consentement' ) );
         $this->legal_page_url_select( 'cookie_preferences', 'Sur quelle page peut-on retirer ou modifier son choix ?', $profile['cookie_preferences'], 'Dendrila Privacy essaie de repérer la bonne page à partir du gestionnaire de consentement détecté. Corrigez la sélection si nécessaire.' );
         $this->legal_cookie_retention_select( $profile['cookie_choice_retention'] );
+        echo '<p class="description">CNIL 2026 : si un outil de rejeu de session est activé (Clarity, Hotjar, Fullstory, Mouseflow, Smartlook, LogRocket…), informez-en les visiteurs dès le premier niveau du bandeau et recueillez leur consentement avant tout enregistrement. Masquez les champs, conversations et zones sensibles. La présence du plugin seule ne prouve pas que le rejeu est actif.</p>';
         $this->legal_select( 'cookie_cross_device', 'Le choix de cookies est-il conservé sur les autres appareils ?', $profile['cookie_cross_device'], array( 'unknown'=>'Impossible à déterminer automatiquement','yes'=>'Oui, le choix peut être retrouvé sur les autres appareils','no'=>'Non, le choix doit généralement être refait' ) );
         $this->legal_textarea( 'cookie_cross_device_explanation', 'Comment le vérifier / précision utile', $profile['cookie_cross_device_explanation'], 'Test simple : faites un choix ici, puis ouvrez le site sur un autre navigateur ou téléphone. Si la bannière redemande un choix, il n’est pas synchronisé.' );
+        echo '<p class="description">CNIL janvier 2026 : si les choix sont synchronisés entre appareils reliés à un compte, leur portée doit être expliquée dès le premier niveau de la bannière. Refus et retrait doivent avoir la même portée que l’acceptation. Prévoir une règle claire lorsque le choix local diffère de celui du compte. Dendrila ne synchronise pas les choix entre appareils.</p>';
         echo '</div><div class="ptm-callout neutral"><strong>Vous ne savez pas pour les appareils ?</strong> C’est normal. Dendrila Privacy essaie de le déduire du gestionnaire de consentement. Sinon, faites le test sur un autre navigateur/appareil ou laissez « ne peut pas encore le déterminer » : cela restera seulement une action à vérifier.</div></div>'; $this->legal_section_form_end();
 
         $this->legal_section_form_start( 'email' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 7</div><h3>Vos e-mails mesurent-ils les ouvertures ou les clics ?</h3><p class="ptm-question-intro">Dendrila Privacy vérifie automatiquement les réglages accessibles. Pour les outils dont le réglage est externe ou privé, il indique simplement « À vérifier ».</p>';
@@ -4962,6 +4985,7 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<button type="button" class="button ptm-email-purpose" data-target="email_pixel_purposes" data-value="Gérer les préférences de communication et conserver la preuve des choix exprimés">Gérer les préférences</button></div></div>';
         echo '<div class="ptm-form-grid">';
         $this->legal_select( 'email_pixels', 'Le suivi des ouvertures est-il activé ?', $profile['email_pixels'], array( 'unknown'=>'À vérifier','no'=>'Non / désactivés','yes'=>'Oui / actifs' ) ); $this->legal_textarea( 'email_pixel_purposes', 'Pourquoi ce suivi des ouvertures est-il utilisé ?', $profile['email_pixel_purposes'] ); $this->legal_select( 'email_pixel_status', 'Dans quel cadre ce suivi est-il utilisé ?', $profile['email_pixel_status'], array( 'unknown'=>'À vérifier','consent'=>'Consentement lorsque requis','exempt_delivery'=>'Uniquement pour assurer la bonne réception des e-mails' ) ); $this->legal_input( 'email_pixel_preferences', 'Où la personne peut-elle gérer ce choix ?', $profile['email_pixel_preferences'] );
+        echo '<p class="description">CNIL avril 2026 : l’abonnement à une newsletter ne vaut pas automatiquement consentement aux pixels de suivi. L’exemption pour délivrabilité ne concerne que des situations précises, sous conditions et sans réutilisation à des fins de mesure marketing. Une personne doit pouvoir retirer son consentement aux pixels indépendamment de son inscription lorsque le pixel n’est pas nécessaire. Les liens de désabonnement ne doivent pas être confondus avec les liens de suivi publicitaire.</p>';
         $this->legal_select( 'tracked_links', 'Le suivi individuel des clics est-il activé ?', $profile['tracked_links'], array( 'unknown'=>'À vérifier','no'=>'Non / désactivé','yes'=>'Oui / actif' ) ); $this->legal_textarea( 'tracked_links_details', 'Pourquoi et comment les clics sont-ils suivis ?', $profile['tracked_links_details'] ); echo '</div></div>'; $this->legal_section_form_end();
 
         $this->legal_section_form_start( 'authority' ); echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 8</div><h3>Où une personne peut-elle déposer une réclamation ?</h3><p class="ptm-question-intro">Pour une structure française, l’autorité de contrôle est généralement la CNIL. Vérifiez le cas de votre organisation si elle relève d’un autre pays.</p><div class="ptm-form-grid">'; $this->legal_input( 'supervisory_authority', 'Autorité compétente', $profile['supervisory_authority'] ); $this->legal_url_input( 'supervisory_url', 'Lien de réclamation', $profile['supervisory_url'] ); echo '</div></div>'; $this->legal_section_form_end();
@@ -5034,12 +5058,28 @@ final class Pixel_Trackers_Manager_Plugin {
                 'source' => 'Données générées lors de la navigation sur le site et collectées via Meta Pixel.',
             ),
             'clarity' => array(
-                'categories' => 'Données de navigation et d’interaction : pages consultées, clics, défilements et informations techniques selon la configuration du service.',
-                'source' => 'Données générées lors de l’utilisation du site et collectées via Microsoft Clarity.',
+                'categories' => 'Navigation et interactions, avec possibilité de rejeu de session selon les fonctions effectivement activées.',
+                'source' => 'Données collectées via Microsoft Clarity ; vérifier si le rejeu est activé et si les champs sensibles sont masqués.',
             ),
             'hotjar' => array(
-                'categories' => 'Données de navigation et d’interaction : pages consultées, clics, défilements et informations techniques selon la configuration du service.',
-                'source' => 'Données générées lors de l’utilisation du site et collectées via Hotjar.',
+                'categories' => 'Navigation et interactions, avec possibilité de rejeu de session selon les fonctions effectivement activées.',
+                'source' => 'Données collectées via Hotjar ; vérifier si le rejeu est activé et si les champs sensibles sont masqués.',
+            ),
+            'fullstory' => array(
+                'categories' => 'Interactions et parcours reconstituables en sessions ; vérifier le masquage des données saisies et des zones sensibles.',
+                'source' => 'Données enregistrées via Fullstory lorsque son SDK est activé après consentement.',
+            ),
+            'mouseflow' => array(
+                'categories' => 'Défilements, clics et autres interactions pouvant être enregistrés ; vérifier le masquage des champs sensibles.',
+                'source' => 'Données issues de Mouseflow lorsque son code de suivi est réellement actif.',
+            ),
+            'smartlook' => array(
+                'categories' => 'Événements de navigation et interactions enregistrables pour le rejeu, selon la configuration.',
+                'source' => 'Données traitées par Smartlook lorsque son enregistreur est activé.',
+            ),
+            'logrocket' => array(
+                'categories' => 'Interactions de navigation, événements techniques, journaux et erreurs selon la configuration.',
+                'source' => 'Données enregistrées par LogRocket lorsque son SDK est activé.',
             ),
             'tiktok-pixel' => array(
                 'categories' => 'Données de navigation et d’interaction, événements et identifiants en ligne selon la configuration du pixel.',
@@ -5147,7 +5187,7 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         $contact_detected = (bool) preg_match( '/contact-form|wpforms|gravity|ninja-forms|formidable|fluentform|elementor/', $plugin_haystack );
         $shop_detected = (bool) preg_match( '/woocommerce|easy-digital-downloads|surecart/', $plugin_haystack );
-        $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar' ) );
+        $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar','fullstory','mouseflow','smartlook','logrocket' ) );
         $mailing_active = false;
         foreach ( isset( $scan['mailing'] ) && is_array( $scan['mailing'] ) ? $scan['mailing'] : array() as $tool ) {
             if ( ! empty( $tool['plugin']['active'] ) || ! empty( $tool['name'] ) ) { $mailing_active = true; break; }
@@ -6000,7 +6040,7 @@ final class Pixel_Trackers_Manager_Plugin {
             'organisation'=>array('label'=>'Votre organisation','ids'=>array('identity','contact','representative')),
             'uses'=>array('label'=>'Utilisation des données','ids'=>array('purposes','legal_basis','data_categories','retention','recipients','mandatory')),
             'flows'=>array('label'=>'Circulation des données','ids'=>array('source','transfers','automated')),
-            'cookies'=>array('label'=>'Cookies et traceurs','ids'=>array('cookies','email_pixels')),
+            'cookies'=>array('label'=>'Cookies et traceurs','ids'=>array('cookies','email_pixels','session_replay')),
             'rights'=>array('label'=>'Droits des personnes','ids'=>array('rights','withdrawal','complaint','special_categories','criminal_data','minors')),
         );
         $by_id=array(); foreach((array)$audit['topics'] as $item){$by_id[$item['id']]=$item;}
