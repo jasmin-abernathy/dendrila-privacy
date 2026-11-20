@@ -24,3 +24,5 @@ CONTRIBUTING.fr.md export-ignore
 SECURITY.md export-ignore
 SECURITY.fr.md export-ignore
 docs export-ignore
+.wordpress-org export-ignore
+tools export-ignore

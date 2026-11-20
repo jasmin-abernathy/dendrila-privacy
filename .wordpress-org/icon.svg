@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Dendrila Privacy</title>
+  <desc id="desc">Balance de justice accompagnée d'une feuille</desc>
+  <g fill="none" stroke="#21643f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 31v66"/>
+    <path d="M31 45h66"/>
+    <path d="M64 29c0 0 11-18 30-15-1 18-14 28-30 24" fill="#70a950" stroke="#21643f"/>
+    <path d="M64 29 88 18" stroke-width="4"/>
+    <path d="M36 45 22 72M36 45l14 27M92 45 78 72M92 45l14 27" stroke-width="4"/>
+    <path d="M15 73h42c-2 15-10 22-21 22S17 88 15 73Z" fill="#f3f5ea"/>
+    <path d="M71 73h42c-2 15-10 22-21 22s-19-7-21-22Z" fill="#f3f5ea"/>
+    <path d="M45 105h38"/>
+  </g>
+</svg>
