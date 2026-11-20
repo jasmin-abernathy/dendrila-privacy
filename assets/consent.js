@@ -190,6 +190,7 @@
 
             var tag = element.tagName.toLowerCase();
             var src = element.getAttribute('data-ptm-src');
+            var href = element.getAttribute('data-ptm-href');
 
             if (tag === 'script') {
                 var replacement = document.createElement('script');
@@ -216,6 +217,9 @@
 
             if (src) {
                 element.setAttribute('src', src);
+            }
+            if (href && tag === 'link') {
+                element.setAttribute('href', href);
             }
             element.removeAttribute('data-ptm-blocked');
         });
@@ -298,6 +302,26 @@
         };
     }
 
+    // WP Consent API is a separate optional plugin. Its JavaScript is normally
+    // loaded in the footer, so synchronise at DOM ready AND when choices change.
+    // Never turn an 'external content' choice into general preferences consent.
+    function syncWPConsentAPI() {
+        if (!cfg.wpConsentApi) { return; }
+        window.wp_consent_type = 'optin';
+        try { document.dispatchEvent(new CustomEvent('wp_consent_type_defined')); } catch (e) {}
+        if (cfg.preview || cfg.testMode || typeof window.wp_set_consent !== 'function') { return; }
+        var values = {
+            functional: 'allow',
+            preferences: 'deny',
+            'statistics-anonymous': allowed('statistics') ? 'allow' : 'deny',
+            statistics: allowed('statistics') ? 'allow' : 'deny',
+            marketing: allowed('marketing') ? 'allow' : 'deny'
+        };
+        Object.keys(values).forEach(function (category) {
+            window.wp_set_consent(category, values[category]);
+        });
+    }
+
     function saveChoice(choice) {
         choice = normaliseChoice(choice);
         choice.savedAt = Date.now();
@@ -311,6 +335,7 @@
         }
         current = choice;
         syncEarlyGuard(choice);
+        syncWPConsentAPI();
         activateAllowedResources();
         reinitialiseDiviIntegrations();
         announceConsentUpdate();
@@ -574,6 +599,7 @@
     function initialise() {
         current = cfg.preview ? null : (testChoice() || readChoice());
         syncEarlyGuard(current);
+        syncWPConsentAPI();
         mountConsentRoot();
         activateAllowedResources();
         reinitialiseDiviIntegrations();
@@ -596,6 +622,11 @@
         if (!current && !closedThisSession) {
             showBanner(false, false);
         }
+    }
+
+    // Catch uncommon script optimisers which defer the separate WP API until load.
+    if (cfg.wpConsentApi && typeof window.addEventListener === 'function') {
+        window.addEventListener('load', syncWPConsentAPI);
     }
 
     // Register this as soon as the head script executes. Builders can attach their own

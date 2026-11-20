@@ -14,6 +14,9 @@ final class Pixel_Trackers_Manager_Consent {
     private function __construct( $plugin ) {
         $this->plugin = $plugin;
         add_filter( 'wp_template_enhancement_output_buffer', array( $this, 'filter_full_html' ), 10, 2 );
+        add_filter( 'wp_get_consent_type', array( $this, 'filter_wp_consent_type' ), 20 );
+        add_filter( 'wp_consent_api_registered_dendrila-privacy/dendrila-privacy.php', array( $this, 'register_wp_consent_manager' ) );
+        add_filter( 'wp_consent_api_cookie_expiration', array( $this, 'wp_consent_cookie_expiration' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ), 1 );
         add_action( 'wp_body_open', array( $this, 'render_banner' ), 1 );
         add_action( 'wp_footer', array( $this, 'footer' ), 1 );
@@ -21,6 +24,24 @@ final class Pixel_Trackers_Manager_Consent {
         add_filter( 'the_content', array( $this, 'filter_content' ), 999 );
         add_filter( 'elementor/frontend/the_content', array( $this, 'filter_content' ), 999 );
         add_action( 'elementor/widgets/register', array( $this, 'register_elementor_widget' ) );
+    }
+
+    /**
+     * WP Consent API integration is opt-in only while our native CMP is active.
+     * The API itself remains optional: none of these filters require its plugin.
+     */
+    public function filter_wp_consent_type( $type ) {
+        return $this->enabled() ? 'optin' : $type;
+    }
+
+    public function register_wp_consent_manager( $registered ) {
+        return $this->enabled() ? true : $registered;
+    }
+
+    public function wp_consent_cookie_expiration( $days ) {
+        if ( ! $this->enabled() ) { return $days; }
+        $settings = $this->plugin->public_settings();
+        return max( 1, (int) $settings['consent_retention_days'] );
     }
 
     /**
@@ -113,7 +134,7 @@ final class Pixel_Trackers_Manager_Consent {
         $settings = $this->plugin->public_settings();
         // Consent assets have their own cache suffix during the test cycle so fixes reach
         // builder test sites even before the plugin version changes.
-        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-portal2';
+        $asset_version = Pixel_Trackers_Manager_Plugin::VERSION . '-consent-api1';
         $bootstrap_handle = 'pixel-trackers-manager-consent-bootstrap';
         $test_mode = '';
         if ( current_user_can( 'manage_options' ) ) {
@@ -128,6 +149,7 @@ final class Pixel_Trackers_Manager_Consent {
             'retentionDays' => (int) $settings['consent_retention_days'],
             'fingerprint' => $this->consent_fingerprint(),
             'testMode' => $test_mode,
+            'wpConsentApi' => function_exists( 'wp_get_consent_type' ),
         );
         wp_localize_script( $bootstrap_handle, 'DendrilaPrivacyConsentEarlyConfig', $early_config );
         // Backward-compatible alias for pre-publication integrations.
@@ -144,6 +166,7 @@ final class Pixel_Trackers_Manager_Consent {
             'domains' => $this->domain_map(),
             'preview' => '' !== $this->query_value( 'pixel_trackers_manager_consent_preview' ) && current_user_can( 'manage_options' ),
             'testMode' => $test_mode,
+            'wpConsentApi' => function_exists( 'wp_get_consent_type' ),
         );
         wp_localize_script( 'pixel-trackers-manager-consent', 'DendrilaPrivacyConsent', $consent_config );
         // Backward-compatible alias for pre-publication integrations.

@@ -158,6 +158,8 @@ jobs:
       - name: Check JavaScript files
         shell: bash
         run: find assets -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Consent blocker regression tests
+        run: node --test tests/consent-regression.test.cjs
 
   plugin-check:
     name: Official WordPress Plugin Check

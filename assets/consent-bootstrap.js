@@ -24,6 +24,11 @@
     };
     var current = testChoice() || readChoice();
     var nativeSetAttribute = Element.prototype.setAttribute;
+    var nativeRemoveAttribute = Element.prototype.removeAttribute;
+    if (config.wpConsentApi) {
+        // Define opt-in before the API's footer script can evaluate tracking plugins.
+        window.wp_consent_type = 'optin';
+    }
 
     function testChoice() {
         if (!testMode) { return null; }
@@ -84,13 +89,87 @@
         }
     }
 
+    // Neutralise nested resources before they enter the live DOM. A MutationObserver
+    // alone is too late: the browser may start an iframe/image request on insertion.
+    function blockResource(element) {
+        if (!element || element.nodeType !== 1) { return; }
+        var tag = (element.tagName || '').toLowerCase();
+        var attribute = tag === 'link' ? 'href' : 'src';
+        if (tag !== 'script' && tag !== 'iframe' && tag !== 'img' && tag !== 'link') { return; }
+        if (tag === 'link' && !/\\b(?:preload|modulepreload|prefetch|preconnect|dns-prefetch)\\b/i.test(element.getAttribute('rel') || '')) { return; }
+        var src = element.getAttribute(attribute) || '';
+        var category = classify(src);
+        if (!src || !category || allowed(category)) { return; }
+        rememberBlocked(element, src, category);
+        if (tag === 'link') {
+            nativeSetAttribute.call(element, 'data-ptm-href', src);
+            nativeRemoveAttribute.call(element, 'href');
+        } else if (tag === 'iframe') {
+            nativeSetAttribute.call(element, 'src', 'about:blank');
+        } else {
+            nativeRemoveAttribute.call(element, 'src');
+        }
+    }
+
+    function blockSubtree(node) {
+        if (!node || (node.nodeType !== 1 && node.nodeType !== 11)) { return node; }
+        blockResource(node);
+        if (typeof node.querySelectorAll === 'function') {
+            node.querySelectorAll('script[src],iframe[src],img[src],link[href]').forEach(blockResource);
+        }
+        return node;
+    }
+
+    // Intercept common DOM APIs synchronously, including DocumentFragment descendants.
+    ['appendChild', 'insertBefore', 'replaceChild', 'append', 'prepend', 'replaceChildren', 'insertAdjacentElement'].forEach(function (method) {
+        if (typeof Element.prototype[method] !== 'function') { return; }
+        var nativeMethod = Element.prototype[method];
+        Element.prototype[method] = function () {
+            var args = Array.prototype.slice.call(arguments);
+            if (method === 'append' || method === 'prepend' || method === 'replaceChildren') {
+                args.forEach(blockSubtree);
+            } else if (method === 'insertAdjacentElement') {
+                blockSubtree(args[1]);
+            } else {
+                blockSubtree(args[0]);
+            }
+            return nativeMethod.apply(this, args);
+        };
+    });
+
+    // Parse potentially tracking markup in an inert template before assigning it
+    // to innerHTML / insertAdjacentHTML. Unrelated builder markup uses native APIs.
+    var htmlDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+    function sanitiseMarkup(markup) {
+        var html = String(markup);
+        if (!classify(html) || !/<(?:script|iframe|img|link)\\b/i.test(html)) { return html; }
+        var template = document.createElement('template');
+        htmlDescriptor.set.call(template, html);
+        blockSubtree(template.content);
+        return htmlDescriptor.get.call(template);
+    }
+    if (htmlDescriptor && htmlDescriptor.get && htmlDescriptor.set && htmlDescriptor.configurable) {
+        Object.defineProperty(Element.prototype, 'innerHTML', {
+            configurable: true, enumerable: htmlDescriptor.enumerable,
+            get: htmlDescriptor.get,
+            set: function (html) { return htmlDescriptor.set.call(this, sanitiseMarkup(html)); }
+        });
+    }
+    if (typeof Element.prototype.insertAdjacentHTML === 'function' && htmlDescriptor && htmlDescriptor.set) {
+        var nativeInsertAdjacentHTML = Element.prototype.insertAdjacentHTML;
+        Element.prototype.insertAdjacentHTML = function (position, html) {
+            return nativeInsertAdjacentHTML.call(this, position, sanitiseMarkup(html));
+        };
+    }
+
     Element.prototype.setAttribute = function (name, value) {
         var tag = (this.tagName || '').toLowerCase();
         var attribute = String(name || '').toLowerCase();
-        if (attribute === 'src' && (tag === 'script' || tag === 'iframe' || tag === 'img')) {
+        if ((attribute === 'src' && (tag === 'script' || tag === 'iframe' || tag === 'img')) || (attribute === 'href' && tag === 'link' && /\b(?:preload|modulepreload|prefetch|preconnect|dns-prefetch)\b/i.test(this.getAttribute('rel') || ''))) {
             var category = classify(value);
             if (category && !allowed(category)) {
                 rememberBlocked(this, value, category);
+                if (tag === 'link') { nativeSetAttribute.call(this, 'data-ptm-href', value); return; }
                 if (tag === 'iframe') {
                     return nativeSetAttribute.call(this, 'src', 'about:blank');
                 }
