@@ -1572,7 +1572,7 @@ final class Pixel_Trackers_Manager_Plugin {
             ),
             'google-maps' => array(
                 'label' => 'Google Maps', 'category' => 'Contenu / cartographie',
-                'patterns' => array( 'maps.googleapis.com', 'google.com/maps/embed', 'maps.google.com/maps/embed' ),
+                'patterns' => array( 'maps.googleapis.com', 'google.com/maps/embed', 'maps.google.com/maps/embed', 'maps.google.com/maps/api/js' ),
                 'aliases' => array( 'google maps', 'google map' ), 'plugin_slugs' => array( 'wp-google-maps', 'google-maps-widget' ),
             ),
             'recaptcha' => array(
@@ -5138,6 +5138,28 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->legal_section_form_start( 'external' );
         echo '<div class="ptm-wizard-section"><div class="ptm-question-kicker">Étape 4</div><h3>Quels outils utilisez-vous en dehors de WordPress ?</h3><p class="ptm-question-intro">Un site peut être correctement configuré tout en laissant des données circuler ailleurs. Dendrila Privacy vous donne des exemples concrets et préremplit ce qu’il a repéré sur le site.</p>';
         if ( $external_detected ) { echo '<div class="ptm-callout good"><strong>Repéré sur le site :</strong> ' . esc_html( implode( ', ', array_values( $external_detected ) ) ) . '. Confirmez seulement les usages qui existent encore.</div>'; }
+        $events_review = $this->events_calendar_privacy_configuration( $scan );
+        if ( $events_review['active'] ) {
+            echo '<div class="ptm-callout neutral"><strong>The Events Calendar — événements, lieux et organisateurs</strong>';
+            echo '<p>Cette extension peut enregistrer des coordonnées de lieux et d’organisateurs (notamment téléphone et e-mail) et les publier dans les fiches ou l’API événementielle. Vérifiez les données volontairement rendues publiques. Les billets, inscriptions et paiements dépendent d’extensions distinctes : leur présence n’est pas déduite de The Events Calendar.</p>';
+            if ( ! $events_review['settings_readable'] ) {
+                echo '<p>Les réglages de The Events Calendar ne sont pas accessibles à cet instant : vérification manuelle nécessaire.</p>';
+            } else {
+                if ( 'enabled' === $events_review['maps_setting'] ) {
+                    echo '<p><strong>Cartes Google autorisées par le réglage général.</strong> Une carte peut être chargée sur les fiches événements ou lieux, mais ce n’est pas une preuve de requête externe chez les visiteurs. Vérifiez chaque page concernée dans Réseau / Network, et bloquez la carte avant consentement si nécessaire.</p>';
+                } else {
+                    echo '<p>Cartes Google désactivées dans le réglage général de l’extension ; cela ne permet pas d’exclure une carte intégrée par ailleurs dans le thème ou une autre extension.</p>';
+                }
+                if ( 'enabled' === $events_review['telemetry_setting'] ) {
+                    echo '<p><strong>Option locale de partage de données d’utilisation activée.</strong> Vérifiez le statut effectif dans The Events Calendar &gt; Réglages &gt; Général, car la bibliothèque StellarWP utilise également son propre stockage de consentement.</p>';
+                } elseif ( 'disabled' === $events_review['telemetry_setting'] ) {
+                    echo '<p>Option locale de partage d’utilisation désactivée ; vérifiez néanmoins le statut effectif de la bibliothèque StellarWP dans les réglages de l’extension.</p>';
+                } else {
+                    echo '<p>Statut du consentement à la télémétrie non déterminé depuis le seul réglage local : vérifiez-le dans The Events Calendar &gt; Réglages &gt; Général.</p>';
+                }
+            }
+            echo '<p>The Events Calendar fournit déjà un modèle de texte pour la politique de confidentialité dans les outils de WordPress. Réutilisez-le et adaptez-le aux usages réels plutôt que de créer une nouvelle page doublon. Les imports externes et les liens de billetterie exigent une vérification séparée lorsqu’ils sont utilisés.</p></div>';
+        }
         $booking_privacy = $this->fluent_booking_privacy_state( $scan );
         if ( $booking_privacy['active'] ) {
             echo '<div class="ptm-callout ' . ( $booking_privacy['mcp_enabled'] ? 'warn' : 'neutral' ) . '"><strong>Fluent Booking — données de rendez-vous</strong><p>Les réservations peuvent conserver nom, e-mail, téléphone, réponses au formulaire, date du rendez-vous, adresse IP et paramètres UTM. Vérifiez la durée réelle de conservation, les accès internes et les destinataires de synchronisation (calendriers, CRM, visioconférence) si ces intégrations sont activées.</p>';
@@ -5414,6 +5436,44 @@ final class Pixel_Trackers_Manager_Plugin {
         );
     }
 
+    /**
+     * The Events Calendar 6.18.4.1: inspect configuration, never event content.
+     * The plugin offers Google Maps embeds, organizer contact fields, a privacy
+     * policy suggestion and opt-in administrative telemetry.
+     *
+     * Google Maps being enabled in settings does not mean a front-end request
+     * occurs: each event/venue can disable it and some maps are admin-only.
+     */
+    private function events_calendar_privacy_configuration( $scan ) {
+        $status = array(
+            'active' => false,
+            'settings_readable' => false,
+            'maps_setting' => 'unknown',
+            'telemetry_setting' => 'unknown',
+        );
+        foreach ( (array) ( isset( $scan['plugins'] ) ? $scan['plugins'] : array() ) as $plugin ) {
+            if ( empty( $plugin['active'] ) ) { continue; }
+            $slug = isset( $plugin['slug'] ) ? sanitize_key( (string) $plugin['slug'] ) : '';
+            if ( 'the-events-calendar' === $slug ) {
+                $status['active'] = true;
+                break;
+            }
+        }
+        if ( ! $status['active'] || ! function_exists( 'tribe_get_option' ) ) {
+            return $status;
+        }
+        $status['settings_readable'] = true;
+        $maps = tribe_get_option( 'embedGoogleMaps', true );
+        $status['maps_setting'] = ! empty( $maps ) ? 'enabled' : 'disabled';
+        // TEC also uses the StellarWP telemetry opt-in store. Its state may be
+        // different from this local setting; do not claim the final state is known.
+        $optin = tribe_get_option( 'opt_in_status', null );
+        if ( null !== $optin ) {
+            $status['telemetry_setting'] = $optin ? 'enabled' : 'disabled';
+        }
+        return $status;
+    }
+
     private function treatment_template_recommendations( $scan ) {
         $plugins = isset( $scan['plugins'] ) && is_array( $scan['plugins'] ) ? $scan['plugins'] : array();
         $plugin_haystack = '';
@@ -5429,6 +5489,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $contact_detected = (bool) preg_match( '/contact-form|wpforms|gravity|ninja-forms|formidable|fluentform|elementor/', $plugin_haystack );
         $shop_detected = (bool) preg_match( '/woocommerce|easy-digital-downloads|surecart/', $plugin_haystack );
         $booking_detected = (bool) $this->fluent_booking_privacy_state( $scan )['active'];
+        $events_detected = (bool) $this->events_calendar_privacy_configuration( $scan )['active'];
         $analytics_detected = (bool) array_intersect( $active_finding_ids, array( 'google-analytics','matomo','plausible','clarity','hotjar','fullstory','mouseflow','smartlook','logrocket' ) );
         $mailing_active = false;
         foreach ( isset( $scan['mailing'] ) && is_array( $scan['mailing'] ) ? $scan['mailing'] : array() as $tool ) {
@@ -5442,6 +5503,7 @@ final class Pixel_Trackers_Manager_Plugin {
             array( 'id'=>'accounts', 'label'=>'Comptes utilisateurs', 'detected'=>$accounts_detected, 'badge'=>$accounts_detected ? 'fonction active' : '' ),
             array( 'id'=>'orders', 'label'=>'Commandes / facturation', 'detected'=>$shop_detected, 'badge'=>$shop_detected ? 'fonction active' : '' ),
             array( 'id'=>'bookings', 'label'=>'Réservations / rendez-vous', 'detected'=>$booking_detected, 'badge'=>$booking_detected ? 'Fluent Booking actif' : '' ),
+            array( 'id'=>'events', 'label'=>'Événements / organisateurs / lieux', 'detected'=>$events_detected, 'badge'=>$events_detected ? 'The Events Calendar actif' : '' ),
             array( 'id'=>'analytics', 'label'=>'Mesure d’audience', 'detected'=>$analytics_detected, 'badge'=>$analytics_detected ? 'suivi actif détecté' : '' ),
         );
     }

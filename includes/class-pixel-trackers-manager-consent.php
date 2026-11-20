@@ -163,6 +163,7 @@ final class Pixel_Trackers_Manager_Consent {
             'external' => array(
                 'youtube.com/embed', 'youtube-nocookie.com/embed', 'player.vimeo.com',
                 'google.com/maps/embed', 'maps.google.com/maps/embed', 'maps.googleapis.com',
+                'maps.google.com/maps/api/js',
             ),
         );
     }
@@ -295,7 +296,7 @@ final class Pixel_Trackers_Manager_Consent {
         if ( ! $this->enabled() ) { return $tag; }
         // MC4WP can use a vendor-provided script URL; the documented WordPress
         // enqueue handle identifies its optional site pixel independently of URL.
-        $category = 'mc4wp-mailchimp-site-tracking-pixel' === $handle ? 'marketing' : $this->classify_url( $src );
+        $category = 'mc4wp-mailchimp-site-tracking-pixel' === $handle ? 'marketing' : ( 'tribe-events-google-maps' === $handle ? 'external' : $this->classify_url( $src ) );
         if ( ! $category ) { return $tag; }
         if ( false !== strpos( $tag, 'data-ptm-category=' ) ) { return $tag; }
         $original_type = '';
