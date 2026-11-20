@@ -285,6 +285,16 @@
                 mandatory: 'contract',
                 consequences: 'Sans les coordonnées ou autres informations indispensables, la réservation ou sa confirmation peut ne pas être possible.'
             },
+            events: {
+                purpose: 'Publier et gérer les événements, leurs lieux et les coordonnées des organisateurs',
+                data_categories: 'Intitulés et descriptions des événements, lieux et adresses, nom, téléphone et adresse e-mail des organisateurs si renseignés, informations importées depuis des calendriers externes le cas échéant',
+                legal_basis: 'unknown',
+                basis_detail: 'À définir selon les événements et la publication des coordonnées : contrat, intérêt légitime ou consentement selon la situation. Ne supposez pas qu’une inscription ou une billetterie existe sans extension appropriée.',
+                recipients: 'Équipe chargée des événements et visiteurs ayant accès aux fiches publiques ; hébergeur ; plateformes externes d’import ou de billetterie réellement utilisées',
+                retention: 'Pendant la publication de l’événement et selon les règles d’archivage et de suppression appliquées aux coordonnées des organisateurs et lieux',
+                mandatory: 'unknown',
+                consequences: 'À préciser selon les informations exigées pour proposer ou organiser un événement.'
+            },
             orders: {
                 purpose: 'Traiter les commandes, paiements, livraisons et obligations de facturation',
                 data_categories: 'Identité et coordonnées, adresse de facturation/livraison, contenu de la commande, montant, statut du paiement et références de transaction ; les données bancaires complètes restent chez le prestataire de paiement',

@@ -158,6 +158,8 @@ jobs:
         run: php tests/google-fonts-evidence.php
       - name: ACF 6.8.12 privacy configuration tests
         run: php tests/acf-privacy-6.8.12.php
+      - name: Events Calendar 6.18.4.1 privacy tests
+        run: php tests/events-calendar-privacy.php
 
   javascript-syntax:
     name: JavaScript syntax

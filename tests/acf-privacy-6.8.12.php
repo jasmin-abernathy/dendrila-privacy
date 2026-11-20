@@ -73,7 +73,7 @@ check( true === $out['active'], 'ACF identified' );
 check( true === $out['readable'], 'ACF native settings readable' );
 check( 2 === $out['groups_checked'], 'inactive groups ignored' );
 check( 1 === $out['rest_groups'], 'REST-enabled active field group counted' );
-check( 2 === $out['abilities_groups'], 'Abilities group setting read without assuming remote AI connection' );
+check( 1 === $out['abilities_groups'], 'Abilities group requires both its toggle and show_in_rest' );
 check( 1 === $out['google_map_fields'], 'map field configuration counted' );
 check( 1 === $out['rest_post_types'], 'only active, REST-enabled ACF custom post types counted' );
 check( 1 === $out['rest_taxonomies'], 'only active REST-enabled ACF taxonomies counted' );
