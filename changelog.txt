@@ -1,3 +1,10 @@
+= 0.0.7 =
+* Improved blocking of recognised dynamically inserted scripts, embeds, pixels, and preloads.
+* Added optional WP Consent API 2.1+ integration with checks for stale category and service grants.
+* Added session replay detection and first-layer consent information for recognised replay-capable services.
+* Separated optional Mailchimp and Brevo website tracking from transactional email and checkout in the audit.
+* Added Fluent Booking processing suggestions and a check for optional MCP access to appointment data.
+
 = 0.0.6 =
 * Restore admin CSS, scan scripts and onboarding on the preserved pixel-trackers-manager routes.
 * Keep logo dimensions bounded without CSS; add admin routing and scan regression checks.

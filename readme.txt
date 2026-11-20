@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.6
+Stable tag: 0.0.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,6 +20,7 @@ Main features:
 
 * standard or full analysis of public site content;
 * detection of known trackers, third-party services, external content, and consent tools;
+* audit guidance on session replay, email tracking pixels, and consent across devices;
 * distinction between observed technical evidence, an available integration, and something that still needs human verification;
 * progressive scans where one failing page does not stop the remaining analysis;
 * a guided privacy assistant that reuses information WordPress can already provide before asking questions;
@@ -28,9 +29,12 @@ Main features:
 * explicit draft creation and updates, without silently publishing legal content;
 * conservative compatibility with Gutenberg, Elementor, Divi, and several other page builders;
 * an optional native consent interface that is disabled after installation;
-* protective blocking of recognised optional services before the visitor's choice when Dendrila Privacy consent is enabled;
+* blocking of recognised optional services before the visitor's choice, including supported resources inserted dynamically;
 * Accept all and Reject all actions with equal visual weight;
 * a persistent Manage my choices control, Elementor widget, and universal shortcode;
+* optional WP Consent API 2.1+ compatibility, with category and service consent safeguards;
+* detection of optional Mailchimp for WordPress and Brevo site trackers, separately from transactional messages and checkout;
+* Fluent Booking audit checks for appointment data and optional Model Context Protocol (MCP) access;
 * initial checks for practices outside WordPress, including email, messaging, booking tools, external forms, payments, and files/lists;
 * local age-gating plugin detection, with a manual review when a different age-assurance tool is installed.
 
@@ -62,7 +66,7 @@ Other builders: Dendrila Privacy recognises several common page-level signatures
 
 Dendrila Privacy does not send site-audit results to the plugin author and does not include advertising telemetry.
 
-Visitor consent preferences are stored locally in the visitor's browser. Administration and audit data stay in the site's WordPress database unless an administrator explicitly starts the documented external lookup below.
+Visitor consent preferences are stored locally in the visitor's browser. When the optional WP Consent API integration is active, first-party cookies also carry the choice to WordPress for server-side consent checks. Administration and audit data stay in the site's WordPress database unless an administrator explicitly starts the documented external lookup below.
 
 == External services ==
 
@@ -130,6 +134,13 @@ No. It is disabled by default. If you enable it, recognised optional services ar
 No. Dendrila Privacy focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
+
+= 0.0.7 =
+* Improved blocking of recognised dynamically inserted scripts, embeds, pixels, and preloads.
+* Added optional WP Consent API 2.1+ integration with checks for stale category and service grants.
+* Added session replay detection and first-layer consent information for recognised replay-capable services.
+* Separated optional Mailchimp and Brevo website tracking from transactional email and checkout in the audit.
+* Added Fluent Booking processing suggestions and a check for optional MCP access to appointment data.
 
 = 0.0.6 =
 * Fixed admin styles and scan JavaScript not loading after the public plugin rename.

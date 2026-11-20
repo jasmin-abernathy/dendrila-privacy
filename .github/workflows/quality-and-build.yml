@@ -146,6 +146,14 @@ jobs:
         run: php tests/admin-assets.php
       - name: Age assurance companion tests
         run: php tests/age-assurance-companion.php
+      - name: WP Consent API 2.1 PHP regression
+        run: php tests/wp-consent-api-2.1.php
+      - name: CNIL 2026 session replay regression
+        run: php tests/cnil-2026-replay.php
+      - name: Mail and ecommerce integrations
+        run: php tests/mail-ecommerce-integrations.php
+      - name: Fluent Booking privacy and MCP checks
+        run: php tests/fluent-booking-integration.php
 
   javascript-syntax:
     name: JavaScript syntax
@@ -158,6 +166,8 @@ jobs:
       - name: Check JavaScript files
         shell: bash
         run: find assets -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Consent blocker regression tests
+        run: node --test tests/consent-regression.test.cjs
 
   plugin-check:
     name: Official WordPress Plugin Check
