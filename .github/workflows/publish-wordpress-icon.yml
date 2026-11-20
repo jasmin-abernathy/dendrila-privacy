@@ -53,10 +53,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dendrila-privacy-wordpress-org-icon
-          path: |
-            .wordpress-org/icon.svg
-            .wordpress-org/icon-128x128.png
-            .wordpress-org/icon-256x256.png
+          path: .wordpress-org/
           include-hidden-files: true
           retention-days: 7
 
@@ -89,15 +86,15 @@ jobs:
         run: |
           set -euo pipefail
           svn checkout --non-interactive --quiet https://plugins.svn.wordpress.org/dendrila-privacy/assets/ wordpress-assets
-          test -f public-icon/.wordpress-org/icon.svg
-          cp public-icon/.wordpress-org/icon.svg wordpress-assets/icon.svg
-          cp public-icon/.wordpress-org/icon-128x128.png wordpress-assets/icon-128x128.png
-          cp public-icon/.wordpress-org/icon-256x256.png wordpress-assets/icon-256x256.png
+          test -f public-icon/icon.svg
+          cp public-icon/icon.svg wordpress-assets/icon.svg
+          cp public-icon/icon-128x128.png wordpress-assets/icon-128x128.png
+          cp public-icon/icon-256x256.png wordpress-assets/icon-256x256.png
           svn add --quiet --force wordpress-assets/icon.svg wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png
           svn propset --quiet svn:mime-type image/svg+xml wordpress-assets/icon.svg
           svn propset --quiet svn:mime-type image/png wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png
           if [ -n "$(svn status wordpress-assets)" ]; then
-            svn commit wordpress-assets/icon.svg wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png               -m "Publish existing Dendrila Privacy leaf-and-scales logo"               --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
+            svn commit wordpress-assets/icon.svg wordpress-assets/icon-128x128.png wordpress-assets/icon-256x256.png -m "Publish existing Dendrila Privacy leaf-and-scales logo" --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
           else
             echo "WordPress.org already has identical icon assets."
           fi
