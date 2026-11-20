@@ -6,6 +6,7 @@ function is_admin() { return false; }
 function wp_doing_ajax() { return false; }
 function wp_unslash( $v ) { return stripslashes( $v ); }
 function sanitize_key( $v ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i', '', $v ) ); }
+function sanitize_text_field( $v ) { return strip_tags( (string) $v ); }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function esc_attr( $v ) { return htmlspecialchars( $v, ENT_QUOTES, 'UTF-8' ); }
 function expect( $good, $message ) {
