@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.7
+Stable tag: 0.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,7 +110,7 @@ Their presence in Dendrila Privacy's source code does not mean that Dendrila Pri
 
 1. Upload the Dendrila Privacy ZIP through Plugins > Add Plugin > Upload Plugin.
 2. Activate the plugin.
-3. Open Dendrila Privacy. The guided setup starts on first access, not during activation.
+3. After individual activation in the Plugins screen, the guided setup opens automatically. For other activation methods, open Dendrila Privacy to start setup.
 4. Review the proposed Legal Notice, Privacy Policy, and Cookies / Consent reference pages.
 5. Start an analysis when you choose. Installation does not automatically launch a full-site scan.
 6. Enable the native consent interface only if you want Dendrila Privacy to manage visitor choices and blocking as well.
@@ -134,6 +134,10 @@ No. It is disabled by default. If you enable it, recognised optional services ar
 No. Dendrila Privacy focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
+
+= 0.0.8 =
+* Open the guided setup on first access and after individual activation.
+* Distinguish Google Fonts references from declarations and ignore commented-out tracker tags.
 
 = 0.0.7 =
 * Improved blocking of recognised dynamically inserted scripts, embeds, pixels, and preloads.
