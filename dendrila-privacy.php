@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Dendrila Privacy
  * Description: Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management.
- * Version: 0.0.7
+ * Version: 0.0.8
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/includes/class-dendrila-privacy-age-assurance.php';
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.7';
+    const VERSION = '0.0.8';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';
@@ -188,7 +188,7 @@ final class Pixel_Trackers_Manager_Plugin {
         wp_add_privacy_policy_content( 'Dendrila Privacy', wp_kses_post( $content ) );
     }
 
-    public static function activate() {
+    public static function activate( $network_wide = false ) {
         $settings = get_option( self::OPTION_SETTINGS, array() );
         if ( ! is_array( $settings ) ) {
             $settings = array();
@@ -204,6 +204,25 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( in_array( $settings['schedule'], array( 'daily', 'weekly' ), true ) && ! wp_next_scheduled( self::CRON_HOOK ) ) {
             wp_schedule_event( time() + 300, $settings['schedule'], self::CRON_HOOK );
         }
+
+        if ( ! $network_wide && ! is_network_admin() && ! wp_doing_ajax() &&
+            'plugins.php' === ( $GLOBALS['pagenow'] ?? '' ) && current_user_can( 'manage_options' ) &&
+            'activate' === sanitize_key( self::instance()->query_value( 'action' ) ) &&
+            ! self::instance()->onboarding_allows_plugin_access() ) {
+            add_filter( 'wp_redirect', array( self::instance(), 'redirect_after_activation' ) );
+        }
+    }
+
+    public function redirect_after_activation( $location ) {
+        $parts = wp_parse_url( $location );
+        if ( empty( $parts['path'] ) || empty( $parts['query'] ) || basename( $parts['path'] ) !== 'plugins.php' ) {
+            return $location;
+        }
+        parse_str( $parts['query'], $query );
+        if ( isset( $query['activate'] ) && 'true' === $query['activate'] ) {
+            return admin_url( 'admin.php?page=pixel-trackers-manager-setup' );
+        }
+        return $location;
     }
 
     public static function deactivate() {
@@ -330,8 +349,7 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( $this->onboarding_allows_plugin_access() ) {
             return;
         }
-        // Activation itself stays silent. The guided setup appears only when the
-        // administrator actually opens Dendrila Privacy for the first time.
+        // First-open fallback for activation paths that cannot redirect.
         wp_safe_redirect( admin_url( 'admin.php?page=pixel-trackers-manager-setup' ) );
         exit;
     }
