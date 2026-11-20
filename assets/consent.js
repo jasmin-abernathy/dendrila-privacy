@@ -215,7 +215,7 @@
                 return;
             }
 
-            if (src) {
+            if (src && tag !== 'link') {
                 element.setAttribute('src', src);
             }
             if (href && tag === 'link') {

@@ -96,7 +96,7 @@
         var tag = (element.tagName || '').toLowerCase();
         var attribute = tag === 'link' ? 'href' : 'src';
         if (tag !== 'script' && tag !== 'iframe' && tag !== 'img' && tag !== 'link') { return; }
-        if (tag === 'link' && !/\\b(?:preload|modulepreload|prefetch|preconnect|dns-prefetch)\\b/i.test(element.getAttribute('rel') || '')) { return; }
+        if (tag === 'link' && !/\b(?:preload|modulepreload|prefetch|preconnect|dns-prefetch)\b/i.test(element.getAttribute('rel') || '')) { return; }
         var src = element.getAttribute(attribute) || '';
         var category = classify(src);
         if (!src || !category || allowed(category)) { return; }
@@ -142,7 +142,7 @@
     var htmlDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
     function sanitiseMarkup(markup) {
         var html = String(markup);
-        if (!classify(html) || !/<(?:script|iframe|img|link)\\b/i.test(html)) { return html; }
+        if (!classify(html) || !/<(?:script|iframe|img|link)\b/i.test(html)) { return html; }
         var template = document.createElement('template');
         htmlDescriptor.set.call(template, html);
         blockSubtree(template.content);
