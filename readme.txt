@@ -22,6 +22,7 @@ Main features:
 * detection of known trackers, third-party services, external content, and consent tools;
 * audit guidance on session replay, email tracking pixels, and consent across devices;
 * distinction between observed technical evidence, an available integration, and something that still needs human verification;
+* contextual comparison of active, parent and child theme code references with source file/line, without treating unused Google Fonts strings as loaded resources;
 * progressive scans where one failing page does not stop the remaining analysis;
 * a guided privacy assistant that reuses information WordPress can already provide before asking questions;
 * documentation coverage based only on requirements that actually apply;

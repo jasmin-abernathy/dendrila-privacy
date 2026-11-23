@@ -1004,8 +1004,10 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function finding_evidence_status( $finding ) {
         $state = isset($finding['tracking_state']) ? (string)$finding['tracking_state'] : 'potential';
-        if ( 'google-fonts' === ( $finding['id'] ?? '' ) && ! empty( $finding['observed_html'] ) ) {
-            return array( 'label' => 'Déclaration à vérifier dans Réseau', 'tone' => 'warn' );
+        if ( 'google-fonts' === ( $finding['id'] ?? '' ) ) {
+            if ( ! empty( $finding['observed_html'] ) ) { return array( 'label' => 'Déclaration à vérifier dans Réseau', 'tone' => 'warn' ); }
+            if ( ! empty( $finding['code_reference'] ) ) { return array( 'label' => 'Référence de code, non confirmée', 'tone' => 'neutral' ); }
+            return array( 'label' => 'Mention non confirmée', 'tone' => 'neutral' );
         }
         if ( isset( $finding['is_tracking'] ) && ! $finding['is_tracking'] && ! empty( $finding['observed_html'] ) ) { return array( 'label'=>'Ressource externe active', 'tone'=>'warn' ); }
         if ( 'disabled' === $state ) { return array( 'label'=>'Désactivé', 'tone'=>'good' ); }
@@ -2208,7 +2210,8 @@ final class Pixel_Trackers_Manager_Plugin {
                 if ( ! isset( $findings[ $id ] ) ) { $findings[ $id ] = $this->empty_finding( $id, $signature ); }
                 $findings[ $id ]['code_reference'] = (bool) ( $plugin_sources || $has_theme_ref );
                 $findings[ $id ]['plugin_sources'] = $plugin_sources;
-                $findings[ $id ]['theme_files'] = $has_theme_ref ? $theme_refs[ $id ] : array();
+                $findings[ $id ]['theme_references'] = $has_theme_ref ? $theme_refs[ $id ] : array();
+                $findings[ $id ]['theme_files'] = $has_theme_ref ? array_column( $theme_refs[ $id ], 'path' ) : array();
                 if ( ! empty( $findings[ $id ]['blocked_by_consent'] ) && empty( $findings[ $id ]['active_tracking'] ) ) {
                     $findings[ $id ]['confidence'] = 'élevée';
                     $findings[ $id ]['tracking_state'] = 'blocked';
@@ -2234,7 +2237,9 @@ final class Pixel_Trackers_Manager_Plugin {
                     $findings[ $id ]['active_tracking'] = false;
                 } else {
                     $findings[ $id ]['confidence'] = 'faible';
-                    $findings[ $id ]['source'] = 'Référence potentielle dans le thème';
+                    $findings[ $id ]['source'] = 'google-fonts' === $id
+                        ? 'Référence dans les fichiers du thème, sans déclaration de chargement observée sur les pages analysées'
+                        : 'Référence potentielle dans le thème';
                     $findings[ $id ]['tracking_state'] = 'potential';
                     $findings[ $id ]['active_tracking'] = false;
                 }
@@ -2744,58 +2749,80 @@ final class Pixel_Trackers_Manager_Plugin {
         return implode( "\n", array_values( array_unique( array_filter( $chunks, 'is_string' ) ) ) );
     }
 
+    /**
+     * Locate code signatures in the active theme and parent separately.
+     *
+     * Matching relative paths are not always overrides: WordPress loads both
+     * functions.php files, and arbitrary inc/*.php files can run independently.
+     * This inventory is only a code reference, NEVER proof of a network request.
+     *
+     * @return array<string,array<int,array<string,mixed>>>
+     */
     private function scan_theme_references() {
-        $signatures = $this->signatures();
         $matches = array();
-        $dirs = array_filter( array_unique( array( get_stylesheet_directory(), get_template_directory() ) ) );
-        $files_seen = 0;
-        foreach ( $dirs as $dir ) {
-            if ( ! is_dir( $dir ) ) {
-                continue;
-            }
+        $signatures = $this->signatures();
+        $child = rtrim( wp_normalize_path( (string) get_stylesheet_directory() ), '/' );
+        $parent = rtrim( wp_normalize_path( (string) get_template_directory() ), '/' );
+        $is_child = $child !== $parent;
+        $sources = array( array( 'path' => $child, 'role' => $is_child ? 'child' : 'active' ) );
+        if ( $is_child ) {
+            $sources[] = array( 'path' => $parent, 'role' => 'parent' );
+        }
+        foreach ( $sources as $source ) {
+            $directory = $source['path'];
+            if ( ! is_dir( $directory ) ) { continue; }
+            $files_seen = 0;
+            $bytes_read = 0;
+            $counts = array();
             try {
-                $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) );
+                $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $directory, FilesystemIterator::SKIP_DOTS ) );
                 foreach ( $iterator as $file ) {
-                    if ( $files_seen >= 180 ) {
-                        break 2;
-                    }
-                    if ( ! $file->isFile() || $file->getSize() > 1048576 ) {
-                        continue;
-                    }
+                    if ( $files_seen >= 600 || $bytes_read >= 16 * 1048576 ) { break; }
+                    if ( ! $file->isFile() || ! $file->isReadable() || $file->getSize() > 1048576 ) { continue; }
                     $ext = strtolower( pathinfo( $file->getFilename(), PATHINFO_EXTENSION ) );
-                    if ( ! in_array( $ext, array( 'php', 'js', 'html', 'htm', 'css' ), true ) ) {
-                        continue;
-                    }
-                    $files_seen++;
-                    if ( ! is_readable( $file->getPathname() ) ) {
-                        continue;
-                    }
+                    if ( ! in_array( $ext, array( 'php', 'js', 'html', 'htm', 'css' ), true ) ) { continue; }
+                    ++$files_seen;
+                    $bytes_read += $file->getSize();
                     $content = file_get_contents( $file->getPathname() );
-                    if ( false === $content ) {
-                        continue;
+                    if ( false === $content ) { continue; }
+                    $relative = ltrim( substr( wp_normalize_path( $file->getPathname() ), strlen( $directory ) ), '/' );
+                    $role = $source['role'];
+                    $relation = 'Code du thème actif : utilisation non établie';
+                    if ( 'child' === $role ) {
+                        $relation = 'Code du thème enfant : utilisation non établie';
+                    } elseif ( 'parent' === $role ) {
+                        $same_path = is_file( $child . '/' . $relative );
+                        $is_template = 'php' === $ext
+                            && 'functions.php' !== $relative
+                            && ( false === strpos( $relative, '/' ) || 0 === strpos( $relative, 'template-parts/' ) );
+                        if ( $same_path && $is_template ) {
+                            $relation = 'Gabarit homonyme présent dans l’enfant : priorité habituelle de l’enfant, à confirmer selon le chargement';
+                        } elseif ( $same_path ) {
+                            $relation = 'Fichier homonyme présent dans l’enfant : le parent peut toujours être exécuté';
+                        } else {
+                            $relation = 'Aucun fichier homonyme dans l’enfant : exécution du parent non établie';
+                        }
                     }
-                    $lower = strtolower( $content );
                     foreach ( $signatures as $id => $signature ) {
+                        if ( ( $counts[ $id ] ?? 0 ) >= 6 ) { continue; }
                         foreach ( $signature['patterns'] as $pattern ) {
-                            if ( false !== strpos( $lower, strtolower( $pattern ) ) ) {
-                                if ( empty( $matches[ $id ] ) ) {
-                                    $matches[ $id ] = array();
-                                }
-                                $normalized_dir = trailingslashit( wp_normalize_path( $dir ) );
-                                $normalized_file = wp_normalize_path( $file->getPathname() );
-                                $relative = ltrim( str_replace( $normalized_dir, '', $normalized_file ), '/' );
-                                $matches[ $id ][] = basename( untrailingslashit( $normalized_dir ) ) . '/' . $relative;
-                                break;
-                            }
+                            $pos = stripos( $content, $pattern );
+                            if ( false === $pos ) { continue; }
+                            $matches[ $id ][] = array(
+                                'path' => basename( $directory ) . '/' . $relative,
+                                'role' => $role,
+                                'line' => substr_count( substr( $content, 0, $pos ), "\n" ) + 1,
+                                'relationship' => $relation,
+                            );
+                            $counts[ $id ] = ( $counts[ $id ] ?? 0 ) + 1;
+                            break;
                         }
                     }
                 }
             } catch ( Exception $e ) {
+                // Theme updates can temporarily make files unavailable.
                 continue;
             }
-        }
-        foreach ( $matches as $id => $paths ) {
-            $matches[ $id ] = array_slice( array_values( array_unique( $paths ) ), 0, 6 );
         }
         return $matches;
     }
@@ -3039,7 +3066,7 @@ final class Pixel_Trackers_Manager_Plugin {
         return array(
             'id'=>$id,'label'=>$signature['label'],'category'=>$signature['category'],'confidence'=>'faible','is_tracking'=>!isset($signature['is_tracking'])||!empty($signature['is_tracking']),
             'observed_html'=>false,'active_tracking'=>false,'blocked_by_consent'=>false,'tracking_state'=>'potential','tracking_basis'=>'capability',
-            'code_reference'=>false,'source'=>'','urls'=>array(),'evidence'=>array(),'plugin_sources'=>array(),'theme_files'=>array(),
+            'code_reference'=>false,'source'=>'','urls'=>array(),'evidence'=>array(),'plugin_sources'=>array(),'theme_files'=>array(),'theme_references'=>array(),
         );
     }
 
@@ -6174,6 +6201,21 @@ final class Pixel_Trackers_Manager_Plugin {
             if ( ! empty( $finding['font_hint_urls'] ) ) {
                 $labels = array_map( array( $this, 'scan_page_label' ), array_slice( $finding['font_hint_urls'], 0, 3 ) );
                 echo '<p><strong>Références sans chargement déclaré :</strong> ' . esc_html( implode( ', ', $labels ) ) . '</p>';
+            }
+            if ( ! empty( $finding['theme_references'] ) ) {
+                $parent_count = 0;
+                $child_count = 0;
+                foreach ( $finding['theme_references'] as $reference ) {
+                    if ( 'parent' === $reference['role'] ) { ++$parent_count; } else { ++$child_count; }
+                }
+                echo '<details class="ptm-theme-references"><summary>Références dans les thèmes (' . esc_html( (string) $parent_count ) . ' parent, ' . esc_html( (string) $child_count ) . ' actif/enfant)</summary>';
+                echo '<p class="ptm-muted">Il s’agit de références de code, sans preuve de requête externe. Les fichiers PHP du parent peuvent fonctionner même lorsqu’un homonyme existe dans l’enfant.</p><ul>';
+                foreach ( $finding['theme_references'] as $reference ) {
+                    $role_label = 'parent' === $reference['role'] ? 'Parent' : ( 'child' === $reference['role'] ? 'Enfant' : 'Thème actif' );
+                    echo '<li><strong>' . esc_html( $role_label ) . '</strong> — <code>' . esc_html( $reference['path'] ) . ':' . esc_html( (string) $reference['line'] ) . '</code>';
+                    echo ' — <span class="ptm-muted">' . esc_html( $reference['relationship'] ) . '</span></li>';
+                }
+                echo '</ul></details>';
             }
             if(!empty($finding['plugin_sources'])){$names=array();foreach($finding['plugin_sources'] as $src){$names[]=$src['name'];}echo '<p><strong>Source probable :</strong> '.esc_html(implode(', ',$names)).'</p>';}
             $hint=$this->analytics_integration_hint($finding);
