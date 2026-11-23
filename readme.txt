@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.8
+Stable tag: 0.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -136,6 +136,11 @@ No. Dendrila Privacy focuses on privacy-related technical checks and documentati
 
 == Changelog ==
 
+= 0.0.9 =
+* Prevent false tracker detections from Dendrila's own consent configuration.
+* Ignore inert JSON scripts; distinguish HTML declarations from observed network activity.
+* Explain dormant Google Fonts references in parent and child themes.
+
 = 0.0.8 =
 * Open the guided setup on first access and after individual activation.
 * Distinguish Google Fonts references from declarations and ignore commented-out tracker tags.
@@ -148,10 +153,7 @@ No. Dendrila Privacy focuses on privacy-related technical checks and documentati
 * Added Fluent Booking processing suggestions and a check for optional MCP access to appointment data.
 
 = 0.0.6 =
-* Fixed admin styles and scan JavaScript not loading after the public plugin rename.
-* Restored first-open setup routing and the default overview tab.
-* Constrained logo dimensions even when styles fail to load.
-* Added regression coverage for all admin menu pages and scan configuration.
+* Restored admin assets and first-open setup after the rename; see changelog.txt.
 * Included local age-assurance companion detection already described above.
 
 Detailed release history is kept in `changelog.txt`.

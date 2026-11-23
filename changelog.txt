@@ -1,3 +1,10 @@
+= 0.0.9 =
+* Prevent Dendrila Privacy's own consent vendor catalogue from becoming false tracker findings.
+* Ignore inert JSON-LD, import maps and non-executing scripts while preserving blocked resources.
+* Distinguish HTML declarations from confirmed network traffic, with more careful statuses.
+* Explain parent/child theme source references and Google Fonts false positives.
+* Add scanner and consent regression tests.
+
 = 0.0.7 =
 * Improved blocking of recognised dynamically inserted scripts, embeds, pixels, and preloads.
 * Added optional WP Consent API 2.1+ integration with checks for stale category and service grants.
