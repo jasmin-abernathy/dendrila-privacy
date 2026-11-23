@@ -4,7 +4,7 @@ Tags: privacy, gdpr, cookies, consent, trackers
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.0.9
+Stable tag: 0.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,7 +22,7 @@ Main features:
 * detection of known trackers, third-party services, external content, and consent tools;
 * audit guidance on session replay, email tracking pixels, and consent across devices;
 * distinction between observed technical evidence, an available integration, and something that still needs human verification;
-* checks parent/child theme code references by file and line without assuming Google Fonts load;
+* distinguishes parent/child theme code references and inline or HTML/CSS resource declarations from confirmed tracking, with theme file and line details;
 * progressive scans where one failing page does not stop the remaining analysis;
 * a guided privacy assistant that reuses information WordPress can already provide before asking questions;
 * documentation coverage based only on requirements that actually apply;
@@ -135,6 +135,11 @@ No. It is disabled by default. If you enable it, recognised optional services ar
 No. Dendrila Privacy focuses on privacy-related technical checks and documentation. It does not replace a firewall, malware scanner, vulnerability scanner, or general WordPress hardening tool.
 
 == Changelog ==
+
+= 0.0.10 =
+* Prevent false active tracker findings from theme code mentions, inline configuration strings, and inert script content across themes.
+* Keep explicit inline resource assignments and HTML/CSS declarations as unconfirmed evidence instead of counting them as active tracking.
+* Preserve parent/child theme path, line, and role details, and request a full rescan after the scanner logic changes.
 
 = 0.0.9 =
 * Prevent false tracker detections from Dendrila's own consent configuration.

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Dendrila Privacy
  * Description: Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management.
- * Version: 0.0.9
+ * Version: 0.0.10
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/includes/class-dendrila-privacy-age-assurance.php';
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.9';
+    const VERSION = '0.0.10';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';

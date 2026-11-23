@@ -1,3 +1,8 @@
+= 0.0.10 =
+* Prevent false active tracker findings from theme code mentions, inline configuration strings, and inert script content across themes.
+* Keep explicit inline resource assignments and HTML/CSS declarations as unconfirmed evidence instead of counting them as active tracking.
+* Preserve parent/child theme path, line, and role details, and request a full rescan after the scanner logic changes.
+
 = 0.0.9 =
 * Prevent Dendrila Privacy's own consent vendor catalogue from becoming false tracker findings.
 * Ignore inert JSON-LD, import maps and non-executing scripts while preserving blocked resources.
