@@ -79,3 +79,41 @@ check( empty( $comment['meta-pixel'] ), 'commented Meta Pixel must not be active
 $live = $scan->invoke( $plugin, '<script src="https://connect.facebook.net/en_US/fbevents.js"></script>', 'https://example.test/live/', array() );
 check( ! empty( $live['meta-pixel']['observed_html'] ), 'live Meta Pixel script remains detectable' );
 echo "Google Fonts reference versus loading declaration checks: PASS\n";
+
+/**
+ * Parent/child inheritance: a same-name module is NOT necessarily overridden.
+ */
+function get_stylesheet_directory() { return $GLOBALS['dendrila_test_child']; }
+function get_template_directory() { return $GLOBALS['dendrila_test_parent']; }
+function wp_normalize_path( $path ) { return str_replace( '\\', '/', $path ); }
+$root = sys_get_temp_dir() . '/dendrila-theme-' . uniqid( '', true );
+$parent = $root . '/kadence';
+$child = $root . '/kadence-child';
+foreach ( array( $parent . '/inc/components', $child . '/inc/components', $parent . '/template-parts', $child . '/template-parts' ) as $dir ) {
+    check( is_dir( $dir ) || mkdir( $dir, 0700, true ), 'create theme fixtures' );
+}
+$GLOBALS['dendrila_test_parent'] = $parent;
+$GLOBALS['dendrila_test_child'] = $child;
+file_put_contents( $parent . '/inc/components/styles.php', "<?php\n// fonts.googleapis.com referenced conditionally.\n" );
+file_put_contents( $child . '/inc/components/styles.php', "<?php\n// Same path does not override a module.\n" );
+file_put_contents( $parent . '/template-parts/header.php', "<?php\n// fonts.gstatic.com conditional.\n" );
+file_put_contents( $child . '/template-parts/header.php', "<?php\n// Child template.\n" );
+file_put_contents( $parent . '/functions.php', "<?php\n// fonts.googleapis.com conditional.\n" );
+file_put_contents( $child . '/functions.php', "<?php\n// Loaded alongside parent functions.php.\n" );
+file_put_contents( $child . '/style.css', "/* fonts.googleapis.com mentioned locally */\n" );
+$method = $ref->getMethod( 'scan_theme_references' );
+$method->setAccessible( true );
+$refs = $method->invoke( $plugin );
+check( 4 === count( $refs['google-fonts'] ), 'four distinct theme code references' );
+$by_path = array();
+foreach ( $refs['google-fonts'] as $entry ) { $by_path[ $entry['path'] ] = $entry; }
+check( 'parent' === $by_path['kadence/inc/components/styles.php']['role'], 'parent role recorded' );
+check( 2 === $by_path['kadence/inc/components/styles.php']['line'], 'source line recorded' );
+check( false !== strpos( $by_path['kadence/inc/components/styles.php']['relationship'], 'peut toujours être exécuté' ), 'homonymous PHP module is not a proven override' );
+check( false !== strpos( $by_path['kadence/template-parts/header.php']['relationship'], 'priorité habituelle' ), 'child template priority distinct' );
+check( false !== strpos( $by_path['kadence/functions.php']['relationship'], 'peut toujours être exécuté' ), 'both functions.php files can run' );
+check( 'child' === $by_path['kadence-child/style.css']['role'], 'child stylesheet origin' );
+check( null === font_result( $scan, $plugin, '<link rel="stylesheet" href="/wp-content/themes/kadence-child/style.css">' ), 'local stylesheet does not imply remote font load' );
+foreach ( array( $child . '/inc/components/styles.php', $child . '/template-parts/header.php', $child . '/functions.php', $child . '/style.css', $parent . '/inc/components/styles.php', $parent . '/template-parts/header.php', $parent . '/functions.php' ) as $path ) { unlink( $path ); }
+foreach ( array( $child . '/inc/components', $child . '/inc', $child . '/template-parts', $parent . '/inc/components', $parent . '/inc', $parent . '/template-parts', $child, $parent, $root ) as $dir ) { rmdir( $dir ); }
+echo "Theme parent/child references: PASS\n";
