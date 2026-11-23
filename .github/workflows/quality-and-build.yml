@@ -156,6 +156,8 @@ jobs:
         run: php tests/fluent-booking-integration.php
       - name: Google Fonts evidence checks
         run: php tests/google-fonts-evidence.php
+      - name: French translation catalog
+        run: php tests/i18n-catalog.php
 
   javascript-syntax:
     name: JavaScript syntax
