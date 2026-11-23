@@ -9,6 +9,8 @@ function sanitize_key( $v ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i',
 function sanitize_text_field( $v ) { return strip_tags( (string) $v ); }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function esc_attr( $v ) { return htmlspecialchars( $v, ENT_QUOTES, 'UTF-8' ); }
+function esc_attr__( $message, $domain = 'default' ) { return esc_attr( $message ); }
+function esc_html__( $message, $domain = 'default' ) { return htmlspecialchars( $message, ENT_QUOTES, 'UTF-8' ); }
 function expect( $good, $message ) {
     if ( ! $good ) { fwrite( STDERR, "FAIL: {$message}\n" ); exit( 1 ); }
 }
@@ -46,7 +48,7 @@ $baseline = $fingerprint->invoke( $cmp );
 ob_start();
 $cmp->render_banner();
 $plainBanner = ob_get_clean();
-expect( false === strpos( $plainBanner, 'reconstituer vos interactions' ), 'no unjustified replay claim' );
+expect( false === strpos( $plainBanner, 'reconstruct interactions' ), 'no unjustified replay claim' );
 
 $plugin->findings = array( array( 'id' => 'fullstory', 'active_tracking' => 1 ) );
 expect( $baseline !== $fingerprint->invoke( $cmp ), 'replay-enabled scan invalidates previous choice' );
@@ -55,6 +57,6 @@ $prop->setValue( $newCmp, $plugin );
 ob_start();
 $newCmp->render_banner();
 $replayBanner = ob_get_clean();
-expect( false !== strpos( $replayBanner, 'reconstituer vos interactions' ), 'first-level replay information' );
-expect( false !== strpos( $replayBanner, 'rejeu d’un parcours' ), 'category detail on replay' );
+expect( false !== strpos( $replayBanner, 'reconstruct interactions' ), 'first-level replay information' );
+expect( false !== strpos( $replayBanner, 'replaying a browsing session' ), 'category detail on replay' );
 echo "CNIL 2026 replay consent tests: PASS\n";
