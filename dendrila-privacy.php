@@ -2044,9 +2044,74 @@ final class Pixel_Trackers_Manager_Plugin {
         return new WP_Error( 'pixel_trackers_manager_adapter_unknown', 'Dendrila Privacy ne dispose pas d’un adaptateur sûr pour cet outil.' );
     }
 
+    /**
+     * Dendrila's own wp_localize_script JSON contains its BLOCKING CAPABILITIES
+     * (the vendor domains which could be blocked), not proof those vendors run.
+     * Drop just those WordPress-localized assignments from the scan's in-memory
+     * script contents; preserve all other JavaScript and the original response.
+     */
+    private function strip_own_scan_configuration( $javascript ) {
+        $names = 'DendrilaPrivacyConsent|PixelTrackersManagerConsent|DendrilaPrivacyConsentEarlyConfig|PixelTrackersManagerConsentEarlyConfig|PixelTrackersManagerScan';
+        if ( ! preg_match( '/\b(?:' . $names . ')\b/', $javascript ) ) { return $javascript; }
+        $pattern = '/\bvar\s+(?:' . $names . ')\s*=\s*/';
+        $result = '';
+        $cursor = 0;
+        $offset = 0;
+        $length = strlen( $javascript );
+        while ( preg_match( $pattern, $javascript, $found, PREG_OFFSET_CAPTURE, $offset ) ) {
+            $start = $found[0][1];
+            $object_start = $start + strlen( $found[0][0] );
+            if ( $object_start >= $length || '{' !== $javascript[ $object_start ] ) {
+                $offset = $object_start;
+                continue;
+            }
+            $depth = 0;
+            $quoted = false;
+            $escaped = false;
+            $object_end = -1;
+            for ( $i = $object_start; $i < $length; ++$i ) {
+                $char = $javascript[ $i ];
+                if ( $quoted ) {
+                    if ( $escaped ) { $escaped = false; }
+                    elseif ( '\\' === $char ) { $escaped = true; }
+                    elseif ( '"' === $char ) { $quoted = false; }
+                    continue;
+                }
+                if ( '"' === $char ) { $quoted = true; }
+                elseif ( '{' === $char || '[' === $char ) { ++$depth; }
+                elseif ( '}' === $char || ']' === $char ) {
+                    --$depth;
+                    if ( 0 === $depth ) { $object_end = $i; break; }
+                    if ( $depth < 0 ) { break; }
+                }
+            }
+            if ( $object_end < 0 ) { $offset = $object_start + 1; continue; }
+            $payload = substr( $javascript, $object_start, $object_end - $object_start + 1 );
+            json_decode( $payload, true );
+            if ( JSON_ERROR_NONE !== json_last_error() ) {
+                $offset = $object_start + 1;
+                continue;
+            }
+            $after = $object_end + 1;
+            while ( $after < $length && ctype_space( $javascript[ $after ] ) ) { ++$after; }
+            if ( $after >= $length || ';' !== $javascript[ $after ] ) {
+                $offset = $object_start + 1;
+                continue;
+            }
+            $result .= substr( $javascript, $cursor, $start - $cursor );
+            $cursor = $after + 1;
+            $offset = $cursor;
+        }
+        return $result . substr( $javascript, $cursor );
+    }
+
     private function technical_surface( $html ) {
         $chunks = array();
         $html = preg_replace( '/<!--.*?(?:-->|$)/s', '', $html );
+        // Do not mistake our own list of *possible* blocked vendors for active trackers.
+        $html = preg_replace_callback( '/(<script\\b[^>]*>)(.*?)(<\\/script\\s*>)/is', function ( $match ) {
+            return $match[1] . $this->strip_own_scan_configuration( $match[2] ) . $match[3];
+        }, $html );
         foreach ( array(
             '/<script\\b[^>]*>.*?<\\/script>/is',
             '/<(?:iframe|img|link|source)\\b[^>]*>/is',

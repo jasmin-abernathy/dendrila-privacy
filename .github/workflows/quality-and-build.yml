@@ -156,6 +156,8 @@ jobs:
         run: php tests/fluent-booking-integration.php
       - name: Google Fonts evidence checks
         run: php tests/google-fonts-evidence.php
+      - name: Prevent self-detection of consent vendor catalogue
+        run: php tests/own-consent-scan.php
 
   javascript-syntax:
     name: JavaScript syntax
