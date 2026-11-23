@@ -63,6 +63,84 @@ jobs:
           exclude-directories: '.github,docs,build,dist,tests'
           exclude-files: '.gitattributes,.editorconfig,.gitignore,.distignore,README.md,README.fr.md,CODE_OF_CONDUCT.md,CODE_OF_CONDUCT.fr.md,CONTRIBUTING.md,CONTRIBUTING.fr.md,SECURITY.md,SECURITY.fr.md,AGENTS.md,COPYRIGHT.md,TRADEMARKS.md'
 
+  chromium:
+    name: Browser consent and real network tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install browser driver
+        run: |
+          command -v google-chrome
+          npm install --no-save --ignore-scripts playwright-core@1.57.0
+      - name: Obtain official WP Consent API for isolated tests
+        run: |
+          curl --fail --location --retry 2 --silent --show-error https://downloads.wordpress.org/plugin/wp-consent-api.2.1.0.zip -o /tmp/wp-consent-api.2.1.0.zip
+          unzip -oq /tmp/wp-consent-api.2.1.0.zip -d /tmp/wp-consent-test
+          grep -q '^Stable tag: 2.1.0
+    needs: [php, js, wordpress, chromium]
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate exact release and avoid duplicate deployment
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fx ' * Version: 0.0.9' dendrila-privacy.php
+          grep -Fx "    const VERSION = '0.0.9';" dendrila-privacy.php
+          grep -Fx 'Stable tag: 0.0.9' readme.txt
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.0.9" >/dev/null 2>&1; then
+            echo 'GitHub tag already exists: no duplicate deployment.'
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check WordPress.org credential
+        if: steps.gate.outputs.deploy == 'true'
+        env:
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: |
+          if [ -z "$SVN_PASSWORD" ]; then
+            echo "::error::SVN_PASSWORD secret missing: WordPress.org deployment not performed."
+            exit 1
+          fi
+      - name: Deploy checked 0.0.9 to WordPress.org
+        if: steps.gate.outputs.deploy == 'true'
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
+        env:
+          SVN_USERNAME: juliane16
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: dendrila-privacy
+          ASSETS_DIR: .wordpress-org-svn-assets-disabled
+          VERSION: 0.0.9
+      - name: Tag the published commit on GitHub
+        if: steps.gate.outputs.deploy == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref='refs/tags/v0.0.9' -f sha="$GITHUB_SHA"
+      - name: Summary
+        run: |
+          echo "WordPress.org directory: https://wordpress.org/plugins/dendrila-privacy/" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+ /tmp/wp-consent-test/wp-consent-api/readme.txt
+      - name: Assert consent browser network behavior
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          WP_CONSENT_API_JS: /tmp/wp-consent-test/wp-consent-api/assets/js/wp-consent-api.js
+        run: node tests/consent-browser.cjs
+
   publish:
     name: Release 0.0.9 to WordPress.org SVN
     needs: [php, js, wordpress]
