@@ -10,6 +10,7 @@
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: dendrila-privacy
+ * Domain Path: /languages
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -47,6 +48,7 @@ final class Pixel_Trackers_Manager_Plugin {
     }
 
     private function __construct() {
+        add_action( 'init', array( $this, 'load_translations' ) );
         Dendrila_Privacy_Age_Assurance::boot();
         add_action( 'admin_menu', array( $this, 'admin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'admin_assets' ) );
@@ -87,6 +89,11 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->maybe_migrate_data();
         $this->apply_adapter_overrides();
         $this->init_consent_manager();
+    }
+
+    /** Load translations from the bundled languages directory. */
+    public function load_translations() {
+        load_plugin_textdomain( 'dendrila-privacy', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
     }
 
     /**
@@ -243,14 +250,14 @@ final class Pixel_Trackers_Manager_Plugin {
             plugin_dir_url( __FILE__ ) . 'assets/menu-icon.svg',
             58
         );
-        add_submenu_page( 'pixel-trackers-manager', 'Vue d’ensemble', 'Vue d’ensemble', 'manage_options', 'pixel-trackers-manager', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Assistant de configuration', 'Assistant de configuration', 'manage_options', 'pixel-trackers-manager-setup', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Traceurs & services', 'Traceurs & services', 'manage_options', 'pixel-trackers-manager-findings', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Pages légales', 'Pages légales', 'manage_options', 'pixel-trackers-manager-privacy', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Assistant RGPD', 'Assistant RGPD', 'manage_options', 'pixel-trackers-manager-assistant', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Consentement', 'Consentement', 'manage_options', 'pixel-trackers-manager-consent', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Journal', 'Journal', 'manage_options', 'pixel-trackers-manager-journal', array( $this, 'render_admin' ) );
-        add_submenu_page( 'pixel-trackers-manager', 'Réglages', 'Réglages', 'manage_options', 'pixel-trackers-manager-settings', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Overview', 'dendrila-privacy' ), __( 'Overview', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Setup wizard', 'dendrila-privacy' ), __( 'Setup wizard', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-setup', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Trackers & services', 'dendrila-privacy' ), __( 'Trackers & services', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-findings', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Legal pages', 'dendrila-privacy' ), __( 'Legal pages', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-privacy', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Privacy assistant', 'dendrila-privacy' ), __( 'Privacy assistant', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-assistant', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Consent', 'dendrila-privacy' ), __( 'Consent', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-consent', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Activity log', 'dendrila-privacy' ), __( 'Activity log', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-journal', array( $this, 'render_admin' ) );
+        add_submenu_page( 'pixel-trackers-manager', __( 'Settings', 'dendrila-privacy' ), __( 'Settings', 'dendrila-privacy' ), 'manage_options', 'pixel-trackers-manager-settings', array( $this, 'render_admin' ) );
     }
 
     public function admin_menu_icon_styles() {
@@ -311,6 +318,26 @@ final class Pixel_Trackers_Manager_Plugin {
             'hostingProfiles' => $this->hosting_profiles_for_js(),
             'sectionNonce' => wp_create_nonce( 'pixel_trackers_manager_save_legal_section' ),
             'companySource' => 'https://recherche-entreprises.api.gouv.fr/',
+            'i18n' => array(
+                'serverResponseError' => __( 'The server returned an unusable response during the scan.', 'dendrila-privacy' ),
+                'scanError' => __( 'The scan encountered an error.', 'dendrila-privacy' ),
+                'standardScanRunning' => __( 'Scan in progress…', 'dendrila-privacy' ),
+                'standardScan' => __( 'Run standard scan again', 'dendrila-privacy' ),
+                'fullScanRunning' => __( 'Full scan in progress…', 'dendrila-privacy' ),
+                'fullScan' => __( 'Full scan', 'dendrila-privacy' ),
+                'retryRunning' => __( 'Retry in progress…', 'dendrila-privacy' ),
+                'retry' => __( 'Retry only these pages', 'dendrila-privacy' ),
+                'scanErrorStatus' => __( 'Error during scan.', 'dendrila-privacy' ),
+                'themeScan' => __( 'Scanning plugins and theme…', 'dendrila-privacy' ),
+                'scanCompleted' => __( 'Scan completed — ', 'dendrila-privacy' ),
+                'preparingFull' => __( 'Preparing full scan…', 'dendrila-privacy' ),
+                'preparingRetry' => __( 'Preparing retry…', 'dendrila-privacy' ),
+                'preparing' => __( 'Preparing scan…', 'dendrila-privacy' ),
+                'preparingPages' => __( 'Preparing pages to check…', 'dendrila-privacy' ),
+                'scanCancelled' => __( 'Scan cancelled.', 'dendrila-privacy' ),
+                'verifyCompany' => __( 'Verify contact details against the official source', 'dendrila-privacy' ),
+                'pageInProgress' => __( 'Current page: ', 'dendrila-privacy' ),
+            ),
             'siteDefaults' => array(
                 'siteName' => get_bloginfo( 'name' ),
                 'siteUrl' => home_url( '/' ),
@@ -387,11 +414,11 @@ final class Pixel_Trackers_Manager_Plugin {
         echo '<div class="ptm-wp-dashboard-card">';
         echo '<div class="ptm-wp-dashboard-brand"><img width="38" height="38" src="' . esc_url( plugin_dir_url( __FILE__ ) . 'assets/logo-mark.svg' ) . '" alt=""><div>';
         if ( $needs_setup ) {
-            echo '<strong>Dendrila Privacy n’est pas encore configuré</strong><p>Terminez la configuration pour associer vos pages légales, préparer le consentement et lancer votre premier contrôle complet.</p>';
-            echo '<p><a class="button button-primary" href="' . esc_url( $setup_url ) . '">Configurer Dendrila Privacy</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">Masquer</a></p>';
+            echo '<strong>' . esc_html__( 'Dendrila Privacy is not configured yet', 'dendrila-privacy' ) . '</strong><p>' . esc_html__( 'Finish setup to connect your legal pages, prepare consent, and run your first full scan.', 'dendrila-privacy' ) . '</p>';
+            echo '<p><a class="button button-primary" href="' . esc_url( $setup_url ) . '">' . esc_html__( 'Set up Dendrila Privacy', 'dendrila-privacy' ) . '</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">' . esc_html__( 'Dismiss', 'dendrila-privacy' ) . '</a></p>';
         } else {
-            echo '<strong>Votre première analyse complète est prête</strong><p>Un contrôle complet est recommandé pour établir un premier état de référence du site.</p>';
-            echo '<p><a class="button button-primary" href="' . esc_url( $scan_url ) . '">Lancer l’analyse complète</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">Masquer</a></p>';
+            echo '<strong>' . esc_html__( 'Your first full scan is ready', 'dendrila-privacy' ) . '</strong><p>' . esc_html__( 'A full scan is recommended to establish a baseline for your site.', 'dendrila-privacy' ) . '</p>';
+            echo '<p><a class="button button-primary" href="' . esc_url( $scan_url ) . '">' . esc_html__( 'Run full scan', 'dendrila-privacy' ) . '</a> <a class="ptm-dashboard-dismiss" href="' . esc_url( $dismiss_url ) . '">' . esc_html__( 'Dismiss', 'dendrila-privacy' ) . '</a></p>';
         }
         echo '</div></div></div>';
     }
