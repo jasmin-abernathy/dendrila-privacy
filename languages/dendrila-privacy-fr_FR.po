@@ -244,3 +244,126 @@ msgstr "Examiner les extensions"
 msgid "Age-related mechanism detected:"
 msgstr "Mécanisme lié à l’âge détecté :"
 
+msgid "Email tools and engagement tracking"
+msgstr "Outils e-mail et suivi d’engagement"
+
+msgid "Trackers, services and possible sources"
+msgstr "Traceurs, services et sources probables"
+
+msgid "Legal pages to review"
+msgstr "Pages juridiques à contrôler"
+
+msgid "Principles applied"
+msgstr "Principes appliqués"
+
+msgid "Actions to take"
+msgstr "Actions à exécuter"
+
+msgid "Local operation"
+msgstr "Fonctionnement local"
+
+msgid "Local audit log"
+msgstr "Journal d’audit local"
+
+msgid "Legal notice"
+msgstr "Mentions légales"
+
+msgid "Privacy policy"
+msgstr "Politique de confidentialité"
+
+msgid "Cookies and trackers"
+msgstr "Cookies / traceurs"
+
+msgid "Display"
+msgstr "Présentation"
+
+msgid "Consent management"
+msgstr "Gestion du consentement"
+
+msgid "No data available."
+msgstr "Aucune donnée disponible."
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Status"
+msgstr "État"
+
+msgid "Evidence"
+msgstr "Preuve"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "UTC date"
+msgstr "Date UTC"
+
+msgid "Origin"
+msgstr "Origine"
+
+msgid "Details"
+msgstr "Détails"
+
+msgid "Page to use"
+msgstr "Page à utiliser"
+
+msgid "All"
+msgstr "Tout"
+
+msgid "Complete or review"
+msgstr "À compléter / vérifier"
+
+msgid "First launch"
+msgstr "Première ouverture"
+
+msgid "Ready for the first scan"
+msgstr "Prêt pour le premier contrôle"
+
+msgid "Dendrila Privacy appearance"
+msgstr "Présentation Dendrila Privacy"
+
+msgid "Full scan — recommended"
+msgstr "Analyse complète — recommandée"
+
+msgid "Full scan options"
+msgstr "Options de l’analyse complète"
+
+msgid "Confirmed issue"
+msgstr "Problème constaté"
+
+msgid "No scan saved yet. Run your first scan to establish the technical state of your site."
+msgstr "Aucune analyse enregistrée. Lancez la première analyse pour établir l’état technique du site."
+
+msgid "Information has changed since the last public version."
+msgstr "Une information a changé depuis la dernière version publique."
+
+msgid "No missing information detected by Dendrila Privacy"
+msgstr "Aucun manque détecté par le contrôle de Dendrila Privacy"
+
+msgid "The document review has not been run yet."
+msgstr "Le contrôle documentaire n’a pas encore été lancé."
+
+msgid "Keep the detected solution"
+msgstr "Conserver la solution détectée"
+
+msgid "Decide later"
+msgstr "Décider plus tard"
+
+msgid "Scan selected pages"
+msgstr "Analyser les pages sélectionnées"
+
+msgid "Approve and update public content"
+msgstr "Valider et mettre à jour le contenu public"
+
+msgid "Insert automatically into this page"
+msgstr "Insérer automatiquement dans cette page"
+
+msgid "Update this page automatically"
+msgstr "Mettre à jour automatiquement cette page"
+
+msgid "Update all ready pages"
+msgstr "Mettre à jour toutes les pages prêtes"
+
+msgid "Save settings"
+msgstr "Enregistrer les réglages"
+
