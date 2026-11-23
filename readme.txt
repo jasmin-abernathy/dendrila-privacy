@@ -14,7 +14,7 @@ Local privacy audits, legal documentation assistance, and optional consent manag
 
 Dendrila Privacy helps administrators audit external services, maintain privacy documents, and manage optional visitor consent.
 
-Dendrila Privacy is designed local-first: audit results, settings, and assistant answers stay in WordPress by default. The plugin does not certify GDPR compliance and does not replace legal advice adapted to an organisation's actual activities.
+Audit results, settings, and assistant answers stay in WordPress. The plugin does not certify GDPR compliance or replace legal advice adapted to the organisation.
 
 Main features:
 
@@ -67,7 +67,7 @@ Other builders: Dendrila Privacy recognises several common page-level signatures
 
 Dendrila Privacy does not send site-audit results to the plugin author and does not include advertising telemetry.
 
-Visitor consent preferences are stored locally in the visitor's browser. When the optional WP Consent API integration is active, first-party cookies also carry the choice to WordPress for server-side consent checks. Administration and audit data stay in the site's WordPress database unless an administrator explicitly starts the documented external lookup below.
+Visitor choices stay in the browser. With WP Consent API active, first-party cookies share them with WordPress for server-side checks. Admin and audit data stay in the WordPress database unless an admin starts the optional lookup below.
 
 == External services ==
 
@@ -103,9 +103,9 @@ European Commission privacy information: https://taxation-customs.ec.europa.eu/p
 
 = Detection signatures are not external connections =
 
-Dendrila Privacy contains literal domain and path signatures for services such as Google Analytics, Google Tag Manager, Meta/Facebook Pixel, YouTube, Vimeo, and Google Maps. Those strings are used locally to recognise third-party services in the site's own markup and to classify or block them when the optional Dendrila Privacy consent feature is enabled.
+Dendrila Privacy uses local domain and path signatures to recognise services such as Google Analytics, Google Tag Manager, Meta Pixel, YouTube, Vimeo, and Maps in site markup, and to classify or block them when its optional consent feature is enabled.
 
-Their presence in Dendrila Privacy's source code does not mean that Dendrila Privacy loads those services or sends data to them. Dendrila Privacy itself does not add analytics or advertising trackers. A request to one of those providers can only originate from the site, theme, or plugin integration that Dendrila Privacy is inspecting, subject to that integration and the site's consent configuration.
+These signatures do not mean Dendrila Privacy loads those services or sends data. The plugin adds no analytics or advertising trackers. Requests come from the site's theme or plugin integrations, subject to their configuration and consent.
 
 == Installation ==
 
