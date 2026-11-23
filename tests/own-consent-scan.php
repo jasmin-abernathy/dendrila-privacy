@@ -72,4 +72,17 @@ $unrelated = $scan( '<script>var SomeOtherPlugin = ' . $encoded . ';</script>' )
 expect_own_config( ! empty( $unrelated['fullstory']['active_tracking'] ), 'unrelated script is still inspected' );
 $inert = $scan( '<script>var DendrilaPrivacyConsent = "https://edge.fullstory.com/s/fs.js";</script>' );
 expect_own_config( ! empty( $inert['fullstory']['active_tracking'] ), 'non-JSON assignment is not silently ignored' );
+$metadata = $scan( '<script type="application/ld+json">{"@type":"WebSite","doc":"https://edge.fullstory.com/s/fs.js"}</script>' );
+expect_own_config( empty( $metadata ), 'JSON-LD URLs are metadata, not activated trackers' );
+$import_map = $scan( '<script type="importmap">{"imports":{"tracking":"https://static.hotjar.com/c/hotjar.js"}}</script>' );
+expect_own_config( empty( $import_map ), 'import-map references do not prove tracking' );
+$inert_payload = $scan( '<script type="text/plain">https://edge.fullstory.com/s/fs.js</script>' );
+expect_own_config( empty( $inert_payload ), 'plain-text scripts cannot be active' );
+$blocked = $scan( '<script type="text/plain" data-ptm-blocked="1" data-ptm-src="https://edge.fullstory.com/s/fs.js"></script>' );
+expect_own_config( ! empty( $blocked['fullstory']['blocked_by_consent'] ), 'consent-blocked scripts remain detected as blocked' );
+$evidence = $ref->getMethod( 'finding_evidence_status' );
+$evidence->setAccessible( true );
+$declared = $scan( '<script src="https://edge.fullstory.com/s/fs.js"></script>' );
+$status = $evidence->invoke( $plugin, $declared['fullstory'] );
+expect_own_config( 'warn' === $status['tone'] && false !== strpos( $status['label'], 'réseau' ), 'HTML cannot confirm network requests' );
 echo "No self-detection from Dendrila consent configuration: PASS\n";

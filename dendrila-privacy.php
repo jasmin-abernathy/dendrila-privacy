@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Dendrila Privacy
  * Description: Local-first privacy audits, legal documentation assistance, tracker detection, and optional consent management.
- * Version: 0.0.8
+ * Version: 0.0.9
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Author: Le Potager du Web
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/includes/class-dendrila-privacy-age-assurance.php';
 
 final class Pixel_Trackers_Manager_Plugin {
-    const VERSION = '0.0.8';
+    const VERSION = '0.0.9';
     const OPTION_SETTINGS = 'pixel_trackers_manager_settings';
     const OPTION_SCAN = 'pixel_trackers_manager_scan_current';
     const OPTION_PREVIOUS_SCAN = 'pixel_trackers_manager_scan_previous';
@@ -1013,7 +1013,7 @@ final class Pixel_Trackers_Manager_Plugin {
         if ( 'disabled' === $state ) { return array( 'label'=>'Désactivé', 'tone'=>'good' ); }
         if ( 'blocked' === $state ) { return array( 'label'=>'Bloqué avant choix', 'tone'=>'good' ); }
         if ( !empty($finding['observed_html']) || 'technical_html' === ( isset($finding['tracking_basis']) ? $finding['tracking_basis'] : '' ) ) {
-            return array( 'label'=>'Confirmé techniquement', 'tone'=>'bad' );
+            return array( 'label'=>'Déclaration HTML — réseau à confirmer', 'tone'=>'warn' );
         }
         if ( 'plugin_setting' === ( isset($finding['tracking_basis']) ? $finding['tracking_basis'] : '' ) ) {
             return array( 'label'=>'Détecté dans la configuration', 'tone'=>'neutral' );
@@ -2108,6 +2108,20 @@ final class Pixel_Trackers_Manager_Plugin {
     private function technical_surface( $html ) {
         $chunks = array();
         $html = preg_replace( '/<!--.*?(?:-->|$)/s', '', $html );
+        // JSON data and other inert scripts cannot establish active tracking.
+        // Preserve scripts that Dendrila intentionally blocked before consent.
+        $html = preg_replace_callback( '~<script\b([^>]*)>(.*?)</script\s*>~is', static function ( $match ) {
+            if ( ! preg_match( '~\btype\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))~i', $match[1], $type_match ) ) {
+                return $match[0];
+            }
+            $type = strtolower( trim( ( $type_match[1] ?? '' ) ?: ( ( $type_match[2] ?? '' ) ?: ( $type_match[3] ?? '' ) ) ) );
+            $inert = in_array( $type, array( 'application/json', 'application/ld+json', 'importmap',
+                'text/plain', 'text/template', 'text/x-template' ), true );
+            if ( $inert && ! preg_match( '~\bdata-ptm-blocked\s*=\s*(["\'])1\1~i', $match[1] ) ) {
+                return '';
+            }
+            return $match[0];
+        }, $html );
         // Do not mistake our own list of *possible* blocked vendors for active trackers.
         $html = preg_replace_callback( '/(<script\\b[^>]*>)(.*?)(<\\/script\\s*>)/is', function ( $match ) {
             return $match[1] . $this->strip_own_scan_configuration( $match[2] ) . $match[3];
@@ -2287,7 +2301,7 @@ final class Pixel_Trackers_Manager_Plugin {
                         $findings[ $id ]['source'] = 'Lien vers une ressource Google Fonts dans le HTML : confirmer la requête dans Réseau / Network';
                     } else {
                         $findings[ $id ]['confidence'] = 'élevée';
-                        $findings[ $id ]['source'] = $plugin_sources ? 'Trace technique observée + extension probable : ' . $plugin_sources[0]['name'] : 'Trace technique repérée dans le code affiché par une page';
+                        $findings[ $id ]['source'] = $plugin_sources ? 'Déclaration HTML repérée + extension probable : ' . $plugin_sources[0]['name'] . ' ; requête réseau non vérifiée' : 'Déclaration repérée dans le HTML, requête réseau non vérifiée';
                     }
                 } elseif ( 'google-fonts' === $id && ! empty( $findings[ $id ]['font_hint'] ) ) {
                     $findings[ $id ]['confidence'] = 'faible';
@@ -6176,7 +6190,7 @@ final class Pixel_Trackers_Manager_Plugin {
         do_action( 'dendrila_privacy_overview_age_assurance' );
 
         echo '<div class="ptm-dashboard-bottom">';
-        echo '<section class="ptm-card ptm-detected-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-share"></span> Traceurs & services détectés</h2><p>Le statut distingue une preuve de suivi actif d’une simple capacité technique détectée.</p></div><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-findings' ) ) . '">Tout examiner</a></div>';
+        echo '<section class="ptm-card ptm-detected-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-share"></span> Traceurs & services détectés</h2><p>Les déclarations HTML indiquent une ressource possible, pas une requête réseau confirmée. Les réglages d’extension sont vérifiés séparément.</p></div><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-findings' ) ) . '">Tout examiner</a></div>';
         if ( ! $findings ) {
             echo '<p>Aucune donnée disponible.</p>';
         } else {
@@ -6185,6 +6199,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 $state = isset( $finding['tracking_state'] ) ? $finding['tracking_state'] : 'potential';
                 $is_tracking = ! isset( $finding['is_tracking'] ) || ! empty( $finding['is_tracking'] );
                 if ( ! $is_tracking && 'active' === $state ) { $badge = '<span class="ptm-badge warn">Chargé à distance</span>'; }
+                elseif ( 'active' === $state && 'technical_html' === ( isset( $finding['tracking_basis'] ) ? $finding['tracking_basis'] : '' ) ) { $badge = '<span class="ptm-badge warn">Déclaré, réseau à vérifier</span>'; }
                 elseif ( 'active' === $state ) { $badge = '<span class="ptm-badge bad">Actif</span>'; }
                 elseif ( 'disabled' === $state ) { $badge = '<span class="ptm-badge good">Suivi désactivé</span>'; }
                 elseif ( 'blocked' === $state ) { $badge = '<span class="ptm-badge good">Bloqué avant choix</span>'; }
