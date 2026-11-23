@@ -22,6 +22,8 @@
         var running = false;
         var cancelled = false;
         var currentMode = 'standard';
+        var localized = PixelTrackersManagerScan.i18n || {};
+        function tr(key, fallback) { return typeof localized[key] === 'string' ? localized[key] : fallback; }
 
         function post(action, extra) {
             var body = new URLSearchParams();
@@ -41,10 +43,10 @@
                     var payload;
                     try { payload = JSON.parse(text); }
                     catch (e) {
-                        throw new Error('Le serveur n’a pas renvoyé une réponse exploitable pendant l’analyse.');
+                        throw new Error(tr('serverResponseError', 'Le serveur n’a pas renvoyé une réponse exploitable pendant l’analyse.'));
                     }
                     if (!response.ok || !payload || payload.success !== true) {
-                        var message = payload && payload.data && payload.data.message ? payload.data.message : 'L’analyse a rencontré une erreur.';
+                        var message = payload && payload.data && payload.data.message ? payload.data.message : tr('scanError', 'L’analyse a rencontré une erreur.');
                         throw new Error(message);
                     }
                     return payload.data || {};
@@ -64,7 +66,7 @@
             }
             if (currentPage) {
                 var visibleLabel = (pageLabel || '').trim();
-                currentPage.textContent = visibleLabel ? 'Page en cours : ' + visibleLabel : '';
+                currentPage.textContent = visibleLabel ? tr('pageInProgress', 'Page en cours : ') + visibleLabel : '';
                 currentPage.title = visibleLabel;
                 currentPage.hidden = !visibleLabel;
             }
@@ -76,9 +78,9 @@
             startButton.disabled = active;
             if (fullButton) { fullButton.disabled = active; }
             if (retryButton) { retryButton.disabled = active; }
-            startButton.textContent = active && currentMode === 'standard' ? 'Analyse en cours…' : 'Relancer l’analyse standard';
-            if (fullButton) { fullButton.textContent = active && currentMode === 'full' ? 'Analyse complète en cours…' : 'Analyse complète'; }
-            if (retryButton) { retryButton.textContent = active && currentMode === 'retry' ? 'Nouvel essai en cours…' : 'Réessayer uniquement ces pages'; }
+            startButton.textContent = active && currentMode === 'standard' ? tr('standardScanRunning', 'Analyse en cours…') : tr('standardScan', 'Relancer l’analyse standard');
+            if (fullButton) { fullButton.textContent = active && currentMode === 'full' ? tr('fullScanRunning', 'Analyse complète en cours…') : tr('fullScan', 'Analyse complète'); }
+            if (retryButton) { retryButton.textContent = active && currentMode === 'retry' ? tr('retryRunning', 'Nouvel essai en cours…') : tr('retry', 'Réessayer uniquement ces pages'); }
             if (cancelButton) {
                 cancelButton.hidden = !active;
                 cancelButton.disabled = false;
@@ -90,12 +92,12 @@
             startButton.disabled = false;
             if (fullButton) { fullButton.disabled = false; }
             if (retryButton) { retryButton.disabled = false; }
-            startButton.textContent = 'Relancer l’analyse standard';
-            if (fullButton) { fullButton.textContent = 'Analyse complète'; }
-            if (retryButton) { retryButton.textContent = 'Réessayer uniquement ces pages'; }
+            startButton.textContent = tr('standardScan', 'Relancer l’analyse standard');
+            if (fullButton) { fullButton.textContent = tr('fullScan', 'Analyse complète'); }
+            if (retryButton) { retryButton.textContent = tr('retry', 'Réessayer uniquement ces pages'); }
             if (cancelButton) { cancelButton.hidden = false; }
             wrapper.classList.add('is-error');
-            status.textContent = err && err.message ? err.message : 'Erreur pendant l’analyse.';
+            status.textContent = err && err.message ? err.message : tr('scanErrorStatus', 'Erreur pendant l’analyse.');
         }
 
         function cleanScanUrl() {
@@ -117,12 +119,12 @@
 
         function finalize() {
             if (cancelled) { return Promise.resolve(); }
-            setProgress(94, 'Analyse des extensions et du thème…', undefined, undefined, '', 0);
+            setProgress(94, tr('themeScan', 'Analyse des extensions et du thème…'), undefined, undefined, '', 0);
             return post('pixel_trackers_manager_scan_finalize').then(function (data) {
                 if (cancelled) { return; }
                 wrapper.classList.remove('is-error');
                 wrapper.classList.add('is-complete');
-                setProgress(100, 'Analyse terminée — ' + (data.findings || 0) + ' détection' + ((data.findings || 0) > 1 ? 's' : '') + '.', data.processed || data.total || 0, data.total || 0, '', data.errors || 0);
+                setProgress(100, tr('scanCompleted', 'Analyse terminée — ') + (data.findings || 0) + ' détection' + ((data.findings || 0) > 1 ? 's' : '') + '.', data.processed || data.total || 0, data.total || 0, '', data.errors || 0);
                 controls(false);
                 if (cancelButton) { cancelButton.hidden = true; }
                 window.setTimeout(function () {
@@ -143,7 +145,7 @@
             if (cancelled) { return Promise.resolve(); }
             return post('pixel_trackers_manager_scan_step').then(function (data) {
                 if (cancelled) { return; }
-                setProgress(data.percent || 0, data.message || 'Analyse en cours…', data.index || 0, data.total || 0, data.currentLabel || '', data.errors || 0);
+                setProgress(data.percent || 0, data.message || tr('standardScanRunning', 'Analyse en cours…'), data.index || 0, data.total || 0, data.currentLabel || '', data.errors || 0);
                 if (data.stage === 'finalize') { return finalize(); }
                 return nextStep();
             });
@@ -155,7 +157,7 @@
             cancelled = false;
             wrapper.classList.remove('is-error', 'is-complete');
             controls(true);
-            setProgress(1, currentMode === 'full' ? 'Préparation de l’analyse complète…' : (currentMode === 'retry' ? 'Préparation du nouvel essai…' : 'Préparation de l’analyse…'), 0, 0, '', 0);
+            setProgress(1, currentMode === 'full' ? tr('preparingFull', 'Préparation de l’analyse complète…') : (currentMode === 'retry' ? tr('preparingRetry', 'Préparation du nouvel essai…') : tr('preparing', 'Préparation de l’analyse…')), 0, 0, '', 0);
             var extra = {mode: currentMode};
             if (currentMode === 'full') {
                 var archives = document.getElementById('ptm-full-scan-archives');
@@ -164,7 +166,7 @@
                 extra.max_age_years = age ? age.value : '0';
             }
             post('pixel_trackers_manager_scan_start', extra).then(function (data) {
-                setProgress(data.percent || 2, data.message || 'Préparation des pages à vérifier…', data.index || 0, data.total || 0, '', 0);
+                setProgress(data.percent || 2, data.message || tr('preparingPages', 'Préparation des pages à vérifier…'), data.index || 0, data.total || 0, '', 0);
                 return nextStep();
             }).catch(fail);
         }
@@ -189,7 +191,7 @@
                 status.textContent = 'Annulation…';
                 post('pixel_trackers_manager_scan_cancel').then(function () {
                     wrapper.classList.remove('is-error');
-                    setProgress(0, 'Analyse annulée.', 0, 0, '', 0);
+                    setProgress(0, tr('scanCancelled', 'Analyse annulée.'), 0, 0, '', 0);
                     controls(false);
                     cancelButton.hidden = true;
                 }).catch(fail);
@@ -217,7 +219,7 @@
                     a.href = url;
                     a.target = '_blank';
                     a.rel = 'noopener noreferrer';
-                    a.textContent = 'Vérifier les coordonnées sur la source officielle';
+                    a.textContent = tr('verifyCompany', 'Vérifier les coordonnées sur la source officielle');
                     saved.appendChild(a);
                 }
             }

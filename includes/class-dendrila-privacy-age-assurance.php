@@ -144,46 +144,46 @@ final class Dendrila_Privacy_Age_Assurance {
         $status = self::status();
 
         echo '<section class="ptm-card ptm-age-assurance-card">';
-        echo '<div class="ptm-card-head"><div><h2><span class="dashicons dashicons-lock"></span> Vérification d’âge</h2><p>Contrôle local des mécanismes qui peuvent restreindre l’accès à des contenus selon l’âge.</p></div>';
+        echo '<div class="ptm-card-head"><div><h2><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Age verification', 'dendrila-privacy' ) . '</h2><p>' . esc_html__( 'Local review of mechanisms that may restrict access to content based on age.', 'dendrila-privacy' ) . '</p></div>';
 
         if ( 'dendrila' === $status['kind'] ) {
             if ( 'good' === $status['state'] ) {
-                echo '<span class="ptm-badge good">Protection active</span>';
+                echo '<span class="ptm-badge good">' . esc_html__( 'Protection active', 'dendrila-privacy' ) . '</span>';
             } elseif ( 'bad' === $status['state'] ) {
-                echo '<span class="ptm-badge bad">Configuration incomplète</span>';
+                echo '<span class="ptm-badge bad">' . esc_html__( 'Incomplete configuration', 'dendrila-privacy' ) . '</span>';
             } else {
-                echo '<span class="ptm-badge warn">Désactivée</span>';
+                echo '<span class="ptm-badge warn">' . esc_html__( 'Disabled', 'dendrila-privacy' ) . '</span>';
             }
         } elseif ( 'other' === $status['kind'] ) {
-            echo '<span class="ptm-badge warn">À vérifier</span>';
+            echo '<span class="ptm-badge warn">' . esc_html__( 'Needs review', 'dendrila-privacy' ) . '</span>';
         } else {
-            echo '<span class="ptm-badge">Non détectée</span>';
+            echo '<span class="ptm-badge">' . esc_html__( 'Not detected', 'dendrila-privacy' ) . '</span>';
         }
         echo '</div>';
 
         if ( 'dendrila' === $status['kind'] ) {
             $mode_labels = array(
-                'off'      => 'désactivée',
-                'selected' => 'contenus sélectionnés',
-                'sitewide' => 'site entier',
+                'off'      => esc_html__( 'disabled', 'dendrila-privacy' ),
+                'selected' => esc_html__( 'selected content', 'dendrila-privacy' ),
+                'sitewide' => esc_html__( 'entire site', 'dendrila-privacy' ),
             );
-            $mode_label = isset( $mode_labels[ $status['mode'] ] ) ? $mode_labels[ $status['mode'] ] : 'inconnue';
+            $mode_label = isset( $mode_labels[ $status['mode'] ] ) ? $mode_labels[ $status['mode'] ] : esc_html__( 'unknown', 'dendrila-privacy' );
 
             echo '<div class="ptm-age-assurance-summary">';
-            echo '<div><strong>Dendrila Age Assurance</strong><span>Mode : ' . esc_html( $mode_label ) . '</span></div>';
-            echo '<div><strong>' . esc_html( $status['age_threshold'] ? $status['age_threshold'] . '+' : 'Seuil inconnu' ) . '</strong><span>Âge minimal configuré</span></div>';
-            echo '<div><strong>' . esc_html( $status['required_assurance'] ? $status['required_assurance'] : '—' ) . '</strong><span>Niveau d’assurance minimal</span></div>';
+            echo '<div><strong>Dendrila Age Assurance</strong><span>' . esc_html__( 'Mode:', 'dendrila-privacy' ) . ' ' . esc_html( $mode_label ) . '</span></div>';
+            echo '<div><strong>' . esc_html( $status['age_threshold'] ? $status['age_threshold'] . '+' : esc_html__( 'Unknown threshold', 'dendrila-privacy' ) ) . '</strong><span>' . esc_html__( 'Configured minimum age', 'dendrila-privacy' ) . '</span></div>';
+            echo '<div><strong>' . esc_html( $status['required_assurance'] ? $status['required_assurance'] : '—' ) . '</strong><span>' . esc_html__( 'Minimum assurance level', 'dendrila-privacy' ) . '</span></div>';
             echo '</div>';
 
             if ( ! $status['provider_configured'] ) {
-                echo '<p><strong>Le fournisseur de vérification n’est pas encore configuré.</strong> Tant que ce point n’est pas réglé, Dendrila Privacy ne considère pas le contrôle comme opérationnel.</p>';
+                echo '<p><strong>' . esc_html__( 'The verification provider is not configured yet.', 'dendrila-privacy' ) . '</strong> ' . esc_html__( 'Until this is fixed, Dendrila Privacy does not consider the control operational.', 'dendrila-privacy' ) . '</p>';
             } elseif ( ! $status['enabled'] ) {
-                echo '<p>Le fournisseur est configuré, mais la protection est désactivée. Ce n’est pas un problème si le site ne contient pas de contenu soumis à une restriction d’âge.</p>';
+                echo '<p>' . esc_html__( 'The provider is configured, but protection is disabled. This is not a problem if the site has no age-restricted content.', 'dendrila-privacy' ) . '</p>';
             } else {
-                echo '<p>Le plugin compagnon annonce une preuve locale courte et un contrôle serveur. Vérifiez aussi les couches qui échappent à WordPress, notamment les médias directement publics et un éventuel cache/CDN.</p>';
+                echo '<p>' . esc_html__( 'The companion plugin reports short-lived local proof and server-side checks. Review layers outside WordPress too, including directly accessible media and any cache or CDN.', 'dendrila-privacy' ) . '</p>';
             }
 
-            echo '<p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=dendrila-age-assurance' ) ) . '">Ouvrir Age Assurance</a></p>';
+            echo '<p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=dendrila-age-assurance' ) ) . '">' . esc_html__( 'Open Age Assurance', 'dendrila-privacy' ) . '</a></p>';
         } elseif ( 'other' === $status['kind'] ) {
             $names = array();
             foreach ( (array) $status['plugins'] as $plugin ) {
@@ -192,14 +192,14 @@ final class Dendrila_Privacy_Age_Assurance {
                 }
             }
 
-            echo '<p><strong>Mécanisme lié à l’âge détecté : ' . esc_html( implode( ', ', array_slice( $names, 0, 3 ) ) ) . '.</strong></p>';
-            echo '<p>Dendrila Privacy ne dispose pas d’un contrat technique lui permettant de confirmer s’il s’agit d’une preuve d’âge, d’une estimation ou d’une simple déclaration « J’ai 18 ans ». Vérifiez le fonctionnement réel et les exigences applicables au site.</p>';
-            echo '<p><a class="button button-secondary" href="' . esc_url( admin_url( 'plugins.php' ) ) . '">Examiner les extensions</a></p>';
+            echo '<p><strong>' . esc_html__( 'Age-related mechanism detected:', 'dendrila-privacy' ) . ' ' . esc_html( implode( ', ', array_slice( $names, 0, 3 ) ) ) . '.</strong></p>';
+            echo '<p>' . esc_html__( 'Dendrila Privacy cannot confirm whether this is proof of age, an estimation, or simply an age declaration. Check how it works and which requirements apply to this site.', 'dendrila-privacy' ) . '</p>';
+            echo '<p><a class="button button-secondary" href="' . esc_url( admin_url( 'plugins.php' ) ) . '">' . esc_html__( 'Review plugins', 'dendrila-privacy' ) . '</a></p>';
         } else {
-            echo '<p>Aucun mécanisme de vérification d’âge reconnu n’est actif. <strong>Ce constat n’est pas une anomalie en soi</strong> : ce contrôle devient pertinent uniquement si le site propose des contenus, produits ou services soumis à une restriction d’âge.</p>';
+            echo '<p>' . esc_html__( 'No recognized age verification mechanism is active.', 'dendrila-privacy' ) . ' <strong>' . esc_html__( 'This is not necessarily an issue', 'dendrila-privacy' ) . '</strong> : ' . esc_html__( 'this review only matters if the site offers age-restricted content, products or services.', 'dendrila-privacy' ) . '</p>';
         }
 
-        echo '<p class="ptm-age-assurance-note"><span class="dashicons dashicons-info-outline" aria-hidden="true"></span> Ce module observe uniquement l’état local de WordPress et n’effectue aucune requête vers un service de vérification d’âge.</p>';
+        echo '<p class="ptm-age-assurance-note"><span class="dashicons dashicons-info-outline" aria-hidden="true"></span> ' . esc_html__( 'This module only inspects local WordPress state and does not contact an age verification service.', 'dendrila-privacy' ) . '</p>';
         echo '</section>';
     }
 }

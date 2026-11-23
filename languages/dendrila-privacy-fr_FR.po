@@ -1,0 +1,369 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Dendrila Privacy\n"
+"Language: fr_FR\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Overview"
+msgstr "Vue d’ensemble"
+
+msgid "Setup wizard"
+msgstr "Assistant de configuration"
+
+msgid "Trackers & services"
+msgstr "Traceurs & services"
+
+msgid "Legal pages"
+msgstr "Pages légales"
+
+msgid "Privacy assistant"
+msgstr "Assistant RGPD"
+
+msgid "Consent"
+msgstr "Consentement"
+
+msgid "Activity log"
+msgstr "Journal"
+
+msgid "Settings"
+msgstr "Réglages"
+
+msgid "Dendrila Privacy is not configured yet"
+msgstr "Dendrila Privacy n’est pas encore configuré"
+
+msgid "Finish setup to connect your legal pages, prepare consent, and run your first full scan."
+msgstr "Terminez la configuration pour associer vos pages légales, préparer le consentement et lancer votre premier contrôle complet."
+
+msgid "Your first full scan is ready"
+msgstr "Votre première analyse complète est prête"
+
+msgid "A full scan is recommended to establish a baseline for your site."
+msgstr "Un contrôle complet est recommandé pour établir un premier état de référence du site."
+
+msgid "Set up Dendrila Privacy"
+msgstr "Configurer Dendrila Privacy"
+
+msgid "Run full scan"
+msgstr "Lancer l’analyse complète"
+
+msgid "Dismiss"
+msgstr "Masquer"
+
+msgid "The server returned an unusable response during the scan."
+msgstr "Le serveur n’a pas renvoyé une réponse exploitable pendant l’analyse."
+
+msgid "The scan encountered an error."
+msgstr "L’analyse a rencontré une erreur."
+
+msgid "Scan in progress…"
+msgstr "Analyse en cours…"
+
+msgid "Run standard scan again"
+msgstr "Relancer l’analyse standard"
+
+msgid "Full scan in progress…"
+msgstr "Analyse complète en cours…"
+
+msgid "Full scan"
+msgstr "Analyse complète"
+
+msgid "Retry in progress…"
+msgstr "Nouvel essai en cours…"
+
+msgid "Retry only these pages"
+msgstr "Réessayer uniquement ces pages"
+
+msgid "Error during scan."
+msgstr "Erreur pendant l’analyse."
+
+msgid "Scanning plugins and theme…"
+msgstr "Analyse des extensions et du thème…"
+
+msgid "Scan completed — "
+msgstr "Analyse terminée — "
+
+msgid "Preparing full scan…"
+msgstr "Préparation de l’analyse complète…"
+
+msgid "Preparing retry…"
+msgstr "Préparation du nouvel essai…"
+
+msgid "Preparing scan…"
+msgstr "Préparation de l’analyse…"
+
+msgid "Preparing pages to check…"
+msgstr "Préparation des pages à vérifier…"
+
+msgid "Scan cancelled."
+msgstr "Analyse annulée."
+
+msgid "Verify contact details against the official source"
+msgstr "Vérifier les coordonnées sur la source officielle"
+
+msgid "Current page: "
+msgstr "Page en cours : "
+msgid "Your choice matters"
+msgstr "Votre choix compte"
+
+msgid "Reject all"
+msgstr "Tout refuser"
+
+msgid "Accept all"
+msgstr "Tout accepter"
+
+msgid "Customize"
+msgstr "Personnaliser"
+
+msgid "Necessary"
+msgstr "Nécessaires"
+
+msgid "Essential functionality and security."
+msgstr "Fonctionnement et sécurité essentiels."
+
+msgid "Audience measurement"
+msgstr "Mesure d’audience"
+
+msgid "External content"
+msgstr "Contenus externes"
+
+msgid "Videos, maps, or content from another service."
+msgstr "Vidéos, cartes ou contenus venant d’un autre service."
+
+msgid "Marketing and tracking"
+msgstr "Marketing et suivi"
+
+msgid "Individual measurement or advertising."
+msgstr "Mesure individualisée ou publicité."
+
+msgid "Save my choices"
+msgstr "Enregistrer mes choix"
+
+msgid "Close without accepting"
+msgstr "Fermer sans accepter"
+
+msgid "Consent choices"
+msgstr "Choix de consentement"
+
+msgid "This site uses only what is necessary for its operation. Optional services remain blocked until you accept them."
+msgstr "Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés."
+
+msgid "Some tools on this site may reconstruct interactions (clicks, scrolling, and possibly input) as a session replay, depending on their configuration. If enabled, this feature requires your prior consent."
+msgstr "Des outils présents sur ce site peuvent reconstituer vos interactions (clics, défilements et éventuellement saisies) sous forme de rejeu de session, selon leur configuration. Cette fonctionnalité, lorsqu’elle est activée, nécessite votre accord préalable."
+
+msgid "Understand how the site is used"
+msgstr "Comprendre l’usage du site"
+
+msgid "this may include replaying a browsing session depending on enabled features"
+msgstr "cela peut inclure le rejeu d’un parcours de navigation selon les fonctions activées"
+
+msgid "Manage my choices"
+msgstr "Gérer mes choix"
+
+msgid "Dendrila Privacy — Manage my choices"
+msgstr "Dendrila Privacy — Gérer mes choix"
+
+msgid "Protection active"
+msgstr "Protection active"
+
+msgid "Incomplete configuration"
+msgstr "Configuration incomplète"
+
+msgid "Disabled"
+msgstr "Désactivée"
+
+msgid "Needs review"
+msgstr "À vérifier"
+
+msgid "Not detected"
+msgstr "Non détectée"
+
+msgid "Age verification"
+msgstr "Vérification d’âge"
+
+msgid "Local review of mechanisms that may restrict access to content based on age."
+msgstr "Contrôle local des mécanismes qui peuvent restreindre l’accès à des contenus selon l’âge."
+
+msgid "disabled"
+msgstr "désactivée"
+
+msgid "selected content"
+msgstr "contenus sélectionnés"
+
+msgid "entire site"
+msgstr "site entier"
+
+msgid "unknown"
+msgstr "inconnue"
+
+msgid "Mode:"
+msgstr "Mode :"
+
+msgid "Configured minimum age"
+msgstr "Âge minimal configuré"
+
+msgid "Minimum assurance level"
+msgstr "Niveau d’assurance minimal"
+
+msgid "Unknown threshold"
+msgstr "Seuil inconnu"
+
+msgid "The provider is configured, but protection is disabled. This is not a problem if the site has no age-restricted content."
+msgstr "Le fournisseur est configuré, mais la protection est désactivée. Ce n’est pas un problème si le site ne contient pas de contenu soumis à une restriction d’âge."
+
+msgid "The companion plugin reports short-lived local proof and server-side checks. Review layers outside WordPress too, including directly accessible media and any cache or CDN."
+msgstr "Le plugin compagnon annonce une preuve locale courte et un contrôle serveur. Vérifiez aussi les couches qui échappent à WordPress, notamment les médias directement publics et un éventuel cache/CDN."
+
+msgid "Dendrila Privacy cannot confirm whether this is proof of age, an estimation, or simply an age declaration. Check how it works and which requirements apply to this site."
+msgstr "Dendrila Privacy ne dispose pas d’un contrat technique lui permettant de confirmer s’il s’agit d’une preuve d’âge, d’une estimation ou d’une simple déclaration « J’ai 18 ans ». Vérifiez le fonctionnement réel et les exigences applicables au site."
+
+msgid "The verification provider is not configured yet."
+msgstr "Le fournisseur de vérification n’est pas encore configuré."
+
+msgid "Until this is fixed, Dendrila Privacy does not consider the control operational."
+msgstr "Tant que ce point n’est pas réglé, Dendrila Privacy ne considère pas le contrôle comme opérationnel."
+
+msgid "No recognized age verification mechanism is active."
+msgstr "Aucun mécanisme de vérification d’âge reconnu n’est actif."
+
+msgid "This is not necessarily an issue"
+msgstr "Ce constat n’est pas une anomalie en soi"
+
+msgid "this review only matters if the site offers age-restricted content, products or services."
+msgstr "ce contrôle devient pertinent uniquement si le site propose des contenus, produits ou services soumis à une restriction d’âge."
+
+msgid "This module only inspects local WordPress state and does not contact an age verification service."
+msgstr "Ce module observe uniquement l’état local de WordPress et n’effectue aucune requête vers un service de vérification d’âge."
+
+msgid "Open Age Assurance"
+msgstr "Ouvrir Age Assurance"
+
+msgid "Review plugins"
+msgstr "Examiner les extensions"
+
+msgid "Age-related mechanism detected:"
+msgstr "Mécanisme lié à l’âge détecté :"
+
+msgid "Email tools and engagement tracking"
+msgstr "Outils e-mail et suivi d’engagement"
+
+msgid "Trackers, services and possible sources"
+msgstr "Traceurs, services et sources probables"
+
+msgid "Legal pages to review"
+msgstr "Pages juridiques à contrôler"
+
+msgid "Principles applied"
+msgstr "Principes appliqués"
+
+msgid "Actions to take"
+msgstr "Actions à exécuter"
+
+msgid "Local operation"
+msgstr "Fonctionnement local"
+
+msgid "Local audit log"
+msgstr "Journal d’audit local"
+
+msgid "Legal notice"
+msgstr "Mentions légales"
+
+msgid "Privacy policy"
+msgstr "Politique de confidentialité"
+
+msgid "Cookies and trackers"
+msgstr "Cookies / traceurs"
+
+msgid "Display"
+msgstr "Présentation"
+
+msgid "Consent management"
+msgstr "Gestion du consentement"
+
+msgid "No data available."
+msgstr "Aucune donnée disponible."
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Status"
+msgstr "État"
+
+msgid "Evidence"
+msgstr "Preuve"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "UTC date"
+msgstr "Date UTC"
+
+msgid "Origin"
+msgstr "Origine"
+
+msgid "Details"
+msgstr "Détails"
+
+msgid "Page to use"
+msgstr "Page à utiliser"
+
+msgid "All"
+msgstr "Tout"
+
+msgid "Complete or review"
+msgstr "À compléter / vérifier"
+
+msgid "First launch"
+msgstr "Première ouverture"
+
+msgid "Ready for the first scan"
+msgstr "Prêt pour le premier contrôle"
+
+msgid "Dendrila Privacy appearance"
+msgstr "Présentation Dendrila Privacy"
+
+msgid "Full scan — recommended"
+msgstr "Analyse complète — recommandée"
+
+msgid "Full scan options"
+msgstr "Options de l’analyse complète"
+
+msgid "Confirmed issue"
+msgstr "Problème constaté"
+
+msgid "No scan saved yet. Run your first scan to establish the technical state of your site."
+msgstr "Aucune analyse enregistrée. Lancez la première analyse pour établir l’état technique du site."
+
+msgid "Information has changed since the last public version."
+msgstr "Une information a changé depuis la dernière version publique."
+
+msgid "No missing information detected by Dendrila Privacy"
+msgstr "Aucun manque détecté par le contrôle de Dendrila Privacy"
+
+msgid "The document review has not been run yet."
+msgstr "Le contrôle documentaire n’a pas encore été lancé."
+
+msgid "Keep the detected solution"
+msgstr "Conserver la solution détectée"
+
+msgid "Decide later"
+msgstr "Décider plus tard"
+
+msgid "Scan selected pages"
+msgstr "Analyser les pages sélectionnées"
+
+msgid "Approve and update public content"
+msgstr "Valider et mettre à jour le contenu public"
+
+msgid "Insert automatically into this page"
+msgstr "Insérer automatiquement dans cette page"
+
+msgid "Update this page automatically"
+msgstr "Mettre à jour automatiquement cette page"
+
+msgid "Update all ready pages"
+msgstr "Mettre à jour toutes les pages prêtes"
+
+msgid "Save settings"
+msgstr "Enregistrer les réglages"
+

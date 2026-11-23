@@ -17,6 +17,7 @@ function add_submenu_page( $parent, $title, $label, $cap, $slug ) { $GLOBALS['pa
 function wp_enqueue_style( $handle, $url ) { $GLOBALS['styles'][$handle] = $url; }
 function wp_enqueue_script( $handle, $url ) { $GLOBALS['scripts'][$handle] = $url; }
 function wp_localize_script( $handle, $name, $data ) { $GLOBALS['localized'][$name] = $data; }
+function __( $message, $domain = 'default' ) { return $message; } // Stand-in for WordPress gettext in isolated tests.
 
 // Load the class without booting unrelated WordPress hooks or touching a database.
 $source = file_get_contents( dirname( __DIR__ ) . '/dendrila-privacy.php' );
@@ -37,6 +38,7 @@ foreach ( array_unique( $GLOBALS['pages'] ) as $page ) {
     expect( isset( $GLOBALS['scripts']['pixel-trackers-manager-admin'] ), $page . ': JS missing' );
     $config = $GLOBALS['localized']['PixelTrackersManagerScan'];
     expect( ! empty( $config['nonce'] ) && ! empty( $config['ajaxUrl'] ), $page . ': scan configuration missing' );
+    expect( ! empty( $config['i18n']['fullScan'] ) && ! empty( $config['i18n']['scanCancelled'] ), $page . ': translated scan labels missing' );
     foreach ( array_merge( $GLOBALS['styles'], $GLOBALS['scripts'] ) as $url ) {
         expect( is_file( dirname( __DIR__ ) . '/assets/' . basename( $url ) ), 'Missing packaged asset: ' . $url );
     }
