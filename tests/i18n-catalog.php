@@ -14,7 +14,7 @@ assert_i18n( 0x950412de === unpack( 'V', substr( $mo, 0, 4 ) )[1], 'little-endia
 $count = unpack( 'V', substr( $mo, 8, 4 ) )[1];
 $offset_original = unpack( 'V', substr( $mo, 12, 4 ) )[1];
 $offset_translated = unpack( 'V', substr( $mo, 16, 4 ) )[1];
-assert_i18n( $count > 70, 'sufficient catalog entries' );
+assert_i18n( $count > 110, 'sufficient catalog entries' );
 $catalog = array();
 for ( $i = 0; $i < $count; ++$i ) {
     $o = unpack( 'Vlen/Vstart', substr( $mo, $offset_original + $i * 8, 8 ) );
@@ -23,9 +23,20 @@ for ( $i = 0; $i < $count; ++$i ) {
     $catalog[ substr( $mo, $o['start'], $o['len'] ) ] = substr( $mo, $t['start'], $t['len'] );
 }
 assert_i18n( 'Tout refuser' === $catalog['Reject all'], 'French visitor consent' );
+assert_i18n( 'Pages légales' === $catalog['Legal pages'], 'French legal navigation' );
+assert_i18n( 'Enregistrer les réglages' === $catalog['Save settings'], 'French settings action' );
 assert_i18n( 'Réglages' === $catalog['Settings'], 'French admin navigation' );
 assert_i18n( 'Gérer mes choix' === $catalog['Manage my choices'], 'French preference link' );
 assert_i18n( 'Vue d’ensemble' === $catalog['Overview'], 'French dashboard navigation' );
 assert_i18n( 'Désactivée' === $catalog['Disabled'], 'French age status' );
 assert_i18n( false !== strpos( file_get_contents( $root . '/dendrila-privacy.php' ), 'load_plugin_textdomain(' ), 'translation loader registered' );
+// Every gettext literal in production PHP should have a matching bundled translation.
+foreach ( array( $root . '/dendrila-privacy.php', $root . '/includes/class-pixel-trackers-manager-consent.php', $root . '/includes/class-dendrila-privacy-age-assurance.php', $root . '/includes/class-pixel-trackers-manager-elementor-widget.php' ) as $filename ) {
+    $contents = file_get_contents( $filename );
+    preg_match_all( "/\\b(?:__|esc_html__|esc_attr__)\\(\\s*'((?:\\\\'|[^'])*)'\\s*,\\s*'dendrila-privacy'/", $contents, $matches );
+    foreach ( $matches[1] as $original ) {
+        $original = str_replace( "\\\\'", "'", $original );
+        assert_i18n( isset( $catalog[ $original ] ), 'missing French translation for ' . $original );
+    }
+}
 echo "I18n catalog regression: PASS\n";
