@@ -1006,20 +1006,24 @@ final class Pixel_Trackers_Manager_Plugin {
         $state = isset($finding['tracking_state']) ? (string)$finding['tracking_state'] : 'potential';
         if ( 'google-fonts' === ( $finding['id'] ?? '' ) ) {
             if ( ! empty( $finding['observed_html'] ) ) { return array( 'label' => 'Déclaration à vérifier dans Réseau', 'tone' => 'warn' ); }
+            if ( ! empty( $finding['theme_references'] ) ) { return array( 'label' => 'Mention dans le code du thème', 'tone' => 'neutral' ); }
             if ( ! empty( $finding['code_reference'] ) ) { return array( 'label' => 'Référence de code, non confirmée', 'tone' => 'neutral' ); }
             return array( 'label' => 'Mention non confirmée', 'tone' => 'neutral' );
         }
-        if ( isset( $finding['is_tracking'] ) && ! $finding['is_tracking'] && ! empty( $finding['observed_html'] ) ) { return array( 'label'=>'Ressource externe active', 'tone'=>'warn' ); }
+        if ( isset( $finding['is_tracking'] ) && ! $finding['is_tracking'] && ! empty( $finding['observed_html'] ) ) { return array( 'label'=>'Ressource externe déclarée — réseau à vérifier', 'tone'=>'warn' ); }
         if ( 'disabled' === $state ) { return array( 'label'=>'Désactivé', 'tone'=>'good' ); }
         if ( 'blocked' === $state ) { return array( 'label'=>'Bloqué avant choix', 'tone'=>'good' ); }
         if ( !empty($finding['observed_html']) || 'technical_html' === ( isset($finding['tracking_basis']) ? $finding['tracking_basis'] : '' ) ) {
-            return array( 'label'=>'Déclaration HTML — réseau à confirmer', 'tone'=>'warn' );
+            return array( 'label'=>'Déclaration HTML/CSS — réseau à confirmer', 'tone'=>'warn' );
         }
         if ( 'plugin_setting' === ( isset($finding['tracking_basis']) ? $finding['tracking_basis'] : '' ) ) {
             return array( 'label'=>'Détecté dans la configuration', 'tone'=>'neutral' );
         }
+        if ( ! empty( $finding['theme_references'] ) ) {
+            return array( 'label'=>'Mention dans le code du thème — chargement non confirmé', 'tone'=>'neutral' );
+        }
         if ( !empty($finding['plugin_sources']) || !empty($finding['code_reference']) ) {
-            return array( 'label'=>'Probable', 'tone'=>'warn' );
+            return array( 'label'=>'Extension présente — activation à vérifier', 'tone'=>'neutral' );
         }
         return array( 'label'=>'À vérifier', 'tone'=>'neutral' );
     }
@@ -2108,34 +2112,142 @@ final class Pixel_Trackers_Manager_Plugin {
     private function technical_surface( $html ) {
         $chunks = array();
         $html = preg_replace( '/<!--.*?(?:-->|$)/s', '', $html );
-        // JSON data and other inert scripts cannot establish active tracking.
-        // Preserve scripts that Dendrila intentionally blocked before consent.
-        $html = preg_replace_callback( '~<script\b([^>]*)>(.*?)</script\s*>~is', static function ( $match ) {
-            if ( ! preg_match( '~\btype\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))~i', $match[1], $type_match ) ) {
-                return $match[0];
-            }
-            $type = strtolower( trim( ( $type_match[1] ?? '' ) ?: ( ( $type_match[2] ?? '' ) ?: ( $type_match[3] ?? '' ) ) ) );
-            $inert = in_array( $type, array( 'application/json', 'application/ld+json', 'importmap',
-                'text/plain', 'text/template', 'text/x-template' ), true );
-            if ( $inert && ! preg_match( '~\bdata-ptm-blocked\s*=\s*(["\'])1\1~i', $match[1] ) ) {
+        // These containers are not executed/rendered as ordinary resource markup.
+        // Nested templates are removed from the inside out.
+        do {
+            $previous = $html;
+            $html = preg_replace( '~<(template|noscript|textarea|title|xmp)\b[^>]*>.*?</\1\s*>~is', '', $html );
+        } while ( $previous !== $html );
+        // An inline script can mention a vendor URL in a comment, config, string, or
+        // code path that never runs. Only a src attribute is an HTML declaration.
+        // Keep Dendrila-blocked tags so their data-ptm-src/data-ptm-href stays visible.
+        $html = preg_replace_callback( '~<script\b([^>]*)>.*?</script\s*>~is', function ( $match ) {
+            $attributes = $this->parse_html_attributes( $match[1] );
+            $is_external = isset( $attributes['src'] ) && '' !== $attributes['src'];
+            $is_blocked = isset( $attributes['data-ptm-blocked'] ) && '1' === $attributes['data-ptm-blocked'];
+            if ( ! $is_external && ! $is_blocked ) { return ''; }
+            return '<script ' . $match[1] . '></script>';
+        }, $html );
+        $html = preg_replace_callback( '~<link\b[^>]*>~is', function ( $match ) {
+            $attributes = $this->parse_html_attributes( substr( $match[0], 5, -1 ) );
+            if ( empty( $attributes['rel'] ) ) { return $match[0]; }
+            $rel = strtolower( trim( $attributes['rel'] ) );
+            $tokens = preg_split( '/\s+/', $rel );
+            if ( array_intersect( $tokens, array( 'preconnect', 'dns-prefetch' ) ) && ! array_intersect( $tokens, array( 'stylesheet', 'preload', 'prefetch', 'modulepreload' ) ) ) {
                 return '';
             }
             return $match[0];
         }, $html );
-        // Do not mistake our own list of *possible* blocked vendors for active trackers.
-        $html = preg_replace_callback( '/(<script\\b[^>]*>)(.*?)(<\\/script\\s*>)/is', function ( $match ) {
-            return $match[1] . $this->strip_own_scan_configuration( $match[2] ) . $match[3];
-        }, $html );
         foreach ( array(
             '/<script\\b[^>]*>.*?<\\/script>/is',
             '/<(?:iframe|img|link|source)\\b[^>]*>/is',
-            '/<noscript\\b[^>]*>.*?<\\/noscript>/is',
         ) as $regex ) {
             if ( preg_match_all( $regex, $html, $matches ) ) {
                 $chunks = array_merge( $chunks, $matches[0] );
             }
         }
+
+        // Inline CSS URL declarations are resource declarations too. Extract only
+        // @import and url() tokens, skipping comments and unrelated quoted strings.
+        if ( preg_match_all( '~<style\b[^>]*>(.*?)</style\s*>~is', $html, $styles ) ) {
+            foreach ( $styles[1] as $css ) {
+                $chunks = array_merge( $chunks, $this->css_resource_urls( $css ) );
+            }
+        }
+        $attribute_markup = preg_replace( '~<style\b[^>]*>.*?</style\s*>~is', '', $html );
+        if ( preg_match_all( '~<[a-z][\w:-]*(?:[^<>"\']|"[^"]*"|\'[^\']*\')*>~i', $attribute_markup, $html_tags ) ) {
+            foreach ( $html_tags[0] as $tag ) {
+                if ( ! preg_match( '~^<[a-z][\w:-]*(.*?)>$~is', $tag, $tag_match ) ) { continue; }
+                $attributes = $this->parse_html_attributes( $tag_match[1] );
+                if ( ! empty( $attributes['style'] ) ) {
+                    $chunks = array_merge( $chunks, $this->css_resource_urls( $attributes['style'] ) );
+                }
+            }
+        }
         return implode( "\n", $chunks );
+    }
+
+    /** Parse actual tag attributes while consuming their quoted values as a unit. */
+    private function parse_html_attributes( $source ) {
+        $attributes = array();
+        if ( ! preg_match_all( '~([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+)))?~', (string) $source, $pairs, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL ) ) {
+            return $attributes;
+        }
+        foreach ( $pairs as $pair ) {
+            $value = $pair[2] ?? $pair[3] ?? $pair[4] ?? '';
+            $attributes[ strtolower( $pair[1] ) ] = html_entity_decode( (string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+        }
+        return $attributes;
+    }
+
+    /**
+     * Extract resource URLs from CSS without matching text inside comments or
+     * ordinary quoted values such as content: "url(https://example.test)".
+     *
+     * @return string[]
+     */
+    private function css_resource_urls( $css ) {
+        $urls = array();
+        $length = strlen( (string) $css );
+        $i = 0;
+        while ( $i < $length ) {
+            if ( '/*' === substr( $css, $i, 2 ) ) {
+                $end = strpos( $css, '*/', $i + 2 );
+                $i = false === $end ? $length : $end + 2;
+                continue;
+            }
+            if ( '"' === $css[ $i ] || "'" === $css[ $i ] ) {
+                $quote = $css[ $i++ ];
+                while ( $i < $length ) {
+                    if ( '\\' === $css[ $i ] ) { $i += 2; continue; }
+                    if ( $quote === $css[ $i++ ] ) { break; }
+                }
+                continue;
+            }
+
+            $is_import = 0 === strncasecmp( substr( $css, $i, 7 ), '@import', 7 )
+                && ( $i + 7 >= $length || ! preg_match( '/[a-z0-9_-]/i', $css[ $i + 7 ] ) );
+            $is_url = 0 === strncasecmp( substr( $css, $i, 3 ), 'url', 3 )
+                && ( 0 === $i || ! preg_match( '/[a-z0-9_-]/i', $css[ $i - 1 ] ) )
+                && ( $i + 3 >= $length || ! preg_match( '/[a-z0-9_-]/i', $css[ $i + 3 ] ) );
+            if ( ! $is_import && ! $is_url ) { ++$i; continue; }
+
+            $i += $is_import ? 7 : 3;
+            while ( $i < $length && ctype_space( $css[ $i ] ) ) { ++$i; }
+            if ( $is_import && 0 === strncasecmp( substr( $css, $i, 3 ), 'url', 3 ) ) {
+                // Let the url() branch parse the nested declaration.
+                continue;
+            }
+            $has_parenthesis = $is_url && $i < $length && '(' === $css[ $i ];
+            if ( $is_url && ! $has_parenthesis ) { continue; }
+            if ( $has_parenthesis ) {
+                ++$i;
+                while ( $i < $length && ctype_space( $css[ $i ] ) ) { ++$i; }
+            }
+            if ( $i >= $length ) { break; }
+
+            if ( '"' === $css[ $i ] || "'" === $css[ $i ] ) {
+                $quote = $css[ $i++ ];
+                $value = '';
+                while ( $i < $length ) {
+                    if ( '\\' === $css[ $i ] && $i + 1 < $length ) { $value .= $css[ $i + 1 ]; $i += 2; continue; }
+                    if ( $quote === $css[ $i ] ) { ++$i; break; }
+                    $value .= $css[ $i++ ];
+                }
+            } else {
+                $value = '';
+                while ( $i < $length && ( $has_parenthesis ? ')' !== $css[ $i ] : ! ctype_space( $css[ $i ] ) && ';' !== $css[ $i ] ) ) {
+                    $value .= $css[ $i++ ];
+                }
+            }
+            $value = trim( $value );
+            if ( '' !== $value ) { $urls[] = $value; }
+            if ( $has_parenthesis ) {
+                while ( $i < $length && ')' !== $css[ $i ] ) { ++$i; }
+                if ( $i < $length ) { ++$i; }
+            }
+        }
+        return array_values( array_unique( $urls ) );
     }
 
     private function is_google_fonts_url( $url ) {
@@ -2211,6 +2323,16 @@ final class Pixel_Trackers_Manager_Plugin {
                 $hints[] = 'Référence Google Fonts dans un lien sans déclaration de feuille de style ni préchargement de police';
             }
         }
+        foreach ( $tags[0] as $tag ) {
+            if ( ! preg_match( '~^<[a-z][\w:-]*(.*?)>$~is', $tag, $tag_match ) ) { continue; }
+            $attributes = $this->parse_html_attributes( $tag_match[1] );
+            if ( empty( $attributes['style'] ) ) { continue; }
+            foreach ( $this->css_resource_urls( $attributes['style'] ) as $value ) {
+                if ( $this->is_google_fonts_url( $value ) ) {
+                    $loads[] = 'Ressource Google Fonts déclarée dans un attribut CSS : ' . substr( $value, 0, 150 );
+                }
+            }
+        }
         if ( ! $loads && ! $hints && preg_match( '/fonts\.(?:googleapis|gstatic)\.com/i', $visible ) ) {
             $hints[] = 'Mention de Google Fonts dans le HTML, sans chargement externe déclaré';
         }
@@ -2262,13 +2384,15 @@ final class Pixel_Trackers_Manager_Plugin {
                 $findings[ $id ]['observed_html'] = true;
                 $findings[ $id ]['urls'][] = $url;
                 if ( $evidence ) {
-                    $is_tracking = ! isset( $signature['is_tracking'] ) || ! empty( $signature['is_tracking'] );
-                    $findings[ $id ]['active_tracking'] = $is_tracking;
-                    $findings[ $id ]['tracking_state'] = 'active';
-                    $findings[ $id ]['tracking_basis'] = $is_tracking ? 'technical_html' : 'external_resource';
+                    // HTML/CSS declarations show intent to load, not a completed
+                    // browser request. Keep this distinct from active settings.
+                    $findings[ $id ]['observed_html_unblocked'] = true;
+                    $findings[ $id ]['active_tracking'] = false;
+                    $findings[ $id ]['tracking_state'] = 'potential';
+                    $findings[ $id ]['tracking_basis'] = 'html_declaration';
                     $findings[ $id ]['blocked_by_consent'] = false;
                     $findings[ $id ]['evidence'] = array_merge( $findings[ $id ]['evidence'], $evidence );
-                } elseif ( empty( $findings[ $id ]['active_tracking'] ) ) {
+                } elseif ( empty( $findings[ $id ]['active_tracking'] ) && empty( $findings[ $id ]['observed_html_unblocked'] ) ) {
                     $findings[ $id ]['active_tracking'] = false;
                     $findings[ $id ]['tracking_state'] = 'blocked';
                     $findings[ $id ]['tracking_basis'] = 'native_consent_block';
@@ -2296,12 +2420,15 @@ final class Pixel_Trackers_Manager_Plugin {
                     $findings[ $id ]['tracking_state'] = 'blocked';
                     $findings[ $id ]['source'] = 'Service présent, mais bloqué avant le choix par la bannière Dendrila Privacy';
                 } elseif ( ! empty( $findings[ $id ]['observed_html'] ) ) {
+                    $findings[ $id ]['active_tracking'] = false;
+                    $findings[ $id ]['tracking_state'] = 'potential';
+                    $findings[ $id ]['tracking_basis'] = 'html_declaration';
                     if ( 'google-fonts' === $id ) {
-                        $findings[ $id ]['confidence'] = 'moyenne';
+                        $findings[ $id ]['confidence'] = 'faible';
                         $findings[ $id ]['source'] = 'Lien vers une ressource Google Fonts dans le HTML : confirmer la requête dans Réseau / Network';
                     } else {
-                        $findings[ $id ]['confidence'] = 'élevée';
-                        $findings[ $id ]['source'] = $plugin_sources ? 'Déclaration HTML repérée + extension probable : ' . $plugin_sources[0]['name'] . ' ; requête réseau non vérifiée' : 'Déclaration repérée dans le HTML, requête réseau non vérifiée';
+                        $findings[ $id ]['confidence'] = 'faible';
+                        $findings[ $id ]['source'] = $plugin_sources ? 'Ressource déclarée dans le HTML ; extension présente : ' . $plugin_sources[0]['name'] . ' ; requête réseau non vérifiée' : 'Ressource déclarée dans le HTML/CSS ; requête réseau non vérifiée';
                     }
                 } elseif ( 'google-fonts' === $id && ! empty( $findings[ $id ]['font_hint'] ) ) {
                     $findings[ $id ]['confidence'] = 'faible';
@@ -2318,7 +2445,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     $findings[ $id ]['confidence'] = 'faible';
                     $findings[ $id ]['source'] = 'google-fonts' === $id
                         ? 'Référence dans les fichiers du thème, sans déclaration de chargement observée sur les pages analysées'
-                        : 'Référence potentielle dans le thème';
+                        : ( $has_theme_ref ? 'Mention dans un fichier du thème ; aucune déclaration de ressource observée dans les pages analysées' : 'Référence technique non confirmée' );
                     $findings[ $id ]['tracking_state'] = 'potential';
                     $findings[ $id ]['active_tracking'] = false;
                 }
@@ -2871,9 +2998,10 @@ final class Pixel_Trackers_Manager_Plugin {
                         $relation = 'Code du thème enfant : utilisation non établie';
                     } elseif ( 'parent' === $role ) {
                         $same_path = is_file( $child . '/' . $relative );
-                        $is_template = 'php' === $ext
-                            && 'functions.php' !== $relative
-                            && ( false === strpos( $relative, '/' ) || 0 === strpos( $relative, 'template-parts/' ) );
+                        $is_template = 'php' === $ext && (bool) preg_match(
+                            '~^(?:index|home|front-page|single(?:-[^/]+)?|page(?:-[^/]+)?|archive(?:-[^/]+)?|category(?:-[^/]+)?|tag(?:-[^/]+)?|taxonomy(?:-[^/]+)?|author(?:-[^/]+)?|date|search|attachment|404|singular|header|footer|sidebar|comments)\.php$|^(?:template-parts|templates)/~i',
+                            $relative
+                        );
                         if ( $same_path && $is_template ) {
                             $relation = 'Gabarit homonyme présent dans l’enfant : priorité habituelle de l’enfant, à confirmer selon le chargement';
                         } elseif ( $same_path ) {
@@ -3078,6 +3206,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $coverage_mode = $is_retry && ! empty( $previous['coverage']['mode'] ) ? $previous['coverage']['mode'] : ( isset( $job['mode'] ) ? $job['mode'] : 'standard' );
         $scan=array(
             'version'=>6,'plugin_version'=>self::VERSION,'generated_at'=>gmdate('c'),'origin'=>$is_retry?'manual-retry-failed':'manual-progressive',
+            'analysis_model_version'=>!$is_retry&&'full'===$coverage_mode?2:(int)(isset($previous['analysis_model_version'])?$previous['analysis_model_version']:0),
             'site'=>array('name'=>get_bloginfo('name'),'url'=>home_url('/')),
             'coverage'=>array(
                 'requested'=>$coverage_requested,
@@ -3129,6 +3258,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $active_count=0; foreach($findings as $finding){if(!empty($finding['active_tracking'])){$active_count++;}}
         $scan=array(
             'version'=>4,'plugin_version'=>self::VERSION,'generated_at'=>gmdate('c'),'origin'=>$origin,
+            'analysis_model_version'=>(int)(isset($previous['analysis_model_version'])?$previous['analysis_model_version']:0),
             'site'=>array('name'=>get_bloginfo('name'),'url'=>home_url('/')),
             'coverage'=>array('requested'=>count($urls),'scanned'=>count($scanned_urls),'processed'=>count($urls),'urls'=>$scanned_urls,'errors'=>$errors,'page_issues'=>$page_issues),
             'findings'=>array_values($findings),'active_tracking_count'=>$active_count,
@@ -5937,6 +6067,9 @@ final class Pixel_Trackers_Manager_Plugin {
         $this->render_admin_tabs( $page );
         echo '<div class="ptm-tab-content" data-ptm-page="' . esc_attr( $page ) . '">';
         $this->admin_notice();
+        if ( ! empty( $scan['generated_at'] ) && (int) ( $scan['analysis_model_version'] ?? 0 ) < 2 ) {
+            echo '<div class="notice notice-warning"><p><strong>Cette analyse précède la correction des preuves de thème et de chargement.</strong> Les anciens résultats sont conservés ; lancez une analyse complète pour les recalculer. <a href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager#ptm-scan-card' ) ) . '">Ouvrir les analyses</a></p></div>';
+        }
 
         if ( 'pixel-trackers-manager-findings' === $page ) {
             $this->render_findings_tab( $scan );
@@ -6190,7 +6323,7 @@ final class Pixel_Trackers_Manager_Plugin {
         do_action( 'dendrila_privacy_overview_age_assurance' );
 
         echo '<div class="ptm-dashboard-bottom">';
-        echo '<section class="ptm-card ptm-detected-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-share"></span> Traceurs & services détectés</h2><p>Les déclarations HTML indiquent une ressource possible, pas une requête réseau confirmée. Les réglages d’extension sont vérifiés séparément.</p></div><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-findings' ) ) . '">Tout examiner</a></div>';
+        echo '<section class="ptm-card ptm-detected-card"><div class="ptm-card-head"><div><h2><span class="dashicons dashicons-share"></span> Traceurs, ressources et références</h2><p>Une référence dans un thème ou une déclaration HTML/CSS ne prouve pas qu’un asset a été demandé au réseau. Les réglages d’extension sont vérifiés séparément.</p></div><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-findings' ) ) . '">Tout examiner</a></div>';
         if ( ! $findings ) {
             echo '<p>Aucune donnée disponible.</p>';
         } else {
@@ -6204,7 +6337,10 @@ final class Pixel_Trackers_Manager_Plugin {
                 elseif ( 'disabled' === $state ) { $badge = '<span class="ptm-badge good">Suivi désactivé</span>'; }
                 elseif ( 'blocked' === $state ) { $badge = '<span class="ptm-badge good">Bloqué avant choix</span>'; }
                 else { $badge = '<span class="ptm-badge warn">À vérifier</span>'; }
-                $proof = ! empty( $finding['source'] ) ? $finding['source'] : ( ! empty( $finding['observed_html'] ) ? 'Trace repérée dans le code affiché' : 'Source technique détectée' );
+                if ( ! empty( $finding['theme_references'] ) && empty( $finding['observed_html'] ) && ! in_array( $state, array( 'active', 'disabled', 'blocked' ), true ) ) {
+                    $badge = '<span class="ptm-badge neutral">Mention dans le thème</span>';
+                }
+                $proof = ! empty( $finding['source'] ) ? $finding['source'] : ( ! empty( $finding['observed_html'] ) ? 'Déclaration repérée dans le HTML/CSS ; requête réseau non vérifiée' : 'Source technique détectée' );
                 echo '<tr><td><strong>' . esc_html( $finding['label'] ) . '</strong><small>' . esc_html( isset( $finding['category'] ) ? $finding['category'] : '' ) . '</small></td><td>' . wp_kses_post( $badge ) . '</td><td>' . esc_html( $proof ) . '</td><td><a class="button button-small" href="' . esc_url( admin_url( 'admin.php?page=pixel-trackers-manager-findings' ) ) . '">Examiner</a></td></tr>';
             }
             echo '</tbody></table></div>';
@@ -6260,7 +6396,7 @@ final class Pixel_Trackers_Manager_Plugin {
         }
         echo '</section>';
 
-        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Traceurs, services et sources probables</h2><p>Le statut explique la nature de la preuve obtenue, sans score de confiance opaque.</p></div>';
+        echo '<section class="ptm-card"><div class="ptm-card-head"><div><h2>Traceurs, services et références de code</h2><p>Le statut explique la nature de la preuve obtenue, sans score de confiance opaque.</p></div>';
         $this->form_start('export_json');submit_button('Exporter les données (JSON)','secondary','submit',false);$this->form_end();echo '</div>';
         if(empty($scan['findings'])){echo '<p>Aucune donnée. Lancez une analyse.</p></section>';return;}
         echo '<div class="ptm-findings">';
@@ -6269,7 +6405,7 @@ final class Pixel_Trackers_Manager_Plugin {
             echo '<article class="ptm-finding"><div class="ptm-finding-title"><div><h3>'.esc_html($finding['label']).'</h3><p>'.esc_html($finding['category']).'</p></div><div>';
             echo '<span class="ptm-badge '.esc_attr($evidence_status['tone']).'">'.esc_html($evidence_status['label']).'</span></div></div>';
             $summary='';
-            if(!empty($finding['observed_html'])){$summary='Une trace technique a été observée sur le site.';}
+            if(!empty($finding['observed_html'])){$summary='Une ressource est déclarée dans le HTML/CSS. La requête réseau et son exécution ne sont pas vérifiées.';}
             elseif('disabled'===(isset($finding['tracking_state'])?$finding['tracking_state']:'')){$summary='Le service est présent, mais le suivi concerné est désactivé.';}
             elseif(!empty($finding['plugin_sources'])){$summary='Une intégration connue est présente ; l’activation réelle reste à confirmer si aucune trace n’a été observée.';}
             elseif(!empty($finding['code_reference'])){$summary='Une référence technique existe, sans preuve suffisante de suivi actif.';}
@@ -6289,7 +6425,7 @@ final class Pixel_Trackers_Manager_Plugin {
                     if ( 'parent' === $reference['role'] ) { ++$parent_count; } else { ++$child_count; }
                 }
                 echo '<details class="ptm-theme-references"><summary>Références dans les thèmes (' . esc_html( (string) $parent_count ) . ' parent, ' . esc_html( (string) $child_count ) . ' actif/enfant)</summary>';
-                echo '<p class="ptm-muted">Il s’agit de références de code, sans preuve de requête externe. Les fichiers PHP du parent peuvent fonctionner même lorsqu’un homonyme existe dans l’enfant.</p><ul>';
+                echo '<p class="ptm-muted">Ce sont des mentions trouvées dans les fichiers du thème : elles peuvent se trouver dans un commentaire, une option de repli ou du code inactif. Elles ne prouvent ni l’exécution du code ni l’émission d’un asset. Les fichiers PHP du parent peuvent fonctionner même lorsqu’un homonyme existe dans l’enfant.</p><ul>';
                 foreach ( $finding['theme_references'] as $reference ) {
                     $role_label = 'parent' === $reference['role'] ? 'Parent' : ( 'child' === $reference['role'] ? 'Enfant' : 'Thème actif' );
                     echo '<li><strong>' . esc_html( $role_label ) . '</strong> — <code>' . esc_html( $reference['path'] ) . ':' . esc_html( (string) $reference['line'] ) . '</code>';

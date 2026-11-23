@@ -1,7 +1,6 @@
 <?php
 /**
- * Regressions for the Google Fonts false positives reported by a Divi tester:
- * remote font links, preconnect hints, HTML comments, inline JS and local fonts.
+ * Theme-agnostic regressions for static font references versus declared resources.
  */
 define( 'ABSPATH', __DIR__ . '/' );
 function register_activation_hook() {}
@@ -44,6 +43,7 @@ $cases = array(
     array( '<style>@import url("https://fonts.googleapis.com/css2?family=Roboto");</style>', true, true, 'remote CSS import' ),
     array( '<style>/* @import url("https://fonts.googleapis.com/css2") */ .x{font-family:Roboto}</style>', false, false, 'commented CSS import' ),
     array( '<style>@font-face{font-family:Test;src:url(https://fonts.gstatic.com/s/test.woff2)}</style>', true, true, 'remote font face' ),
+    array( '<div style="background-image:url(https://fonts.gstatic.com/s/test.woff2)"></div>', true, true, 'remote CSS URL in a style attribute' ),
     array( '<link href="//fonts.googleapis.com/css2?family=Roboto" rel="stylesheet">', true, true, 'protocol relative stylesheet' ),
     array( '<link href=https://fonts.googleapis.com/css2?family=Roboto rel=stylesheet>', true, true, 'unquoted stylesheet link' ),
     array( '<script>const html = \'<link rel="stylesheet" href="//fonts.googleapis.com/css2">\';</script>', true, false, 'markup inside script string' ),
@@ -65,7 +65,7 @@ foreach ( $cases as $case ) {
     if ( null === $finding ) { continue; }
     check( $loadable === ! empty( $finding['observed_html'] ), $label . ': declared remote load' );
     check( false === ! empty( $finding['active_tracking'] ), $label . ': fonts must not be treated as a tracker' );
-    check( ( $loadable ? 'active' : 'potential' ) === $finding['tracking_state'], $label . ': correct state' );
+    check( 'potential' === $finding['tracking_state'], $label . ': a declaration is not network proof' );
     $status = $control->invoke( $plugin, $finding );
     check( $status['state'] === $finding['tracking_state'], $label . ': action must not force active state' );
     check( false === strpos( $status['instructions'], 'est chargée directement' ), $label . ': no unverified loading claim' );
@@ -87,8 +87,8 @@ function get_stylesheet_directory() { return $GLOBALS['dendrila_test_child']; }
 function get_template_directory() { return $GLOBALS['dendrila_test_parent']; }
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', $path ); }
 $root = sys_get_temp_dir() . '/dendrila-theme-' . uniqid( '', true );
-$parent = $root . '/kadence';
-$child = $root . '/kadence-child';
+$parent = $root . '/studio-framework';
+$child = $root . '/studio-framework-child';
 foreach ( array( $parent . '/inc/components', $child . '/inc/components', $parent . '/template-parts', $child . '/template-parts' ) as $dir ) {
     check( is_dir( $dir ) || mkdir( $dir, 0700, true ), 'create theme fixtures' );
 }
@@ -100,20 +100,46 @@ file_put_contents( $parent . '/template-parts/header.php', "<?php\n// fonts.gsta
 file_put_contents( $child . '/template-parts/header.php', "<?php\n// Child template.\n" );
 file_put_contents( $parent . '/functions.php', "<?php\n// fonts.googleapis.com conditional.\n" );
 file_put_contents( $child . '/functions.php', "<?php\n// Loaded alongside parent functions.php.\n" );
+file_put_contents( $parent . '/custom-loader.php', "<?php\n// fonts.googleapis.com appears in a helper.\n" );
+file_put_contents( $child . '/custom-loader.php', "<?php\n// Same-named include is not a guaranteed override.\n" );
+file_put_contents( $parent . '/single.php', "<?php\n// fonts.googleapis.com template reference.\n" );
+file_put_contents( $child . '/single.php', "<?php\n// Child template with normal hierarchy priority.\n" );
 file_put_contents( $child . '/style.css', "/* fonts.googleapis.com mentioned locally */\n" );
 $method = $ref->getMethod( 'scan_theme_references' );
 $method->setAccessible( true );
 $refs = $method->invoke( $plugin );
-check( 4 === count( $refs['google-fonts'] ), 'four distinct theme code references' );
+check( 6 === count( $refs['google-fonts'] ), 'theme names do not affect static code reference detection' );
 $by_path = array();
 foreach ( $refs['google-fonts'] as $entry ) { $by_path[ $entry['path'] ] = $entry; }
-check( 'parent' === $by_path['kadence/inc/components/styles.php']['role'], 'parent role recorded' );
-check( 2 === $by_path['kadence/inc/components/styles.php']['line'], 'source line recorded' );
-check( false !== strpos( $by_path['kadence/inc/components/styles.php']['relationship'], 'peut toujours être exécuté' ), 'homonymous PHP module is not a proven override' );
-check( false !== strpos( $by_path['kadence/template-parts/header.php']['relationship'], 'priorité habituelle' ), 'child template priority distinct' );
-check( false !== strpos( $by_path['kadence/functions.php']['relationship'], 'peut toujours être exécuté' ), 'both functions.php files can run' );
-check( 'child' === $by_path['kadence-child/style.css']['role'], 'child stylesheet origin' );
-check( null === font_result( $scan, $plugin, '<link rel="stylesheet" href="/wp-content/themes/kadence-child/style.css">' ), 'local stylesheet does not imply remote font load' );
-foreach ( array( $child . '/inc/components/styles.php', $child . '/template-parts/header.php', $child . '/functions.php', $child . '/style.css', $parent . '/inc/components/styles.php', $parent . '/template-parts/header.php', $parent . '/functions.php' ) as $path ) { unlink( $path ); }
+check( 'parent' === $by_path['studio-framework/inc/components/styles.php']['role'], 'parent role recorded' );
+check( 2 === $by_path['studio-framework/inc/components/styles.php']['line'], 'source line recorded' );
+check( false !== strpos( $by_path['studio-framework/inc/components/styles.php']['relationship'], 'peut toujours être exécuté' ), 'homonymous PHP module is not a proven override' );
+check( false !== strpos( $by_path['studio-framework/template-parts/header.php']['relationship'], 'priorité habituelle' ), 'template-part priority remains qualified' );
+check( false !== strpos( $by_path['studio-framework/custom-loader.php']['relationship'], 'peut toujours être exécuté' ), 'arbitrary same-name PHP files are not assumed to be templates' );
+check( false !== strpos( $by_path['studio-framework/single.php']['relationship'], 'priorité habituelle' ), 'known template hierarchy is identified' );
+check( false !== strpos( $by_path['studio-framework/functions.php']['relationship'], 'peut toujours être exécuté' ), 'both functions.php files can run' );
+check( 'child' === $by_path['studio-framework-child/style.css']['role'], 'child stylesheet origin' );
+check( null === font_result( $scan, $plugin, '<link rel="stylesheet" href="/wp-content/themes/studio-framework-child/style.css">' ), 'local stylesheet does not imply remote font load' );
+$status_method = $ref->getMethod( 'finding_evidence_status' );
+$status_method->setAccessible( true );
+$theme_status = $status_method->invoke( $plugin, array( 'id'=>'fullstory', 'tracking_state'=>'potential', 'code_reference'=>true, 'theme_references'=>array( $by_path['studio-framework/functions.php'] ) ) );
+check( 'neutral' === $theme_status['tone'] && false !== strpos( $theme_status['label'], 'code du thème' ), 'theme-only signature is labelled as a non-confirmed theme mention' );
+$finalize = $ref->getMethod( 'finalize_findings' );
+$finalize->setAccessible( true );
+$theme_findings = $finalize->invoke( $plugin, array(), array(), $refs );
+check( ! empty( $theme_findings['google-fonts']['theme_references'] ), 'theme file paths remain attached to the finding' );
+check( empty( $theme_findings['google-fonts']['active_tracking'] ) && 'potential' === $theme_findings['google-fonts']['tracking_state'], 'theme-only references do not create active tracking' );
+check( empty( array_filter( $theme_findings, static function ( $finding ) { return ! empty( $finding['active_tracking'] ); } ) ), 'static references in any theme produce no active count' );
+foreach ( array( $child . '/inc/components/styles.php', $child . '/template-parts/header.php', $child . '/functions.php', $child . '/custom-loader.php', $child . '/single.php', $child . '/style.css', $parent . '/inc/components/styles.php', $parent . '/template-parts/header.php', $parent . '/functions.php', $parent . '/custom-loader.php', $parent . '/single.php' ) as $path ) { unlink( $path ); }
 foreach ( array( $child . '/inc/components', $child . '/inc', $child . '/template-parts', $parent . '/inc/components', $parent . '/inc', $parent . '/template-parts', $child, $parent, $root ) as $dir ) { rmdir( $dir ); }
+$plain = sys_get_temp_dir() . '/dendrila-plain-theme-' . uniqid( '', true );
+check( mkdir( $plain, 0700, true ), 'create theme without a child fixture' );
+file_put_contents( $plain . '/style.css', "/* fonts.googleapis.com appears in a theme stylesheet. */\n" );
+$GLOBALS['dendrila_test_parent'] = $plain;
+$GLOBALS['dendrila_test_child'] = $plain;
+$plain_refs = $method->invoke( $plugin );
+check( 1 === count( $plain_refs['google-fonts'] ), 'theme without child is scanned without a theme-name special case' );
+check( 'active' === $plain_refs['google-fonts'][0]['role'], 'theme without child is identified as the active theme' );
+unlink( $plain . '/style.css' );
+rmdir( $plain );
 echo "Theme parent/child references: PASS\n";

@@ -60,18 +60,36 @@ $minimal = '<html><head>' . $early . '</head><body><h1>WordPress test</h1>' . $c
 $findings = $scan( $minimal );
 expect_own_config( empty( $findings ), 'own consent configuration alone cannot create tracker findings: ' . implode( ', ', array_keys( $findings ) ) );
 $actual = $scan( $minimal . '<script src="https://edge.fullstory.com/s/fs.js"></script>' );
-expect_own_config( ! empty( $actual['fullstory']['active_tracking'] ), 'real external script remains detectable' );
+expect_own_config( ! empty( $actual['fullstory']['observed_html'] ), 'external script declaration remains detectable' );
+expect_own_config( empty( $actual['fullstory']['active_tracking'] ), 'HTML declaration alone is not counted as active tracking' );
+expect_own_config( 'potential' === $actual['fullstory']['tracking_state'], 'HTML declaration remains to be verified on the network' );
+$finalize = $ref->getMethod( 'finalize_findings' );
+$finalize->setAccessible( true );
+$finalized = $finalize->invoke( $plugin, $actual, array(), array() );
+$finalized_active = array_filter( $finalized, static function ( $finding ) { return ! empty( $finding['active_tracking'] ); } );
+expect_own_config( empty( $finalized_active ), 'HTML-only findings do not enter the finalized active count' );
+$css_declaration = $scan( '<style>.hero{background-image:url("https://edge.fullstory.com/s/fs.js")}</style>' );
+expect_own_config( ! empty( $css_declaration['fullstory']['observed_html'] ), 'CSS url() declaration remains detectable' );
+expect_own_config( empty( $css_declaration['fullstory']['active_tracking'] ), 'CSS declaration alone is not counted as active tracking' );
+$css_comment = $scan( '<style>/* background:url(https://edge.fullstory.com/s/fs.js) */ .hero{color:red}</style>' );
+expect_own_config( empty( $css_comment['fullstory'] ), 'commented CSS URL is not a resource declaration' );
+$css_string = $scan( '<style>.hero{content:"url(https://edge.fullstory.com/s/fs.js)"}</style>' );
+expect_own_config( empty( $css_string['fullstory'] ), 'URL text in CSS content is not a resource declaration' );
+$connection_hint = $scan( '<link rel="preconnect" href="https://edge.fullstory.com"><link rel="dns-prefetch" href="//edge.fullstory.com">' );
+expect_own_config( empty( $connection_hint['fullstory'] ), 'connection hints alone do not imply a tracker resource' );
+$fake_attribute = $scan( '<script data-note="src=https://edge.fullstory.com/s/fs.js"></script>' );
+expect_own_config( empty( $fake_attribute['fullstory'] ), 'attribute text that resembles src is not parsed as an actual src' );
 foreach ( array( 'google-analytics', 'google-tag-manager', 'hotjar', 'smartlook', 'meta-pixel', 'tiktok-pixel', 'linkedin-insight', 'brevo', 'google-maps', 'youtube', 'vimeo' ) as $id ) {
     expect_own_config( empty( $actual[ $id ] ), 'no unrelated false positive: ' . $id );
 }
 $mixed = $scan( '<script>' . "var DendrilaPrivacyConsent = " . $encoded . ';' .
     "var real = document.createElement('script'); real.src='https://static.hotjar.com/c/hotjar-123.js';" .
     '</script>' );
-expect_own_config( ! empty( $mixed['hotjar']['active_tracking'] ), 'real code in same script is not removed' );
+expect_own_config( empty( $mixed['hotjar'] ), 'an inline script string does not prove a resource declaration' );
 $unrelated = $scan( '<script>var SomeOtherPlugin = ' . $encoded . ';</script>' );
-expect_own_config( ! empty( $unrelated['fullstory']['active_tracking'] ), 'unrelated script is still inspected' );
+expect_own_config( empty( $unrelated ), 'vendor URLs in an inline configuration do not create findings' );
 $inert = $scan( '<script>var DendrilaPrivacyConsent = "https://edge.fullstory.com/s/fs.js";</script>' );
-expect_own_config( ! empty( $inert['fullstory']['active_tracking'] ), 'non-JSON assignment is not silently ignored' );
+expect_own_config( empty( $inert ), 'vendor URLs in inline JavaScript strings do not create findings' );
 $metadata = $scan( '<script type="application/ld+json">{"@type":"WebSite","doc":"https://edge.fullstory.com/s/fs.js"}</script>' );
 expect_own_config( empty( $metadata ), 'JSON-LD URLs are metadata, not activated trackers' );
 $import_map = $scan( '<script type="importmap">{"imports":{"tracking":"https://static.hotjar.com/c/hotjar.js"}}</script>' );
@@ -80,6 +98,10 @@ $inert_payload = $scan( '<script type="text/plain">https://edge.fullstory.com/s/
 expect_own_config( empty( $inert_payload ), 'plain-text scripts cannot be active' );
 $blocked = $scan( '<script type="text/plain" data-ptm-blocked="1" data-ptm-src="https://edge.fullstory.com/s/fs.js"></script>' );
 expect_own_config( ! empty( $blocked['fullstory']['blocked_by_consent'] ), 'consent-blocked scripts remain detected as blocked' );
+$blocked_active_mix = $scan( '<script type="text/plain" data-ptm-blocked="1" data-ptm-src="https://edge.fullstory.com/s/fs.js"></script><script src="https://edge.fullstory.com/s/fs.js"></script>' );
+expect_own_config( empty( $blocked_active_mix['fullstory']['blocked_by_consent'] ), 'an unblocked declaration on another page prevents an all-blocked conclusion' );
+$inert_template = $scan( '<template><script src="https://edge.fullstory.com/s/fs.js"></script></template>' );
+expect_own_config( empty( $inert_template['fullstory'] ), 'template content is not treated as a declared live resource' );
 $evidence = $ref->getMethod( 'finding_evidence_status' );
 $evidence->setAccessible( true );
 $declared = $scan( '<script src="https://edge.fullstory.com/s/fs.js"></script>' );
