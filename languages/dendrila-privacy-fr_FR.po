@@ -163,3 +163,84 @@ msgstr "Gérer mes choix"
 msgid "Dendrila Privacy — Manage my choices"
 msgstr "Dendrila Privacy — Gérer mes choix"
 
+msgid "Protection active"
+msgstr "Protection active"
+
+msgid "Incomplete configuration"
+msgstr "Configuration incomplète"
+
+msgid "Disabled"
+msgstr "Désactivée"
+
+msgid "Needs review"
+msgstr "À vérifier"
+
+msgid "Not detected"
+msgstr "Non détectée"
+
+msgid "Age verification"
+msgstr "Vérification d’âge"
+
+msgid "Local review of mechanisms that may restrict access to content based on age."
+msgstr "Contrôle local des mécanismes qui peuvent restreindre l’accès à des contenus selon l’âge."
+
+msgid "disabled"
+msgstr "désactivée"
+
+msgid "selected content"
+msgstr "contenus sélectionnés"
+
+msgid "entire site"
+msgstr "site entier"
+
+msgid "unknown"
+msgstr "inconnue"
+
+msgid "Mode:"
+msgstr "Mode :"
+
+msgid "Configured minimum age"
+msgstr "Âge minimal configuré"
+
+msgid "Minimum assurance level"
+msgstr "Niveau d’assurance minimal"
+
+msgid "Unknown threshold"
+msgstr "Seuil inconnu"
+
+msgid "The provider is configured, but protection is disabled. This is not a problem if the site has no age-restricted content."
+msgstr "Le fournisseur est configuré, mais la protection est désactivée. Ce n’est pas un problème si le site ne contient pas de contenu soumis à une restriction d’âge."
+
+msgid "The companion plugin reports short-lived local proof and server-side checks. Review layers outside WordPress too, including directly accessible media and any cache or CDN."
+msgstr "Le plugin compagnon annonce une preuve locale courte et un contrôle serveur. Vérifiez aussi les couches qui échappent à WordPress, notamment les médias directement publics et un éventuel cache/CDN."
+
+msgid "Dendrila Privacy cannot confirm whether this is proof of age, an estimation, or simply an age declaration. Check how it works and which requirements apply to this site."
+msgstr "Dendrila Privacy ne dispose pas d’un contrat technique lui permettant de confirmer s’il s’agit d’une preuve d’âge, d’une estimation ou d’une simple déclaration « J’ai 18 ans ». Vérifiez le fonctionnement réel et les exigences applicables au site."
+
+msgid "The verification provider is not configured yet."
+msgstr "Le fournisseur de vérification n’est pas encore configuré."
+
+msgid "Until this is fixed, Dendrila Privacy does not consider the control operational."
+msgstr "Tant que ce point n’est pas réglé, Dendrila Privacy ne considère pas le contrôle comme opérationnel."
+
+msgid "No recognized age verification mechanism is active."
+msgstr "Aucun mécanisme de vérification d’âge reconnu n’est actif."
+
+msgid "This is not necessarily an issue"
+msgstr "Ce constat n’est pas une anomalie en soi"
+
+msgid "this review only matters if the site offers age-restricted content, products or services."
+msgstr "ce contrôle devient pertinent uniquement si le site propose des contenus, produits ou services soumis à une restriction d’âge."
+
+msgid "This module only inspects local WordPress state and does not contact an age verification service."
+msgstr "Ce module observe uniquement l’état local de WordPress et n’effectue aucune requête vers un service de vérification d’âge."
+
+msgid "Open Age Assurance"
+msgstr "Ouvrir Age Assurance"
+
+msgid "Review plugins"
+msgstr "Examiner les extensions"
+
+msgid "Age-related mechanism detected:"
+msgstr "Mécanisme lié à l’âge détecté :"
+
