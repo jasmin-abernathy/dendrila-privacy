@@ -54,7 +54,8 @@ $configuration = array(
 $encoded = json_encode( $configuration, JSON_UNESCAPED_SLASHES );
 $consent = '<script id="pixel-trackers-manager-consent-js-extra">var DendrilaPrivacyConsent = ' . $encoded . ';' .
     "\nvar PixelTrackersManagerConsent = " . $encoded . ';</script>';
-$early = '<script id="pixel-trackers-manager-consent-bootstrap-js-extra">var DendrilaPrivacyConsentEarlyConfig = ' . $encoded . ';</script>';
+$early = '<script id="pixel-trackers-manager-consent-bootstrap-js-extra">var DendrilaPrivacyConsentEarlyConfig = ' . $encoded . ';' .
+    "\nvar PixelTrackersManagerConsentEarlyConfig = " . $encoded . ';</script>';
 $minimal = '<html><head>' . $early . '</head><body><h1>WordPress test</h1>' . $consent . '</body></html>';
 $findings = $scan( $minimal );
 expect_own_config( empty( $findings ), 'own consent configuration alone cannot create tracker findings: ' . implode( ', ', array_keys( $findings ) ) );
