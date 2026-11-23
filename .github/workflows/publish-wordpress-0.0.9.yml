@@ -3,10 +3,10 @@ name: Publish Dendrila Privacy 0.0.9 on WordPress.org
 on:
   pull_request:
     branches: [master]
-    paths: ['dendrila-privacy.php', 'readme.txt', 'tests/**', '.github/workflows/publish-wordpress-0.0.9.yml']
+    paths: ['dendrila-privacy.php', 'readme.txt', 'changelog.txt', 'includes/**', 'assets/**', 'languages/**', 'tests/**', '.github/workflows/publish-wordpress-0.0.9.yml']
   push:
     branches: [master]
-    paths: ['dendrila-privacy.php', 'readme.txt', '.github/workflows/publish-wordpress-0.0.9.yml']
+    paths: ['dendrila-privacy.php', 'readme.txt', 'changelog.txt', 'includes/**', 'assets/**', 'languages/**', 'tests/**', '.github/workflows/publish-wordpress-0.0.9.yml']
   workflow_dispatch:
 
 permissions:
