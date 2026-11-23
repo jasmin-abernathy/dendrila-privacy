@@ -346,21 +346,21 @@ final class Pixel_Trackers_Manager_Consent {
         ?>
         <div id="pixel-trackers-manager-consent" class="ptm-consent" data-ptm-consent-root="1" data-ptm-style="<?php echo esc_attr( $this->plugin->public_settings()['consent_style'] ); ?>" data-ptm-layout="<?php echo esc_attr( isset( $this->plugin->public_settings()['consent_layout'] ) ? $this->plugin->public_settings()['consent_layout'] : 'bar' ); ?>" aria-hidden="true" hidden>
             <div class="ptm-consent-dialog" role="dialog" aria-modal="true" aria-labelledby="ptm-consent-title" aria-describedby="ptm-consent-copy" tabindex="-1">
-                <button type="button" class="ptm-consent-close" data-ptm-action="close" aria-label="Fermer sans accepter">×</button>
+                <button type="button" class="ptm-consent-close" data-ptm-action="close" aria-label="<?php echo esc_attr__( 'Close without accepting', 'dendrila-privacy' ); ?>">×</button>
                 <div class="ptm-consent-main">
-                    <h2 id="ptm-consent-title">Votre choix compte</h2>
-                    <p id="ptm-consent-copy">Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés.<?php if ( $this->session_replay_detected() ) : ?> Des outils présents sur ce site peuvent reconstituer vos interactions (clics, défilements et éventuellement saisies) sous forme de rejeu de session, selon leur configuration. Cette fonctionnalité, lorsqu’elle est activée, nécessite votre accord préalable.<?php endif; ?></p>
-                    <div class="ptm-consent-actions" role="group" aria-label="Choix de consentement">
-                        <button type="button" class="ptm-consent-choice" data-ptm-action="reject">Tout refuser</button>
-                        <button type="button" class="ptm-consent-choice" data-ptm-action="accept">Tout accepter</button>
-                        <button type="button" class="ptm-consent-customize" data-ptm-action="customize" aria-expanded="false">Personnaliser</button>
+                    <h2 id="ptm-consent-title"><?php echo esc_html__( 'Your choice matters', 'dendrila-privacy' ); ?></h2>
+                    <p id="ptm-consent-copy"><?php echo esc_html__( 'This site uses only what is necessary for its operation. Optional services remain blocked until you accept them.', 'dendrila-privacy' ); ?><?php if ( $this->session_replay_detected() ) : ?> <?php echo esc_html__( 'Some tools on this site may reconstruct interactions (clicks, scrolling, and possibly input) as a session replay, depending on their configuration. If enabled, this feature requires your prior consent.', 'dendrila-privacy' ); ?><?php endif; ?></p>
+                    <div class="ptm-consent-actions" role="group" aria-label="<?php echo esc_attr__( 'Consent choices', 'dendrila-privacy' ); ?>">
+                        <button type="button" class="ptm-consent-choice" data-ptm-action="reject"><?php echo esc_html__( 'Reject all', 'dendrila-privacy' ); ?></button>
+                        <button type="button" class="ptm-consent-choice" data-ptm-action="accept"><?php echo esc_html__( 'Accept all', 'dendrila-privacy' ); ?></button>
+                        <button type="button" class="ptm-consent-customize" data-ptm-action="customize" aria-expanded="false"><?php echo esc_html__( 'Customize', 'dendrila-privacy' ); ?></button>
                     </div>
                     <div class="ptm-consent-preferences" hidden>
-                        <label class="ptm-consent-row"><span><strong>Nécessaires</strong><small>Fonctionnement et sécurité essentiels.</small></span><input type="checkbox" checked disabled></label>
-                        <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Mesure d’audience</strong><small>Comprendre l’usage du site<?php if ( $this->session_replay_detected() ) : ?> ; cela peut inclure le rejeu d’un parcours de navigation selon les fonctions activées<?php endif; ?>.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
-                        <?php if ( in_array('external',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Contenus externes</strong><small>Vidéos, cartes ou contenus venant d’un autre service.</small></span><input type="checkbox" data-ptm-category-toggle="external"></label><?php endif; ?>
-                        <?php if ( in_array('marketing',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong>Marketing et suivi</strong><small>Mesure individualisée ou publicité.</small></span><input type="checkbox" data-ptm-category-toggle="marketing"></label><?php endif; ?>
-                        <button type="button" class="ptm-consent-save" data-ptm-action="save">Enregistrer mes choix</button>
+                        <label class="ptm-consent-row"><span><strong><?php echo esc_html__( 'Necessary', 'dendrila-privacy' ); ?></strong><small><?php echo esc_html__( 'Essential functionality and security.', 'dendrila-privacy' ); ?></small></span><input type="checkbox" checked disabled></label>
+                        <?php if ( in_array('statistics',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong><?php echo esc_html__( 'Audience measurement', 'dendrila-privacy' ); ?></strong><small><?php echo esc_html__( 'Understand how the site is used', 'dendrila-privacy' ); ?><?php if ( $this->session_replay_detected() ) : ?> ; <?php echo esc_html__( 'this may include replaying a browsing session depending on enabled features', 'dendrila-privacy' ); ?><?php endif; ?>.</small></span><input type="checkbox" data-ptm-category-toggle="statistics"></label><?php endif; ?>
+                        <?php if ( in_array('external',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong><?php echo esc_html__( 'External content', 'dendrila-privacy' ); ?></strong><small><?php echo esc_html__( 'Videos, maps, or content from another service.', 'dendrila-privacy' ); ?></small></span><input type="checkbox" data-ptm-category-toggle="external"></label><?php endif; ?>
+                        <?php if ( in_array('marketing',$cats,true) ) : ?><label class="ptm-consent-row"><span><strong><?php echo esc_html__( 'Marketing and tracking', 'dendrila-privacy' ); ?></strong><small><?php echo esc_html__( 'Individual measurement or advertising.', 'dendrila-privacy' ); ?></small></span><input type="checkbox" data-ptm-category-toggle="marketing"></label><?php endif; ?>
+                        <button type="button" class="ptm-consent-save" data-ptm-action="save"><?php echo esc_html__( 'Save my choices', 'dendrila-privacy' ); ?></button>
                     </div>
                 </div>
             </div>
@@ -373,7 +373,7 @@ final class Pixel_Trackers_Manager_Consent {
         if ( ! $this->rendered ) { $this->render_banner(); }
         $settings = $this->plugin->public_settings();
         if ( ! empty( $settings['consent_footer_link'] ) ) {
-            echo '<div class="ptm-consent-footer-link"><button type="button" class="ptm-consent-open" data-ptm-consent-open="preferences" aria-haspopup="dialog">'.esc_html__('Gérer mes choix','dendrila-privacy').'</button></div>';
+            echo '<div class="ptm-consent-footer-link"><button type="button" class="ptm-consent-open" data-ptm-consent-open="preferences" aria-haspopup="dialog">'.esc_html__( 'Manage my choices', 'dendrila-privacy' ).'</button></div>';
         }
     }
 

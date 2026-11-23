@@ -103,3 +103,63 @@ msgstr "Vérifier les coordonnées sur la source officielle"
 
 msgid "Current page: "
 msgstr "Page en cours : "
+msgid "Your choice matters"
+msgstr "Votre choix compte"
+
+msgid "Reject all"
+msgstr "Tout refuser"
+
+msgid "Accept all"
+msgstr "Tout accepter"
+
+msgid "Customize"
+msgstr "Personnaliser"
+
+msgid "Necessary"
+msgstr "Nécessaires"
+
+msgid "Essential functionality and security."
+msgstr "Fonctionnement et sécurité essentiels."
+
+msgid "Audience measurement"
+msgstr "Mesure d’audience"
+
+msgid "External content"
+msgstr "Contenus externes"
+
+msgid "Videos, maps, or content from another service."
+msgstr "Vidéos, cartes ou contenus venant d’un autre service."
+
+msgid "Marketing and tracking"
+msgstr "Marketing et suivi"
+
+msgid "Individual measurement or advertising."
+msgstr "Mesure individualisée ou publicité."
+
+msgid "Save my choices"
+msgstr "Enregistrer mes choix"
+
+msgid "Close without accepting"
+msgstr "Fermer sans accepter"
+
+msgid "Consent choices"
+msgstr "Choix de consentement"
+
+msgid "This site uses only what is necessary for its operation. Optional services remain blocked until you accept them."
+msgstr "Ce site utilise ce qui est nécessaire à son fonctionnement. Les services facultatifs restent bloqués tant que vous ne les avez pas acceptés."
+
+msgid "Some tools on this site may reconstruct interactions (clicks, scrolling, and possibly input) as a session replay, depending on their configuration. If enabled, this feature requires your prior consent."
+msgstr "Des outils présents sur ce site peuvent reconstituer vos interactions (clics, défilements et éventuellement saisies) sous forme de rejeu de session, selon leur configuration. Cette fonctionnalité, lorsqu’elle est activée, nécessite votre accord préalable."
+
+msgid "Understand how the site is used"
+msgstr "Comprendre l’usage du site"
+
+msgid "this may include replaying a browsing session depending on enabled features"
+msgstr "cela peut inclure le rejeu d’un parcours de navigation selon les fonctions activées"
+
+msgid "Manage my choices"
+msgstr "Gérer mes choix"
+
+msgid "Dendrila Privacy — Manage my choices"
+msgstr "Dendrila Privacy — Gérer mes choix"
+
