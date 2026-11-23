@@ -95,6 +95,7 @@ foreach ( array( $parent . '/inc/components', $child . '/inc/components', $paren
 $GLOBALS['dendrila_test_parent'] = $parent;
 $GLOBALS['dendrila_test_child'] = $child;
 file_put_contents( $parent . '/inc/components/styles.php', "<?php\n// fonts.googleapis.com referenced conditionally.\n" );
+file_put_contents( $parent . '/inc/components/replay.js', "// edge.fullstory.com/s/fs.js is mentioned in theme code.\n" );
 file_put_contents( $child . '/inc/components/styles.php', "<?php\n// Same path does not override a module.\n" );
 file_put_contents( $parent . '/template-parts/header.php', "<?php\n// fonts.gstatic.com conditional.\n" );
 file_put_contents( $child . '/template-parts/header.php', "<?php\n// Child template.\n" );
@@ -129,8 +130,10 @@ $finalize->setAccessible( true );
 $theme_findings = $finalize->invoke( $plugin, array(), array(), $refs );
 check( ! empty( $theme_findings['google-fonts']['theme_references'] ), 'theme file paths remain attached to the finding' );
 check( empty( $theme_findings['google-fonts']['active_tracking'] ) && 'potential' === $theme_findings['google-fonts']['tracking_state'], 'theme-only references do not create active tracking' );
+check( ! empty( $theme_findings['fullstory']['theme_references'] ), 'generic tracker references retain the theme file path' );
+check( empty( $theme_findings['fullstory']['active_tracking'] ) && 'potential' === $theme_findings['fullstory']['tracking_state'], 'generic tracker mentions in theme code do not become active' );
 check( empty( array_filter( $theme_findings, static function ( $finding ) { return ! empty( $finding['active_tracking'] ); } ) ), 'static references in any theme produce no active count' );
-foreach ( array( $child . '/inc/components/styles.php', $child . '/template-parts/header.php', $child . '/functions.php', $child . '/custom-loader.php', $child . '/single.php', $child . '/style.css', $parent . '/inc/components/styles.php', $parent . '/template-parts/header.php', $parent . '/functions.php', $parent . '/custom-loader.php', $parent . '/single.php' ) as $path ) { unlink( $path ); }
+foreach ( array( $child . '/inc/components/styles.php', $child . '/template-parts/header.php', $child . '/functions.php', $child . '/custom-loader.php', $child . '/single.php', $child . '/style.css', $parent . '/inc/components/styles.php', $parent . '/inc/components/replay.js', $parent . '/template-parts/header.php', $parent . '/functions.php', $parent . '/custom-loader.php', $parent . '/single.php' ) as $path ) { unlink( $path ); }
 foreach ( array( $child . '/inc/components', $child . '/inc', $child . '/template-parts', $parent . '/inc/components', $parent . '/inc', $parent . '/template-parts', $child, $parent, $root ) as $dir ) { rmdir( $dir ); }
 $plain = sys_get_temp_dir() . '/dendrila-plain-theme-' . uniqid( '', true );
 check( mkdir( $plain, 0700, true ), 'create theme without a child fixture' );
