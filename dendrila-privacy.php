@@ -1004,6 +1004,9 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function finding_evidence_status( $finding ) {
         $state = isset($finding['tracking_state']) ? (string)$finding['tracking_state'] : 'potential';
+        if ( 'inline_code_reference' === ( $finding['tracking_basis'] ?? '' ) ) {
+            return array( 'label' => 'Ressource affectée dans un script inline — exécution à vérifier', 'tone' => 'neutral' );
+        }
         if ( 'google-fonts' === ( $finding['id'] ?? '' ) ) {
             if ( ! empty( $finding['observed_html'] ) ) { return array( 'label' => 'Déclaration à vérifier dans Réseau', 'tone' => 'warn' ); }
             if ( ! empty( $finding['theme_references'] ) ) { return array( 'label' => 'Mention dans le code du thème', 'tone' => 'neutral' ); }
@@ -2111,6 +2114,7 @@ final class Pixel_Trackers_Manager_Plugin {
 
     private function technical_surface( $html ) {
         $chunks = array();
+        $inline_chunks = array();
         $html = preg_replace( '/<!--.*?(?:-->|$)/s', '', $html );
         // These containers are not executed/rendered as ordinary resource markup.
         // Nested templates are removed from the inside out.
@@ -2118,13 +2122,21 @@ final class Pixel_Trackers_Manager_Plugin {
             $previous = $html;
             $html = preg_replace( '~<(template|noscript|textarea|title|xmp)\b[^>]*>.*?</\1\s*>~is', '', $html );
         } while ( $previous !== $html );
-        // An inline script can mention a vendor URL in a comment, config, string, or
-        // code path that never runs. Only a src attribute is an HTML declaration.
+        // Plain strings/configuration in scripts are not evidence. Preserve only
+        // explicit resource URL assignments, marked separately from HTML declarations.
         // Keep Dendrila-blocked tags so their data-ptm-src/data-ptm-href stays visible.
-        $html = preg_replace_callback( '~<script\b([^>]*)>.*?</script\s*>~is', function ( $match ) {
+        $html = preg_replace_callback( '~<script\b([^>]*)>(.*?)</script\s*>~is', function ( $match ) use ( &$inline_chunks ) {
             $attributes = $this->parse_html_attributes( $match[1] );
             $is_external = isset( $attributes['src'] ) && '' !== $attributes['src'];
             $is_blocked = isset( $attributes['data-ptm-blocked'] ) && '1' === $attributes['data-ptm-blocked'];
+            $script_type = strtolower( trim( (string) strtok( (string) ( $attributes['type'] ?? '' ), ';' ) ) );
+            $is_executable_script = '' === $script_type || 'module' === $script_type || in_array( $script_type, array( 'text/javascript', 'application/javascript', 'application/ecmascript', 'text/ecmascript', 'application/x-javascript', 'text/x-javascript', 'application/x-ecmascript', 'text/x-ecmascript', 'text/jscript' ), true );
+            if ( ! $is_blocked && ! $is_executable_script ) { return ''; }
+            if ( ! $is_external && ! $is_blocked ) {
+                foreach ( $this->inline_script_resource_urls( $match[2] ) as $url ) {
+                    $inline_chunks[] = 'inline-script-src ' . $url;
+                }
+            }
             if ( ! $is_external && ! $is_blocked ) { return ''; }
             return '<script ' . $match[1] . '></script>';
         }, $html );
@@ -2164,7 +2176,118 @@ final class Pixel_Trackers_Manager_Plugin {
                 }
             }
         }
-        return implode( "\n", $chunks );
+        return implode( "\n", array_merge( $chunks, $inline_chunks ) );
+    }
+
+    /**
+     * Find explicit URL literals assigned to resource attributes in executable
+     * inline JavaScript. Configuration strings, comments, and inert text are skipped.
+     * This records a code reference only; execution and network activity are unverified.
+     *
+     * @return string[]
+     */
+    private function inline_script_resource_urls( $javascript ) {
+        $javascript = (string) $javascript;
+        $length = strlen( $javascript );
+        $tokens = array();
+        for ( $i = 0; $i < $length; ) {
+            if ( ctype_space( $javascript[ $i ] ) ) { ++$i; continue; }
+            if ( '/' === $javascript[ $i ] && $i + 1 < $length && '/' === $javascript[ $i + 1 ] ) {
+                $end = strpos( $javascript, "\n", $i + 2 );
+                $i = false === $end ? $length : $end + 1;
+                continue;
+            }
+            if ( '/' === $javascript[ $i ] && $i + 1 < $length && '*' === $javascript[ $i + 1 ] ) {
+                $end = strpos( $javascript, '*/', $i + 2 );
+                $i = false === $end ? $length : $end + 2;
+                continue;
+            }
+            $previous = $tokens ? end( $tokens ) : null;
+            $regex_context = ! $previous || ( 'punct' === $previous['type'] && in_array( $previous['value'], array( '=', '(', '[', '{', ':', ',', ';', '!', '?', '&', '|' ), true ) ) || ( 'id' === ( $previous['type'] ?? '' ) && in_array( $previous['value'], array( 'return', 'throw', 'case', 'typeof', 'instanceof', 'in', 'of', 'yield', 'await' ), true ) );
+            if ( '/' === $javascript[ $i ] && $regex_context ) {
+                // A slash in an expression-start position can open a regexp literal.
+                // Skip the literal so `.src='…'` in its pattern is not code evidence.
+                ++$i;
+                $in_character_class = false;
+                while ( $i < $length ) {
+                    if ( '\\' === $javascript[ $i ] ) { $i += 2; continue; }
+                    if ( '[' === $javascript[ $i ] ) { $in_character_class = true; }
+                    elseif ( ']' === $javascript[ $i ] ) { $in_character_class = false; }
+                    elseif ( '/' === $javascript[ $i ] && ! $in_character_class ) { ++$i; break; }
+                    ++$i;
+                }
+                while ( $i < $length && ctype_alpha( $javascript[ $i ] ) ) { ++$i; }
+                continue;
+            }
+            if ( ctype_alpha( $javascript[ $i ] ) || '_' === $javascript[ $i ] || '$' === $javascript[ $i ] ) {
+                $start = $i++;
+                while ( $i < $length && ( ctype_alnum( $javascript[ $i ] ) || '_' === $javascript[ $i ] || '$' === $javascript[ $i ] ) ) { ++$i; }
+                $tokens[] = array( 'type' => 'id', 'value' => substr( $javascript, $start, $i - $start ) );
+                continue;
+            }
+            if ( '"' === $javascript[ $i ] || "'" === $javascript[ $i ] || '`' === $javascript[ $i ] ) {
+                $quote = $javascript[ $i++ ];
+                $value = '';
+                $has_interpolation = false;
+                while ( $i < $length ) {
+                    $char = $javascript[ $i++ ];
+                    if ( '\\' === $char && $i < $length ) {
+                        $escaped = $javascript[ $i++ ];
+                        $value .= '\\' . $escaped;
+                        continue;
+                    }
+                    if ( '`' === $quote && '$' === $char && $i < $length && '{' === $javascript[ $i ] ) { $has_interpolation = true; }
+                    if ( $quote === $char ) { break; }
+                    $value .= $char;
+                }
+                $tokens[] = array( 'type' => '`' === $quote && $has_interpolation ? 'template' : 'string', 'value' => $value );
+                continue;
+            }
+            $tokens[] = array( 'type' => 'punct', 'value' => $javascript[ $i++ ] );
+        }
+
+        $urls = array();
+        $signature_patterns = array();
+        foreach ( $this->signatures() as $signature ) { $signature_patterns = array_merge( $signature_patterns, (array) $signature['patterns'] ); }
+        $add_url = static function ( $value ) use ( &$urls, $signature_patterns ) {
+            $value = strtr( trim( (string) $value ), array( '\\/' => '/', '\\"' => '"', "\\'" => "'" ) );
+            $known_resource = false;
+            foreach ( $signature_patterns as $pattern ) { if ( false !== stripos( $value, $pattern ) ) { $known_resource = true; break; } }
+            if ( $known_resource || preg_match( '~^(?:https?:)?//[^\s"\']+~i', $value ) ) { $urls[] = $value; }
+        };
+        $count = count( $tokens );
+        for ( $i = 0; $i < $count; ++$i ) {
+            // script.src = "https://…" and script["src"] = "https://…"
+            if ( isset( $tokens[ $i + 1 ], $tokens[ $i + 2 ], $tokens[ $i + 3 ] ) && '.' === $tokens[ $i ]['value'] && 'id' === $tokens[ $i + 1 ]['type'] && 'src' === strtolower( $tokens[ $i + 1 ]['value'] ) && '=' === $tokens[ $i + 2 ]['value'] && in_array( $tokens[ $i + 3 ]['type'], array( 'string', 'template' ), true ) ) {
+                $add_url( $tokens[ $i + 3 ]['value'] );
+            }
+            if ( isset( $tokens[ $i + 1 ], $tokens[ $i + 2 ], $tokens[ $i + 3 ], $tokens[ $i + 4 ] ) && '[' === $tokens[ $i ]['value'] && 'string' === $tokens[ $i + 1 ]['type'] && 'src' === strtolower( $tokens[ $i + 1 ]['value'] ) && ']' === $tokens[ $i + 2 ]['value'] && '=' === $tokens[ $i + 3 ]['value'] && in_array( $tokens[ $i + 4 ]['type'], array( 'string', 'template' ), true ) ) {
+                $add_url( $tokens[ $i + 4 ]['value'] );
+            }
+            // element.setAttribute("src", "https://…")
+            if ( 'id' === $tokens[ $i ]['type'] && 'setAttribute' === $tokens[ $i ]['value'] && isset( $tokens[ $i + 1 ], $tokens[ $i + 2 ], $tokens[ $i + 3 ], $tokens[ $i + 4 ], $tokens[ $i + 5 ] ) && '(' === $tokens[ $i + 1 ]['value'] && 'string' === $tokens[ $i + 2 ]['type'] && 'src' === strtolower( $tokens[ $i + 2 ]['value'] ) && ',' === $tokens[ $i + 3 ]['value'] && in_array( $tokens[ $i + 4 ]['type'], array( 'string', 'template' ), true ) && ')' === $tokens[ $i + 5 ]['value'] ) {
+                $add_url( $tokens[ $i + 4 ]['value'] );
+            }
+            // HTML strings become resource declarations only when passed to an API
+            // that inserts or writes markup, rather than merely stored in config.
+            $html_value = null;
+            if ( 'id' === $tokens[ $i ]['type'] && in_array( $tokens[ $i ]['value'], array( 'write', 'writeln', 'insertAdjacentHTML' ), true ) && isset( $tokens[ $i + 1 ], $tokens[ $i + 2 ] ) && '(' === $tokens[ $i + 1 ]['value'] ) {
+                $arg = 'insertAdjacentHTML' === $tokens[ $i ]['value'] ? $i + 4 : $i + 2;
+                if ( isset( $tokens[ $arg ] ) && 'string' === $tokens[ $arg ]['type'] ) { $html_value = $tokens[ $arg ]['value']; }
+            } elseif ( '.' === $tokens[ $i ]['value'] && isset( $tokens[ $i + 1 ], $tokens[ $i + 2 ], $tokens[ $i + 3 ] ) && 'id' === $tokens[ $i + 1 ]['type'] && 'innerHTML' === $tokens[ $i + 1 ]['value'] && '=' === $tokens[ $i + 2 ]['value'] && 'string' === $tokens[ $i + 3 ]['type'] ) {
+                $html_value = $tokens[ $i + 3 ]['value'];
+            }
+            if ( null !== $html_value ) {
+                $html_value = strtr( $html_value, array( '\\"' => '"', "\\'" => "'" ) );
+                preg_match_all( '~<(?:script|iframe|img|link|source)\b(?:[^<>"\']|"[^"]*"|\'[^\']*\')*>~i', $html_value, $tags );
+                foreach ( $tags[0] as $tag ) {
+                    if ( ! preg_match( '~^<[a-z]+\b(.*?)>$~is', $tag, $tag_match ) ) { continue; }
+                    $attributes = $this->parse_html_attributes( $tag_match[1] );
+                    foreach ( array( 'src', 'href' ) as $attribute ) { if ( ! empty( $attributes[ $attribute ] ) ) { $add_url( $attributes[ $attribute ] ); } }
+                }
+            }
+        }
+        return array_values( array_unique( $urls ) );
     }
 
     /** Parse actual tag attributes while consuming their quoted values as a unit. */
@@ -2351,7 +2474,7 @@ final class Pixel_Trackers_Manager_Plugin {
         $blocked_lower = strtolower( (string) $blocked_surface );
 
         foreach ( $this->signatures() as $id => $signature ) {
-            $evidence = array(); $blocked_evidence = array();
+            $evidence = array(); $blocked_evidence = array(); $inline_code_evidence = false; $html_declaration_evidence = false;
             if ( 'google-fonts' === $id ) {
                 $fonts = $this->google_fonts_html_evidence( $html );
                 $evidence = $fonts['load'];
@@ -2370,6 +2493,8 @@ final class Pixel_Trackers_Manager_Plugin {
                         $start = max( 0, $pos - 70 );
                         $snippet = substr( $active_surface, $start, 220 );
                         $evidence[] = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $snippet ) ) );
+                        if ( false !== strpos( $snippet, 'inline-script-src ' ) ) { $inline_code_evidence = true; }
+                        else { $html_declaration_evidence = true; }
                         continue;
                     }
                     $pos = strpos( $blocked_lower, $needle );
@@ -2390,7 +2515,9 @@ final class Pixel_Trackers_Manager_Plugin {
                     $findings[ $id ]['observed_html_unblocked'] = true;
                     $findings[ $id ]['active_tracking'] = false;
                     $findings[ $id ]['tracking_state'] = 'potential';
-                    $findings[ $id ]['tracking_basis'] = 'html_declaration';
+                    $has_prior_html_declaration = 'html_declaration' === ( $findings[ $id ]['tracking_basis'] ?? '' );
+                    $findings[ $id ]['tracking_basis'] = $html_declaration_evidence || $has_prior_html_declaration ? 'html_declaration' : ( $inline_code_evidence ? 'inline_code_reference' : 'html_declaration' );
+                    if ( 'inline_code_reference' === $findings[ $id ]['tracking_basis'] ) { $findings[ $id ]['inline_code_reference'] = true; }
                     $findings[ $id ]['blocked_by_consent'] = false;
                     $findings[ $id ]['evidence'] = array_merge( $findings[ $id ]['evidence'], $evidence );
                 } elseif ( empty( $findings[ $id ]['active_tracking'] ) && empty( $findings[ $id ]['observed_html_unblocked'] ) ) {
@@ -2423,11 +2550,14 @@ final class Pixel_Trackers_Manager_Plugin {
                 } elseif ( ! empty( $findings[ $id ]['observed_html'] ) ) {
                     $findings[ $id ]['active_tracking'] = false;
                     $findings[ $id ]['tracking_state'] = 'potential';
-                    $findings[ $id ]['tracking_basis'] = 'html_declaration';
-                    if ( 'google-fonts' === $id ) {
+                    if ( 'inline_code_reference' === ( $findings[ $id ]['tracking_basis'] ?? '' ) ) {
+                        $findings[ $id ]['source'] = 'URL de ressource affectée dans un script inline ; exécution et requête réseau non vérifiées';
+                    } elseif ( 'google-fonts' === $id ) {
+                        $findings[ $id ]['tracking_basis'] = 'html_declaration';
                         $findings[ $id ]['confidence'] = 'faible';
                         $findings[ $id ]['source'] = 'Lien vers une ressource Google Fonts dans le HTML : confirmer la requête dans Réseau / Network';
                     } else {
+                        $findings[ $id ]['tracking_basis'] = 'html_declaration';
                         $findings[ $id ]['confidence'] = 'faible';
                         $findings[ $id ]['source'] = $plugin_sources ? 'Ressource déclarée dans le HTML ; extension présente : ' . $plugin_sources[0]['name'] . ' ; requête réseau non vérifiée' : 'Ressource déclarée dans le HTML/CSS ; requête réseau non vérifiée';
                     }
@@ -6334,6 +6464,7 @@ final class Pixel_Trackers_Manager_Plugin {
                 $is_tracking = ! isset( $finding['is_tracking'] ) || ! empty( $finding['is_tracking'] );
                 if ( ! $is_tracking && 'active' === $state ) { $badge = '<span class="ptm-badge warn">Chargé à distance</span>'; }
                 elseif ( 'active' === $state && 'technical_html' === ( isset( $finding['tracking_basis'] ) ? $finding['tracking_basis'] : '' ) ) { $badge = '<span class="ptm-badge warn">Déclaré, réseau à vérifier</span>'; }
+                elseif ( 'inline_code_reference' === ( $finding['tracking_basis'] ?? '' ) ) { $badge = '<span class="ptm-badge neutral">Ressource dans un script inline, à vérifier</span>'; }
                 elseif ( 'active' === $state ) { $badge = '<span class="ptm-badge bad">Actif</span>'; }
                 elseif ( 'disabled' === $state ) { $badge = '<span class="ptm-badge good">Suivi désactivé</span>'; }
                 elseif ( 'blocked' === $state ) { $badge = '<span class="ptm-badge good">Bloqué avant choix</span>'; }
@@ -6406,7 +6537,8 @@ final class Pixel_Trackers_Manager_Plugin {
             echo '<article class="ptm-finding"><div class="ptm-finding-title"><div><h3>'.esc_html($finding['label']).'</h3><p>'.esc_html($finding['category']).'</p></div><div>';
             echo '<span class="ptm-badge '.esc_attr($evidence_status['tone']).'">'.esc_html($evidence_status['label']).'</span></div></div>';
             $summary='';
-            if(!empty($finding['observed_html'])){$summary='Une ressource est déclarée dans le HTML/CSS. La requête réseau et son exécution ne sont pas vérifiées.';}
+            if ( 'inline_code_reference' === ( $finding['tracking_basis'] ?? '' ) ) { $summary = 'Une URL de ressource est affectée dans un script inline. Cela ne confirme ni l’exécution du code ni une requête réseau.'; }
+            elseif(!empty($finding['observed_html'])){$summary='Une ressource est déclarée dans le HTML/CSS. La requête réseau et son exécution ne sont pas vérifiées.';}
             elseif('disabled'===(isset($finding['tracking_state'])?$finding['tracking_state']:'')){$summary='Le service est présent, mais le suivi concerné est désactivé.';}
             elseif(!empty($finding['plugin_sources'])){$summary='Une intégration connue est présente ; l’activation réelle reste à confirmer si aucune trace n’a été observée.';}
             elseif(!empty($finding['code_reference'])){$summary='Une référence technique existe, sans preuve suffisante de suivi actif.';}
