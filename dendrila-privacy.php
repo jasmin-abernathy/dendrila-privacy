@@ -2323,7 +2323,8 @@ final class Pixel_Trackers_Manager_Plugin {
                 $hints[] = 'Référence Google Fonts dans un lien sans déclaration de feuille de style ni préchargement de police';
             }
         }
-        foreach ( $tags[0] as $tag ) {
+        foreach ( $tags[0] as $tag_entry ) {
+            $tag = $tag_entry[0];
             if ( ! preg_match( '~^<[a-z][\w:-]*(.*?)>$~is', $tag, $tag_match ) ) { continue; }
             $attributes = $this->parse_html_attributes( $tag_match[1] );
             if ( empty( $attributes['style'] ) ) { continue; }
